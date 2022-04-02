@@ -2,6 +2,7 @@
 data-out/
 data-in/
 data-test/
+config.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

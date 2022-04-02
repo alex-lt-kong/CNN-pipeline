@@ -1,8 +1,10 @@
+from subprocess import Popen, PIPE
+from sklearn import metrics
 from tensorflow import keras
 from tensorflow.keras import layers
-from subprocess import Popen, PIPE
 
-
+import argparse
+import json
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,8 +12,25 @@ import os
 import sys
 import tensorflow as tf
 
-image_size = (144, 256)
-batch_size = 8
+
+def read_config_file():
+  ap = argparse.ArgumentParser()
+  ap.add_argument(
+    '--config', 
+    dest='config',
+    help='the path of the JSON format configuration file to be used by the model',
+    default='./config.json'
+  )
+  args = vars(ap.parse_args())
+  config_path = args['config']
+  if os.path.isfile(config_path) is False:
+    raise FileNotFoundError(f'File [{config_path}] not found')
+  with open(config_path, 'r') as json_file:
+    json_str = json_file.read()
+    settings = json.loads(json_str)
+
+  return settings
+
 
 def initialize_logger():
   logger = logging.getLogger()
@@ -57,7 +76,7 @@ def remove_invalid_samples():
   logging.info(f"Deleted {num_skipped} images")
 
 
-def prepare_dataset():
+def prepare_dataset(image_size, batch_size):
 
   train_ds = tf.keras.preprocessing.image_dataset_from_directory(
     "data-in",
@@ -78,19 +97,30 @@ def prepare_dataset():
   return train_ds, val_ds
 
 
-def preview_samples():
-  count = 0
+def preview_samples(dest_dir, train_ds, batch_size):
+
   for images, labels in train_ds.take(1):
-    for i in range(batch_size):
-      count += 1
+    for i in range(len(images)):
+      label_dir = os.path.join(dest_dir, str(labels[i]))
+      if os.path.isdir(label_dir) is False:
+        os.mkdir(label_dir)
+
       tf.keras.utils.save_img(
-        f'data-out/sample-preview/{labels[i]}/{count}.jpg',
+        os.path.join(label_dir, f'{i}.jpg'),
         images[i].numpy().astype("uint8")
       )
 
    # print(type(images[0]))
 
 def make_model(input_shape, num_classes):
+
+    data_augmentation = keras.Sequential(
+      [
+        layers.RandomFlip("horizontal"),
+        layers.RandomRotation(0.1)
+      ]
+    )
+
     inputs = keras.Input(shape=input_shape)
     # Image augmentation block
     x = data_augmentation(inputs)
@@ -142,56 +172,57 @@ def make_model(input_shape, num_classes):
     return keras.Model(inputs, outputs)
 
 
+def get_confusion_matrix(model, val_ds, train_ds):
+  y_pred = []
+  y_true = []
+  for x, y in val_ds:
+      y_pred.extend(model.predict(x))
+      y_true.extend(y.numpy())
+  y_pred_cat = np.rint([item for sublist in y_pred for item in sublist]) 
+
+  disp = metrics.ConfusionMatrixDisplay.from_predictions(y_true=y_true, y_pred=y_pred_cat)
+  disp.figure_.suptitle("Confusion Matrix")
+  print(f"Confusion matrix:\n{disp.confusion_matrix}")
 
 
-initialize_logger()
-check_gpu()
-remove_invalid_samples()
-train_ds, val_ds = prepare_dataset()
-preview_samples()
+def main():
+  settings = read_config_file()
+  image_size = (
+    settings['dataset']['image']['height'],
+    settings['dataset']['image']['width']
+  )
+  batch_size = settings['model']['batch_size']
+  
+  initialize_logger()
+  check_gpu()
+  #remove_invalid_samples()
+  train_ds, val_ds = prepare_dataset(image_size=image_size, batch_size=batch_size)
+ # preview_samples(
+ #   dest_dir=settings['dataset']['preview_save_to'],
+ #   train_ds=train_ds,
+ #   batch_size=batch_size
+ # )
+  
+  train_ds = train_ds.prefetch(buffer_size=32)
+  val_ds = val_ds.prefetch(buffer_size=32)
 
-train_ds = train_ds.prefetch(buffer_size=32)
-val_ds = val_ds.prefetch(buffer_size=32)
-data_augmentation = keras.Sequential(
-  [
-    layers.RandomFlip("horizontal"),
-    layers.RandomRotation(0.1),
-  ]
-)
-
-if os.path.exists('./model.dat'):
-  model = keras.models.load_model('./model.dat')
-else:
   model = make_model(input_shape=image_size + (3,), num_classes=2)
-  keras.utils.plot_model(model, show_shapes=True, to_file='model.png')
+  keras.utils.plot_model(
+    model,
+    show_shapes=True,
+    to_file=settings['model']['plot_save_to']
+  )
 
-  epochs = 100
-
-  callbacks = [
-    #  keras.callbacks.ModelCheckpoint("save_at_{epoch}.h5"),
-  ]
   model.compile(
       optimizer=keras.optimizers.Adam(1e-3),
       loss="binary_crossentropy",
-      metrics=["accuracy"],
+      metrics=["accuracy", 'AUC'],
   )
 
-  model.fit(train_ds, epochs=epochs, callbacks=callbacks, validation_data=val_ds)
-  model.save('./model.dat')  
+  model.fit(train_ds, epochs=settings['model']['epochs'], validation_data=val_ds)
+  model.save(settings['model']['save_to'])  
+  get_confusion_matrix(model=model, val_ds=val_ds, train_ds=train_ds)
 
 
-y_pred = []
-y_true = []
-for x, y in val_ds:
-    y_pred.extend(model.predict(x))
-    y_true.extend(y.numpy())
-for x, y in train_ds:
-    y_pred.extend(model.predict(x))
-    y_true.extend(y.numpy())
-y_pred_cat = np.rint([item for sublist in y_pred for item in sublist])
-
-from sklearn import metrics
-
-disp = metrics.ConfusionMatrixDisplay.from_predictions(y_true=y_true, y_pred=y_pred_cat)
-disp.figure_.suptitle("Confusion Matrix")
-print(f"Confusion matrix:\n{disp.confusion_matrix}")
+if __name__ == '__main__':
+  main()

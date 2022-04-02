@@ -1,0 +1,16 @@
+{
+  "dataset":{
+    "path": "./data-in",
+    "image": {
+      "width": 256,
+      "height": 144
+    },
+    "preview_save_to": "./data-out/sample-preview"
+  },
+  "model": {
+    "epochs": 100,
+    "batch_size": 4,
+    "save_to": "./trained-model",
+    "plot_save_to": ".a/trained-model.png"
+  }
+}
