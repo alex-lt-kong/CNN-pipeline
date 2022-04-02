@@ -1,1 +1,1 @@
-# image-classification-pipeline-component
+# Image Classification Pipeline Component
