@@ -1,54 +1,13 @@
-from subprocess import Popen, PIPE
 from sklearn import metrics
 from tensorflow import keras
 from tensorflow.keras import layers
 
-import argparse
-import json
+import utils
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import sys
 import tensorflow as tf
-
-
-def read_config_file():
-  ap = argparse.ArgumentParser()
-  ap.add_argument(
-    '--config', 
-    dest='config',
-    help='the path of the JSON format configuration file to be used by the model',
-    default='./config.json'
-  )
-  args = vars(ap.parse_args())
-  config_path = args['config']
-  if os.path.isfile(config_path) is False:
-    raise FileNotFoundError(f'File [{config_path}] not found')
-  with open(config_path, 'r') as json_file:
-    json_str = json_file.read()
-    settings = json.loads(json_str)
-
-  return settings
-
-
-def initialize_logger():
-  logger = logging.getLogger()
-  logger.setLevel(logging.DEBUG)
-
-  handler = logging.StreamHandler(sys.stdout)
-  handler.setLevel(logging.DEBUG)
-  formatter = logging.Formatter('%(asctime)s | %(levelname)6s | %(message)s')
-  handler.setFormatter(formatter)
-  logger.addHandler(handler)
-
-
-def check_gpu():
-  process = Popen(['nvidia-smi'], stdout=PIPE)
-  (output, err) = process.communicate()
-  exit_code = process.wait()
-  logging.info(output.decode('utf8'))
-  logging.info(tf.config.list_physical_devices('GPU'))
 
 
 def remove_invalid_samples():
@@ -74,27 +33,6 @@ def remove_invalid_samples():
         logging.debug(f'{fpath} seems valid')
 
   logging.info(f"Deleted {num_skipped} images")
-
-
-def prepare_dataset(image_size, batch_size):
-
-  train_ds = tf.keras.preprocessing.image_dataset_from_directory(
-    "data-in",
-    validation_split=0.2,
-    subset="training",
-    seed=2333,
-    image_size=image_size,
-    batch_size=batch_size,
-  )
-  val_ds = tf.keras.preprocessing.image_dataset_from_directory(
-    "data-in",
-    validation_split=0.2,
-    subset="validation",
-    seed=2333,
-    image_size=image_size,
-    batch_size=batch_size,
-  )
-  return train_ds, val_ds
 
 
 def preview_samples(dest_dir, train_ds, batch_size):
@@ -172,31 +110,18 @@ def make_model(input_shape, num_classes):
     return keras.Model(inputs, outputs)
 
 
-def get_confusion_matrix(model, val_ds, train_ds):
-  y_pred = []
-  y_true = []
-  for x, y in val_ds:
-      y_pred.extend(model.predict(x))
-      y_true.extend(y.numpy())
-  y_pred_cat = np.rint([item for sublist in y_pred for item in sublist]) 
-
-  disp = metrics.ConfusionMatrixDisplay.from_predictions(y_true=y_true, y_pred=y_pred_cat)
-  disp.figure_.suptitle("Confusion Matrix")
-  print(f"Confusion matrix:\n{disp.confusion_matrix}")
-
-
 def main():
-  settings = read_config_file()
+  settings = utils.read_config_file()
   image_size = (
     settings['dataset']['image']['height'],
     settings['dataset']['image']['width']
   )
   batch_size = settings['model']['batch_size']
   
-  initialize_logger()
-  check_gpu()
+  utils.initialize_logger()
+  utils.check_gpu()
   #remove_invalid_samples()
-  train_ds, val_ds = prepare_dataset(image_size=image_size, batch_size=batch_size)
+  train_ds, val_ds = utils.prepare_dataset(image_size=image_size, batch_size=batch_size)
  # preview_samples(
  #   dest_dir=settings['dataset']['preview_save_to'],
  #   train_ds=train_ds,
@@ -221,7 +146,7 @@ def main():
 
   model.fit(train_ds, epochs=settings['model']['epochs'], validation_data=val_ds)
   model.save(settings['model']['save_to'])  
-  get_confusion_matrix(model=model, val_ds=val_ds, train_ds=train_ds)
+  
 
 
 if __name__ == '__main__':
