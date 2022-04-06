@@ -8,6 +8,31 @@ import sys
 import tensorflow as tf
 
 
+def remove_invalid_samples():
+  num_skipped = 0
+  for folder_name in ("0", "1"):
+    folder_path = os.path.join("data-in", folder_name)
+    for fname in os.listdir(folder_path):
+      fpath = os.path.join(folder_path, fname)
+      try:
+        fobj = open(fpath, "rb")
+        is_jfif = tf.compat.as_bytes("JFIF") in fobj.peek(20)
+        is_jfif = (is_jfif or tf.compat.as_bytes("Lavc") in fobj.peek(20))
+      except Exception as ex:
+        logging.error(f'{ex}')
+      finally:
+        fobj.close()
+
+      if not is_jfif:
+        num_skipped += 1        
+        os.remove(fpath)
+        logging.info(f'{fpath} seems INvalid and is removed from filesystem')
+      else:
+        logging.debug(f'{fpath} seems valid')
+
+  logging.info(f"Deleted {num_skipped} images")
+
+
 def read_config_file():
   ap = argparse.ArgumentParser()
   ap.add_argument(
@@ -45,13 +70,13 @@ def initialize_logger():
   handler.setFormatter(formatter)
   logger.addHandler(handler)
 
-def prepare_dataset(image_size, batch_size):
+def prepare_dataset(image_size, batch_size, seed=2333):
 
   train_ds = tf.keras.preprocessing.image_dataset_from_directory(
     "data-in",
     validation_split=0.2,
     subset="training",
-    seed=2333,
+    seed=seed,
     image_size=image_size,
     batch_size=batch_size,
   )
@@ -59,7 +84,7 @@ def prepare_dataset(image_size, batch_size):
     "data-in",
     validation_split=0.2,
     subset="validation",
-    seed=2333,
+    seed=seed,
     image_size=image_size,
     batch_size=batch_size,
   )

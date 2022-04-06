@@ -1,0 +1,139 @@
+Model: "model"
+__________________________________________________________________________________________________
+ Layer (type)                   Output Shape         Param #     Connected to                     
+==================================================================================================
+ input_1 (InputLayer)           [(None, 144, 256, 3  0           []                               
+                                )]                                                                
+                                                                                                  
+ sequential (Sequential)        (None, 144, 256, 3)  0           ['input_1[0][0]']                
+                                                                                                  
+ rescaling (Rescaling)          (None, 144, 256, 3)  0           ['sequential[0][0]']             
+                                                                                                  
+ conv2d (Conv2D)                (None, 72, 128, 32)  896         ['rescaling[0][0]']              
+                                                                                                  
+ batch_normalization (BatchNorm  (None, 72, 128, 32)  128        ['conv2d[0][0]']                 
+ alization)                                                                                       
+                                                                                                  
+ activation (Activation)        (None, 72, 128, 32)  0           ['batch_normalization[0][0]']    
+                                                                                                  
+ conv2d_1 (Conv2D)              (None, 72, 128, 64)  18496       ['activation[0][0]']             
+                                                                                                  
+ batch_normalization_1 (BatchNo  (None, 72, 128, 64)  256        ['conv2d_1[0][0]']               
+ rmalization)                                                                                     
+                                                                                                  
+ activation_1 (Activation)      (None, 72, 128, 64)  0           ['batch_normalization_1[0][0]']  
+                                                                                                  
+ activation_2 (Activation)      (None, 72, 128, 64)  0           ['activation_1[0][0]']           
+                                                                                                  
+ separable_conv2d (SeparableCon  (None, 72, 128, 128  8896       ['activation_2[0][0]']           
+ v2D)                           )                                                                 
+                                                                                                  
+ batch_normalization_2 (BatchNo  (None, 72, 128, 128  512        ['separable_conv2d[0][0]']       
+ rmalization)                   )                                                                 
+                                                                                                  
+ activation_3 (Activation)      (None, 72, 128, 128  0           ['batch_normalization_2[0][0]']  
+                                )                                                                 
+                                                                                                  
+ separable_conv2d_1 (SeparableC  (None, 72, 128, 128  17664      ['activation_3[0][0]']           
+ onv2D)                         )                                                                 
+                                                                                                  
+ batch_normalization_3 (BatchNo  (None, 72, 128, 128  512        ['separable_conv2d_1[0][0]']     
+ rmalization)                   )                                                                 
+                                                                                                  
+ max_pooling2d (MaxPooling2D)   (None, 36, 64, 128)  0           ['batch_normalization_3[0][0]']  
+                                                                                                  
+ conv2d_2 (Conv2D)              (None, 36, 64, 128)  8320        ['activation_1[0][0]']           
+                                                                                                  
+ add (Add)                      (None, 36, 64, 128)  0           ['max_pooling2d[0][0]',          
+                                                                  'conv2d_2[0][0]']               
+                                                                                                  
+ activation_4 (Activation)      (None, 36, 64, 128)  0           ['add[0][0]']                    
+                                                                                                  
+ separable_conv2d_2 (SeparableC  (None, 36, 64, 256)  34176      ['activation_4[0][0]']           
+ onv2D)                                                                                           
+                                                                                                  
+ batch_normalization_4 (BatchNo  (None, 36, 64, 256)  1024       ['separable_conv2d_2[0][0]']     
+ rmalization)                                                                                     
+                                                                                                  
+ activation_5 (Activation)      (None, 36, 64, 256)  0           ['batch_normalization_4[0][0]']  
+                                                                                                  
+ separable_conv2d_3 (SeparableC  (None, 36, 64, 256)  68096      ['activation_5[0][0]']           
+ onv2D)                                                                                           
+                                                                                                  
+ batch_normalization_5 (BatchNo  (None, 36, 64, 256)  1024       ['separable_conv2d_3[0][0]']     
+ rmalization)                                                                                     
+                                                                                                  
+ max_pooling2d_1 (MaxPooling2D)  (None, 18, 32, 256)  0          ['batch_normalization_5[0][0]']  
+                                                                                                  
+ conv2d_3 (Conv2D)              (None, 18, 32, 256)  33024       ['add[0][0]']                    
+                                                                                                  
+ add_1 (Add)                    (None, 18, 32, 256)  0           ['max_pooling2d_1[0][0]',        
+                                                                  'conv2d_3[0][0]']               
+                                                                                                  
+ activation_6 (Activation)      (None, 18, 32, 256)  0           ['add_1[0][0]']                  
+                                                                                                  
+ separable_conv2d_4 (SeparableC  (None, 18, 32, 512)  133888     ['activation_6[0][0]']           
+ onv2D)                                                                                           
+                                                                                                  
+ batch_normalization_6 (BatchNo  (None, 18, 32, 512)  2048       ['separable_conv2d_4[0][0]']     
+ rmalization)                                                                                     
+                                                                                                  
+ activation_7 (Activation)      (None, 18, 32, 512)  0           ['batch_normalization_6[0][0]']  
+                                                                                                  
+ separable_conv2d_5 (SeparableC  (None, 18, 32, 512)  267264     ['activation_7[0][0]']           
+ onv2D)                                                                                           
+                                                                                                  
+ batch_normalization_7 (BatchNo  (None, 18, 32, 512)  2048       ['separable_conv2d_5[0][0]']     
+ rmalization)                                                                                     
+                                                                                                  
+ max_pooling2d_2 (MaxPooling2D)  (None, 9, 16, 512)  0           ['batch_normalization_7[0][0]']  
+                                                                                                  
+ conv2d_4 (Conv2D)              (None, 9, 16, 512)   131584      ['add_1[0][0]']                  
+                                                                                                  
+ add_2 (Add)                    (None, 9, 16, 512)   0           ['max_pooling2d_2[0][0]',        
+                                                                  'conv2d_4[0][0]']               
+                                                                                                  
+ activation_8 (Activation)      (None, 9, 16, 512)   0           ['add_2[0][0]']                  
+                                                                                                  
+ separable_conv2d_6 (SeparableC  (None, 9, 16, 728)  378072      ['activation_8[0][0]']           
+ onv2D)                                                                                           
+                                                                                                  
+ batch_normalization_8 (BatchNo  (None, 9, 16, 728)  2912        ['separable_conv2d_6[0][0]']     
+ rmalization)                                                                                     
+                                                                                                  
+ activation_9 (Activation)      (None, 9, 16, 728)   0           ['batch_normalization_8[0][0]']  
+                                                                                                  
+ separable_conv2d_7 (SeparableC  (None, 9, 16, 728)  537264      ['activation_9[0][0]']           
+ onv2D)                                                                                           
+                                                                                                  
+ batch_normalization_9 (BatchNo  (None, 9, 16, 728)  2912        ['separable_conv2d_7[0][0]']     
+ rmalization)                                                                                     
+                                                                                                  
+ max_pooling2d_3 (MaxPooling2D)  (None, 5, 8, 728)   0           ['batch_normalization_9[0][0]']  
+                                                                                                  
+ conv2d_5 (Conv2D)              (None, 5, 8, 728)    373464      ['add_2[0][0]']                  
+                                                                                                  
+ add_3 (Add)                    (None, 5, 8, 728)    0           ['max_pooling2d_3[0][0]',        
+                                                                  'conv2d_5[0][0]']               
+                                                                                                  
+ separable_conv2d_8 (SeparableC  (None, 5, 8, 1024)  753048      ['add_3[0][0]']                  
+ onv2D)                                                                                           
+                                                                                                  
+ batch_normalization_10 (BatchN  (None, 5, 8, 1024)  4096        ['separable_conv2d_8[0][0]']     
+ ormalization)                                                                                    
+                                                                                                  
+ activation_10 (Activation)     (None, 5, 8, 1024)   0           ['batch_normalization_10[0][0]'] 
+                                                                                                  
+ global_average_pooling2d (Glob  (None, 1024)        0           ['activation_10[0][0]']          
+ alAveragePooling2D)                                                                              
+                                                                                                  
+ dropout (Dropout)              (None, 1024)         0           ['global_average_pooling2d[0][0]'
+                                                                 ]                                
+                                                                                                  
+ dense (Dense)                  (None, 1)            1025        ['dropout[0][0]']                
+                                                                                                  
+==================================================================================================
+Total params: 2,782,649
+Trainable params: 2,773,913
+Non-trainable params: 8,736
+__________________________________________________________________________________________________

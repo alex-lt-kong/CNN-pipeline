@@ -10,7 +10,10 @@
   "model": {
     "epochs": 100,
     "batch_size": 4,
-    "save_to": "./trained-model",
-    "plot_save_to": ".a/trained-model.png"
+    "save_to":{
+      "model": "/tmp/trained-model",
+      "plot": "/tmp/trained-model.png",
+      "history": "/tmp/trained-model-history.csv"
+    }
   }
 }

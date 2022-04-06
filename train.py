@@ -1,38 +1,12 @@
-from sklearn import metrics
 from tensorflow import keras
 from tensorflow.keras import layers
 
 import utils
 import logging
 import matplotlib.pyplot as plt
-import numpy as np
 import os
+import pandas as pd
 import tensorflow as tf
-
-
-def remove_invalid_samples():
-  num_skipped = 0
-  for folder_name in ("0", "1"):
-    folder_path = os.path.join("data-in", folder_name)
-    for fname in os.listdir(folder_path):
-      fpath = os.path.join(folder_path, fname)
-      try:
-        fobj = open(fpath, "rb")
-        is_jfif = tf.compat.as_bytes("JFIF") in fobj.peek(20)
-        is_jfif = (is_jfif or tf.compat.as_bytes("Lavc") in fobj.peek(20))
-      except Exception as ex:
-        logging.error(f'{ex}')
-      finally:
-        fobj.close()
-
-      if not is_jfif:
-        num_skipped += 1
-        logging.info(f'{fpath} seems INvalid')
-        #os.remove(fpath)
-      else:
-        logging.debug(f'{fpath} seems valid')
-
-  logging.info(f"Deleted {num_skipped} images")
 
 
 def preview_samples(dest_dir, train_ds, batch_size):
@@ -64,7 +38,7 @@ def make_model(input_shape, num_classes):
     x = data_augmentation(inputs)
 
     # Entry block
-    x = layers.Rescaling(1.0 / 255)(x)
+    x = layers.Rescaling(1.0 / 255)(x) # Shrink RGB channel values from [0, 255] range to [0, 1] range.
     x = layers.Conv2D(32, 3, strides=2, padding="same")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation("relu")(x)
@@ -105,7 +79,7 @@ def make_model(input_shape, num_classes):
         activation = "softmax"
         units = num_classes
 
-    x = layers.Dropout(0.5)(x)
+    x = layers.Dropout(0.25)(x) # the original value from doc is 0.5
     outputs = layers.Dense(units, activation=activation)(x)
     return keras.Model(inputs, outputs)
 
@@ -120,7 +94,7 @@ def main():
   
   utils.initialize_logger()
   utils.check_gpu()
-  #remove_invalid_samples()
+  utils.remove_invalid_samples()
   train_ds, val_ds = utils.prepare_dataset(image_size=image_size, batch_size=batch_size)
  # preview_samples(
  #   dest_dir=settings['dataset']['preview_save_to'],
@@ -128,6 +102,7 @@ def main():
  #   batch_size=batch_size
  # )
   
+  # This buffer_size is for hard drive IO only, not the number of images send to the model in one go.
   train_ds = train_ds.prefetch(buffer_size=32)
   val_ds = val_ds.prefetch(buffer_size=32)
 
@@ -135,19 +110,23 @@ def main():
   keras.utils.plot_model(
     model,
     show_shapes=True,
-    to_file=settings['model']['plot_save_to']
+    to_file=settings['model']['save_to']['plot']
   )
+
+  with open(settings['model']['save_to']['summary'], 'w') as f:    
+    model.summary(print_fn=lambda x: f.write(x + '\n'))
 
   model.compile(
       optimizer=keras.optimizers.Adam(1e-3),
       loss="binary_crossentropy",
-      metrics=["accuracy", 'AUC'],
+      metrics=["accuracy"],
   )
 
-  model.fit(train_ds, epochs=settings['model']['epochs'], validation_data=val_ds)
-  model.save(settings['model']['save_to'])  
+  history = model.fit(train_ds, epochs=settings['model']['epochs'], validation_data=val_ds)
+  model.save(settings['model']['save_to']['model'])
+  df = pd.DataFrame(data=history.history)
+  df.to_csv(settings['model']['save_to']['history'])
   
-
 
 if __name__ == '__main__':
   main()
