@@ -24,7 +24,7 @@ def evaluate_model(model, dataset):
     count += 1
     logging.info(f'Predicting {count}-th sample')
     y_true.extend(y.numpy().tolist())
-    y_pred = model.predict(x)
+    y_pred = model.predict(x).ravel()
     y_pred_cat.extend(np.where(y_pred > 0.5, 1, 0).tolist())
 
   print(y_pred_cat)
@@ -39,12 +39,11 @@ def evaluate_model(model, dataset):
 
 settings = utils.read_config_file()
 image_size = (
-  settings['dataset']['image']['height'],
-  settings['dataset']['image']['width']
+  settings['dataset']['image']['height'], settings['dataset']['image']['width']
 )
 batch_size = settings['model']['batch_size']
   
-utils.initialize_logger()
+utils.initialize_logger(settings['misc']['log_path'])
 train_ds, val_ds = utils.prepare_dataset(image_size=image_size, batch_size=batch_size)
 model = keras.models.load_model(settings['model']['save_to']['model'])
 

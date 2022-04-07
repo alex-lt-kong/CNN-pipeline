@@ -8,12 +8,17 @@
     "preview_save_to": "./data-out/sample-preview"
   },
   "model": {
+    "dropout": 0.55,
     "epochs": 100,
     "batch_size": 4,
     "save_to":{
       "model": "/tmp/trained-model",
       "plot": "/tmp/trained-model.png",
-      "history": "/tmp/trained-model-history.csv"
+      "history": "/tmp/trained-model-history.csv",
+      "summary": "/tmp/trained-model-summary.txt"
+    },
+    "misc": {
+      "log_path": "/var/log/my.log"
     }
   }
 }

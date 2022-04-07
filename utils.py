@@ -48,7 +48,6 @@ def read_config_file():
   with open(config_path, 'r') as json_file:
     json_str = json_file.read()
     settings = json.loads(json_str)
-
   return settings
 
 
@@ -60,15 +59,18 @@ def check_gpu():
   logging.info(tf.config.list_physical_devices('GPU'))
 
 
-def initialize_logger():
+def initialize_logger(log_path: str):
   logger = logging.getLogger()
   logger.setLevel(logging.DEBUG)
-
-  handler = logging.StreamHandler(sys.stdout)
-  handler.setLevel(logging.DEBUG)
+    
   formatter = logging.Formatter('%(asctime)s | %(levelname)6s | %(message)s')
-  handler.setFormatter(formatter)
-  logger.addHandler(handler)
+  file_handler = logging.FileHandler(log_path)
+  file_handler.setLevel(logging.DEBUG)
+  file_handler.setFormatter(formatter)
+  if (logger.hasHandlers()):
+    logger.handlers.clear()
+  logger.addHandler(file_handler)
+
 
 def prepare_dataset(image_size, batch_size, seed=2333):
 
