@@ -8,10 +8,10 @@ import sys
 import tensorflow as tf
 
 
-def remove_invalid_samples():
+def remove_invalid_samples(sample_path):
   num_skipped = 0
   for folder_name in ("0", "1"):
-    folder_path = os.path.join("data-in", folder_name)
+    folder_path = os.path.join(sample_path, folder_name)
     for fname in os.listdir(folder_path):
       fpath = os.path.join(folder_path, fname)
       try:
@@ -72,10 +72,10 @@ def initialize_logger(log_path: str):
   logger.addHandler(file_handler)
 
 
-def prepare_dataset(image_size, batch_size, seed=2333):
+def prepare_dataset(sample_path, image_size, batch_size, seed=2333):
 
   train_ds = tf.keras.preprocessing.image_dataset_from_directory(
-    "data-in",
+    sample_path,
     validation_split=0.2,
     subset="training",
     seed=seed,
@@ -83,7 +83,7 @@ def prepare_dataset(image_size, batch_size, seed=2333):
     batch_size=batch_size,
   )
   val_ds = tf.keras.preprocessing.image_dataset_from_directory(
-    "data-in",
+    sample_path,
     validation_split=0.2,
     subset="validation",
     seed=seed,

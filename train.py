@@ -94,8 +94,8 @@ def main():
   utils.initialize_logger(settings['misc']['log_path'])
   logging.info(settings)
   utils.check_gpu()
-  utils.remove_invalid_samples()
-  train_ds, val_ds = utils.prepare_dataset(image_size=image_size, batch_size=batch_size)
+  utils.remove_invalid_samples(settings['dataset']['path'])
+  train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=batch_size)
   preview_samples(dest_dir=settings['dataset']['preview_save_to'], dataset=train_ds)
   
   # This buffer_size is for hard drive IO only, not the number of images send to the model in one go.
@@ -106,7 +106,7 @@ def main():
   keras.utils.plot_model(
     model,
     show_shapes=True,
-    to_file=settings['model']['save_to']['plot']
+    to_file=settings['model']['save_to']['model_plot']
   )
 
   with open(settings['model']['save_to']['summary'], 'w') as f:    
@@ -123,6 +123,9 @@ def main():
     shutil.rmtree(settings['model']['save_to']['model'])
   model.save(settings['model']['save_to']['model'])
   df = pd.DataFrame(data=history.history)
+  fig = df[['accuracy', 'val_accuracy']].plot(kind='line', figsize=(16, 9), fontsize=18).get_figure()
+  fig.savefig(settings['model']['save_to']['history_plot'])
+
   df.to_csv(settings['model']['save_to']['history'])
   
 

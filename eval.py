@@ -1,11 +1,13 @@
 from sklearn import metrics
 from tensorflow import keras
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, plot_confusion_matrix
 
-import tensorflow as tf
+import seaborn as sn
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import utils
+import pandas as pd
 
 
 def evaluate_model(model, dataset):
@@ -30,6 +32,11 @@ def evaluate_model(model, dataset):
   print(y_pred_cat)
   print(y_true)
   cm = metrics.confusion_matrix(y_true, y_pred_cat)
+  classes = ['0', '1']
+  df_cm = pd.DataFrame(cm, index=classes, columns=classes)
+  plt.figure(figsize = (5,3))
+  cm_plot = sn.heatmap(df_cm, cmap="YlGnBu", annot=True, fmt='g')
+  cm_plot.figure.savefig(settings['diagnostics']['confusion_matrix'])
   print(cm)
   print(classification_report(y_true, y_pred_cat, target_names=['0','1']))
 
@@ -44,8 +51,7 @@ image_size = (
 batch_size = settings['model']['batch_size']
   
 utils.initialize_logger(settings['misc']['log_path'])
-train_ds, val_ds = utils.prepare_dataset(image_size=image_size, batch_size=batch_size)
+train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=batch_size)
 model = keras.models.load_model(settings['model']['save_to']['model'])
 
 evaluate_model(model=model, dataset=val_ds)
-evaluate_model(model=model, dataset=train_ds)
