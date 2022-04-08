@@ -34,10 +34,14 @@ def evaluate_model(model, dataset):
   cm = metrics.confusion_matrix(y_true, y_pred_cat)
   classes = ['0', '1']
   df_cm = pd.DataFrame(cm, index=classes, columns=classes)
-  plt.figure(figsize = (5,3))
-  cm_plot = sn.heatmap(df_cm, cmap="YlGnBu", annot=True, fmt='g')
-  cm_plot.figure.savefig(settings['diagnostics']['confusion_matrix'])
+
+  plt.figure(figsize = (6, 4))
+  sn.heatmap(df_cm, cmap="YlGnBu", annot=True, fmt='g')  
+  plt.xlabel('Predicted label')
+  plt.ylabel('True label')
+  plt.savefig(settings['diagnostics']['confusion_matrix'])
   print(cm)
+
   print(classification_report(y_true, y_pred_cat, target_names=['0','1']))
 
   print(model.evaluate(dataset, verbose=1))

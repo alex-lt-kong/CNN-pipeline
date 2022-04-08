@@ -45,19 +45,21 @@ def make_model(input_shape, num_classes, dropout=0.5):
     x = layers.Conv2D(64, 3, padding="same")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation("relu")(x)
-
+    
     previous_block_activation = x  # Set aside residual
 
     for size in [128, 256, 512, 728]:
-      x = layers.Activation("relu")(x)
+      x = layers.Activation("relu")(x)      
       x = layers.SeparableConv2D(size, 3, padding="same")(x)
       x = layers.BatchNormalization()(x)
 
-      x = layers.Activation("relu")(x)
+      x = layers.Activation("relu")(x)      
       x = layers.SeparableConv2D(size, 3, padding="same")(x)
       x = layers.BatchNormalization()(x)
 
       x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
+      x = layers.Dropout(dropout)(x)
+      # Dropout added per https://machinelearningmastery.com/how-to-reduce-overfitting-with-dropout-regularization-in-keras/
 
       # Project residual
       residual = layers.Conv2D(size, 1, strides=2, padding="same")(
@@ -78,7 +80,7 @@ def make_model(input_shape, num_classes, dropout=0.5):
         activation = "softmax"
         units = num_classes
 
-    x = layers.Dropout(dropout)(x)
+    x = layers.Dropout(dropout)(x) # Original dropout layer in Keras example.
     outputs = layers.Dense(units, activation=activation)(x)
     return keras.Model(inputs, outputs)
 
