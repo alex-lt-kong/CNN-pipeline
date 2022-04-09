@@ -1,6 +1,6 @@
 # Tensorflow Pipeline
 
-An framework built to be a component in a pipeline of data processing using `Tensorflow`.
+A framework built to be a component in a pipeline of data processing using `Tensorflow`.
 
 This framework is used to:
 * Read labelled data from upstream data providers.
