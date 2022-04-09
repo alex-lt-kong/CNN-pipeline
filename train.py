@@ -60,6 +60,8 @@ def main():
   )
 
   history = model.fit(train_ds, epochs=settings['model']['epochs'], validation_data=val_ds)
+  # epochs: an epoch is an iteration over the entire x and y data provided
+  # (unless the steps_per_epoch flag is set to something other than None)
   if os.path.isdir(settings['model']['save_to']['model']):
     shutil.rmtree(settings['model']['save_to']['model'])
   model.save(settings['model']['save_to']['model'])
