@@ -1,24 +1,28 @@
 {
   "dataset":{
-    "path": "./data-in",
+    "path": "/tmp/data/input",
     "image": {
       "width": 256,
       "height": 144
     },
-    "preview_save_to": "./data-out/sample-preview"
+    "preview_save_to": "/tmp/data/preview"
   },
   "model": {
-    "dropout": 0.55,
-    "epochs": 100,
-    "batch_size": 4,
+    "path": "/tmp/model/",
+    "epochs": 1000,
+    "batch_size": 3,
     "save_to":{
-      "model": "/tmp/trained-model",
-      "plot": "/tmp/trained-model.png",
-      "history": "/tmp/trained-model-history.csv",
-      "summary": "/tmp/trained-model-summary.txt"
-    },
-    "misc": {
-      "log_path": "/var/log/my.log"
+      "history": "/tmp/model/history.csv",
+      "history_plot": "/tmp/model/history-plot.png",
+      "model": "/tmp/model/serialization",
+      "model_plot": "/tmp/model/model-plot.png",
+      "summary": "/tmp/model/summary.txt"
     }
+  },
+  "diagnostics": {
+    "confusion_matrix": "/tmp/diagnostics/cm.png"
+  },
+  "misc": {
+    "log_path": "/var/log/my.log"
   }
 }

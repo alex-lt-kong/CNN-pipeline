@@ -43,7 +43,7 @@ def main():
 
   sys.path.insert(1, settings['model']['path'])
   import definition
-  model = definition.make_model(input_shape=image_size + (3,), num_classes=2, dropout=settings['model']['dropout'])
+  model = definition.make_model(input_shape=image_size + (3,), num_classes=2)
   keras.utils.plot_model(
     model,
     show_shapes=True,
