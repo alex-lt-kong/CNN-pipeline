@@ -2,8 +2,10 @@ from tensorflow import keras
 
 import utils
 import logging
+import matplotlib.pyplot as plt
 import os
 import pandas as pd
+
 import shutil
 import sys
 import tensorflow as tf
@@ -29,13 +31,13 @@ def main():
     settings['dataset']['image']['width']
   )
   batch_size = settings['model']['batch_size']
-  
+
   utils.initialize_logger(settings['misc']['log_path'])
   logging.info(settings)
   utils.check_gpu()
   utils.remove_invalid_samples(settings['dataset']['path'])
   train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=batch_size)
-  preview_samples(dest_dir=settings['dataset']['preview_save_to'], dataset=train_ds)
+  preview_samples(dest_dir=settings['dataset']['preview_save_to'], dataset=train_ds)  
   
   # This buffer_size is for hard drive IO only, not the number of images send to the model in one go.
   train_ds = train_ds.prefetch(buffer_size=32)
@@ -66,8 +68,10 @@ def main():
     shutil.rmtree(settings['model']['save_to']['model'])
   model.save(settings['model']['save_to']['model'])
   df = pd.DataFrame(data=history.history)
-  fig = df[['accuracy', 'val_accuracy']].plot(kind='line', figsize=(16, 9), fontsize=18).get_figure()
-  fig.savefig(settings['model']['save_to']['history_plot'])
+  fig = df[['accuracy', 'val_accuracy']].plot(kind='line', figsize=(16, 9), fontsize=12).get_figure()
+  plt.xlabel('Epochs')
+  plt.ylabel('Accuracy')
+  fig.savefig(settings['model']['save_to']['history_plot'], bbox_inches='tight')
 
   df.to_csv(settings['model']['save_to']['history'])
   

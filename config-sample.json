@@ -20,7 +20,8 @@
     }
   },
   "diagnostics": {
-    "confusion_matrix": "/tmp/diagnostics/cm.png"
+    "confusion_matrix": "/tmp/diagnostics/cm.png",
+    "roc": "/tmp/diagnostics/roc.png"
   },
   "misc": {
     "log_path": "/var/log/my.log"
