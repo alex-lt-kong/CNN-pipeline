@@ -72,7 +72,7 @@ def initialize_logger(log_path: str):
   logger.addHandler(file_handler)
 
 
-def prepare_dataset(sample_path, image_size, batch_size, seed=2333):
+def prepare_dataset(sample_path, image_size, batch_size, seed=168):
 
   train_ds = tf.keras.preprocessing.image_dataset_from_directory(
     sample_path,
@@ -81,6 +81,7 @@ def prepare_dataset(sample_path, image_size, batch_size, seed=2333):
     seed=seed,
     image_size=image_size,
     batch_size=batch_size,
+    #color_mode='grayscale'
   )
   val_ds = tf.keras.preprocessing.image_dataset_from_directory(
     sample_path,
@@ -89,5 +90,6 @@ def prepare_dataset(sample_path, image_size, batch_size, seed=2333):
     seed=seed,
     image_size=image_size,
     batch_size=batch_size,
+    #color_mode='grayscale'
   )
   return train_ds, val_ds
