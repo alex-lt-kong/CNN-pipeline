@@ -82,9 +82,7 @@ def main():
     
   utils.initialize_logger(settings['misc']['log_path'])
   train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=batch_size)
-  print('model loading')
   model = tf.keras.models.load_model(settings['model']['save_to']['model'])
-  print('model loaded')
   y_true, y_pred, y_pred_cat = get_predictions(
     dataset=val_ds, model=model, misclassified_dest=settings['diagnostics']['misclassified']
   )
