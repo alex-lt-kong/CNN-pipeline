@@ -56,8 +56,10 @@ def check_gpu():
   (output, err) = process.communicate()
   exit_code = process.wait()
   logging.info(output.decode('utf8'))
-  logging.info(tf.config.list_physical_devices('GPU'))
-
+  gpus = tf.config.list_physical_devices('GPU')
+  for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+  logging.info(gpus)
 
 def initialize_logger(log_path: str):
   logger = logging.getLogger()

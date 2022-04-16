@@ -65,22 +65,18 @@ def main():
   train_ds = train_ds.prefetch(buffer_size=32)
   val_ds = val_ds.prefetch(buffer_size=32)
 
-  model = definition.make_model(input_shape=image_size + (3,), num_classes=2)
-  # + (1,) for grayscale, + (3,) for rgb
-  keras.utils.plot_model(
-    model,
-    show_shapes=True,
-    to_file=settings['model']['save_to']['model_plot']
-  )
+  input_shape = image_size + (3,)  # + (1,) for grayscale, + (3,) for rgb
+  model = definition.make_model(input_shape=input_shape, data_augmentation=func, num_classes=2)
+  
+  #keras.utils.plot_model(
+  #  model,
+  #  show_shapes=True,
+  #  to_file=settings['model']['save_to']['model_plot']
+  #)
 
-  with open(settings['model']['save_to']['summary'], 'w') as f:    
-    model.summary(print_fn=lambda x: f.write(x + '\n'))
+  #with open(settings['model']['save_to']['summary'], 'w') as f:    
+  #  model.summary(print_fn=lambda x: f.write(x + '\n'))
 
-#  model.compile(
-#      optimizer=keras.optimizers.Adam(1e-3),
-#      loss="binary_crossentropy",
-#      metrics=["accuracy"],
-#  )
   model.compile(optimizer='adam',
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
               metrics=['accuracy'])

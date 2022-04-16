@@ -13,13 +13,12 @@ import utils
 def video_to_frames(video_path, frames_dir):
   logging.info(f'Extracting frames from video [{video_path}] to [{frames_dir}]')
 
-  tmp_dir = '/tmp/frames/'
-  if os.path.isdir(tmp_dir):
-    shutil.rmtree(tmp_dir)
-  os.mkdir(tmp_dir)
+  if os.path.isdir(frames_dir):
+    shutil.rmtree(frames_dir)
+  os.mkdir(frames_dir)
 
   ffmpeg_cmd = [
-    '/usr/local/bin/ffmpeg', '-i', video_path, '-r', '1', os.path.join(tmp_dir, '%05d.jpg')
+    '/usr/local/bin/ffmpeg', '-i', video_path, '-r', '1', os.path.join(frames_dir, '%05d.jpg')
   ]
   p = subprocess.Popen(args=ffmpeg_cmd,
                         stdout=subprocess.PIPE,
@@ -37,8 +36,12 @@ def predict_frames(model, frames_dir, img_size):
 
   predictions = []
   listing = glob.glob(frames_dir)
+  listing.sort()
   print(f'{len(listing)},', end=' ')
-  for file_path in listing:    
+  count = 0
+  for file_path in listing: 
+    count += 1
+   # print(file_path)   
     if os.path.isfile(file_path) is False:
       continue
     img = tf.keras.utils.load_img(
@@ -49,6 +52,10 @@ def predict_frames(model, frames_dir, img_size):
 
     prediction_raw = model.predict(img_array)
     prediction = np.argmax(tf.nn.softmax(prediction_raw[0]))
+   # print(prediction_raw, prediction)
+    tf.keras.utils.save_img(
+      os.path.join('/tmp/frames-out', f'{count}.jpg'), img_array[0].numpy().astype("uint8")
+    )
     predictions.append(prediction)
 
   return predictions
@@ -59,8 +66,9 @@ def generate_final_prediction(predictions):
   if len(predictions) == 0:
     print('Error')
     return
-  print(f'{predictions[0:25]}, ({100 * sum(predictions)/len(predictions):.2f}%)')
-
+  score = sum(predictions)/len(predictions)
+  print(f'{predictions[0:5]}, ({100 * score:.2f}%)')
+  
 
 def main():
 
@@ -70,7 +78,7 @@ def main():
 
   listing = glob.glob(settings['prediction']['source'])
   listing.sort(reverse=True) 
-  for file_path in listing:
+  for file_path in listing[10:]:
     if os.path.isfile(file_path):
       videos.append(file_path)
 
@@ -93,7 +101,12 @@ def main():
         settings["prediction"]["frames_dir"] + '*.jpg',
         (settings['dataset']['image']['height'], settings['dataset']['image']['width'])
       )
-      generate_final_prediction(predictions)
+      score = generate_final_prediction(predictions)
+      prediction_records[video] = score
+      with open(settings['prediction']['results'], 'w') as fp:
+        json.dump(prediction_records, fp, ensure_ascii=False)
+
+
 
   
 
