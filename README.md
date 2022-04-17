@@ -18,6 +18,15 @@ This framework is used to:
   * Provide an interface for downstream data users to call the model for prediction.
   * Save predictions to a JSON file.
 
-Note that this repo is a pipeline framework only and the model construction
-itself is **not** included: models will be dynamically loaded to the pipeline
-according to the path defined in the `config.json` file.
+Note that this repo is a pipeline framework only and data augmentation and 
+model construction are **not** included: they are dynamically loaded to the
+pipeline according to the path defined in the `config.json` file.
+
+## Model Dashboard
+
+The final project's dashboard incorporating this tensorflow pipeline looks like this.
+
+![Model Dashboard](./assets/dashboard.gif)
+
+(But sure the dashboard is mainly a frontend project which is beyond the scope
+of this repository as well)

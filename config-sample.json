@@ -1,29 +1,36 @@
 {
   "dataset":{
-    "path": "/tmp/data/input",
+    "path": "/tmp/current/data/input",
     "image": {
-      "width": 256,
-      "height": 144
+      "width": 355,
+      "height": 200
     },
-    "preview_save_to": "/tmp/data/preview"
+    "preview_save_to": "/tmp/current/data/preview"
   },
   "model": {
-    "path": "/tmp/model/",
-    "epochs": 1000,
+    "path": "/tmp/current/model/",
+    "epochs": 5,
     "batch_size": 3,
     "save_to":{
-      "history": "/tmp/model/history.csv",
-      "history_plot": "/tmp/model/history-plot.png",
-      "model": "/tmp/model/serialization",
-      "model_plot": "/tmp/model/model-plot.png",
-      "summary": "/tmp/model/summary.txt"
+      "history": "/tmp/current/model/history.csv",
+      "history_plot": "/tmp/current/model/history-plot.png",
+      "model": "/tmp/current/model/model.hdf5",
+      "model_plot": "/tmp/current/model/model-plot.png",
+      "summary": "/tmp/current/model/summary.txt"
     }
   },
   "diagnostics": {
-    "confusion_matrix": "/tmp/diagnostics/cm.png",
-    "roc": "/tmp/diagnostics/roc.png"
+    "confusion_matrix": "/tmp/current/diagnostics/cm.png",
+    "roc": "/tmp/current/diagnostics/roc.png",
+    "report": "/tmp/current/diagnostics/report.txt",
+    "misclassified": "/tmp/current/data/misclassified"
   },
   "misc": {
-    "log_path": "/var/log/my.log"
+    "log_path": "/var/log/ak-studio/motion-models/model.log"
+  },
+  "prediction": {
+    "source": "/tmp/*_360.mp4",
+    "frames_dir": "/tmp/frames/",
+    "results": "/tmp/current/predictions.json"
   }
 }
