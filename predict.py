@@ -5,6 +5,7 @@ import numpy as np
 import os
 import shutil
 import subprocess
+import sys
 import tensorflow as tf
 import utils
 
@@ -74,6 +75,8 @@ def main():
 
   settings = utils.read_config_file()
   utils.initialize_logger(settings['misc']['log_path'])
+  sys.path.insert(1, settings['model']['path'])
+  import definition  
   videos = []
 
   listing = glob.glob(settings['prediction']['source'])
@@ -100,7 +103,7 @@ def main():
       predictions = predict_frames(
         model,
         settings["prediction"]["frames_dir"] + '*.jpg',
-        (settings['dataset']['image']['height'], settings['dataset']['image']['width'])
+        definition.target_image_size
       )
       score = generate_final_prediction(predictions)
       if score is not None:
