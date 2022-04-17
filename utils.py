@@ -1,4 +1,5 @@
 from subprocess import Popen, PIPE
+from typing import Tuple
 
 import argparse
 import json
@@ -74,7 +75,7 @@ def initialize_logger(log_path: str):
   logger.addHandler(file_handler)
 
 
-def prepare_dataset(sample_path, image_size, batch_size, seed=168):
+def prepare_dataset(sample_path, image_size, batch_size, seed=168) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
 
   train_ds = tf.keras.preprocessing.image_dataset_from_directory(
     sample_path,
@@ -94,4 +95,9 @@ def prepare_dataset(sample_path, image_size, batch_size, seed=168):
     batch_size=batch_size,
     #color_mode='grayscale'
   )
+
+  # This buffer_size is for hard drive IO only, 
+  # not the number of images sent to the model in one go.
+  train_ds = train_ds.prefetch(buffer_size=32)
+  val_ds = val_ds.prefetch(buffer_size=32)
   return train_ds, val_ds

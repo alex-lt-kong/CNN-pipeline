@@ -11,12 +11,14 @@ import sys
 import tensorflow as tf
 
 
-def preview_samples(dest_dir, dataset, data_augmentation):
+
+def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
 
   count = {
     '0': 0,
     '1': 0
   }
+  dataset = dataset.shuffle(buffer_size=128)
   for images, labels in dataset:
     augmented_images = data_augmentation(images)
     for i in range(len(augmented_images)):
@@ -40,20 +42,18 @@ def preview_samples(dest_dir, dataset, data_augmentation):
 
 def main():
   settings = utils.read_config_file()
-  image_size = (
-    settings['dataset']['image']['height'],
-    settings['dataset']['image']['width']
-  )
-  batch_size = settings['model']['batch_size']
-
   utils.initialize_logger(settings['misc']['log_path'])
+  sys.path.insert(1, settings['model']['path'])
+  import definition
+  
+  image_size = definition.target_image_size
+
+
+  
   logging.info(settings)
   utils.check_gpu()
   utils.remove_invalid_samples(settings['dataset']['path'])
-  train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=batch_size)
-
-  sys.path.insert(1, settings['model']['path'])
-  import definition
+  train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=definition.batch_size)
 
   func = definition.data_augmentation()
   preview_samples(
@@ -61,33 +61,32 @@ def main():
     dataset=train_ds,
     data_augmentation=func)
   
-  # This buffer_size is for hard drive IO only, not the number of images send to the model in one go.
-  train_ds = train_ds.prefetch(buffer_size=32)
-  val_ds = val_ds.prefetch(buffer_size=32)
-
-  input_shape = image_size + (3,)  # + (1,) for grayscale, + (3,) for rgb
-  model = definition.make_model(input_shape=input_shape, data_augmentation=func, num_classes=2)
-  model.build((None,) + input_shape)
+  
+  model = definition.make_model(input_shape=image_size + (3,), data_augmentation=func, num_classes=2)
+  # + (1,) for grayscale, + (3,) for rgb
+  model.build((None,) + image_size + (3,))
   # https://stackoverflow.com/questions/55908188/this-model-has-not-yet-been-built-error-on-model-summary
   keras.utils.plot_model(
-    model,
-    show_shapes=True,
-    to_file=settings['model']['save_to']['model_plot']
+    model, show_shapes=True, to_file=settings['model']['save_to']['model_plot']
   )
 
   with open(settings['model']['save_to']['summary'], 'w') as f:    
     model.summary(print_fn=lambda x: f.write(x + '\n'))
 
-  model.compile(optimizer='adam',
-              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-              metrics=['accuracy'])
+  model.compile(
+    optimizer='adam',
+    loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    metrics=['accuracy']
+  )
 
 
-  history = model.fit(train_ds, epochs=settings['model']['epochs'], validation_data=val_ds)
+  history = model.fit(train_ds, epochs=definition.epochs, validation_data=val_ds)
   # epochs: an epoch is an iteration over the entire x and y data provided
   # (unless the steps_per_epoch flag is set to something other than None)
+  
   if os.path.isdir(settings['model']['save_to']['model']):
     shutil.rmtree(settings['model']['save_to']['model'])
+  
   tf.keras.models.save_model(model=model, filepath=settings['model']['save_to']['model'])
   df = pd.DataFrame(data=history.history)
   df['accuracy_ma'] = df['accuracy'].rolling(window=5).mean()
@@ -95,8 +94,8 @@ def main():
   plt.figure(figsize = (16/2, 9/2))
   plt.rcParams.update({'font.size': 15})
   #fig = df[['accuracy', 'accuracy_ma', 'val_accuracy', 'val_accuracy_ma']].plot(kind='line', figsize=(16, 9/2), fontsize=12).get_figure()
-  plt.plot(df['accuracy'],        linewidth=0.8, label="Accuracy",               color='C0')  
-  plt.plot(df['val_accuracy'],    linewidth=0.8, label="Validation Accuracy",    color='C1')
+  plt.plot(df['accuracy'],     linewidth=1.75, label="accuracy",     color='C0')  
+  plt.plot(df['val_accuracy'], linewidth=1.75, label="val_accuracy", color='C1')
   plt.legend()
   plt.xlabel('Epochs')
   plt.ylabel('Accuracy')
