@@ -26,7 +26,7 @@ pipeline according to the path defined in the `config.json` file.
 
 The final project's dashboard incorporating this tensorflow pipeline looks like this.
 
-![Model Dashboard](./assets/dashboard.gif)
+![Model Dashboard](./assets/dashboard.jpg)
 
 (But sure the dashboard is mainly a frontend project which is beyond the scope
 of this repository as well)
