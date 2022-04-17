@@ -67,15 +67,16 @@ def main():
 
   input_shape = image_size + (3,)  # + (1,) for grayscale, + (3,) for rgb
   model = definition.make_model(input_shape=input_shape, data_augmentation=func, num_classes=2)
-  
-  #keras.utils.plot_model(
-  #  model,
-  #  show_shapes=True,
-  #  to_file=settings['model']['save_to']['model_plot']
-  #)
+  model.build((None,) + input_shape)
+  # https://stackoverflow.com/questions/55908188/this-model-has-not-yet-been-built-error-on-model-summary
+  keras.utils.plot_model(
+    model,
+    show_shapes=True,
+    to_file=settings['model']['save_to']['model_plot']
+  )
 
-  #with open(settings['model']['save_to']['summary'], 'w') as f:    
-  #  model.summary(print_fn=lambda x: f.write(x + '\n'))
+  with open(settings['model']['save_to']['summary'], 'w') as f:    
+    model.summary(print_fn=lambda x: f.write(x + '\n'))
 
   model.compile(optimizer='adam',
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
