@@ -15,16 +15,20 @@ def remove_invalid_samples(sample_path):
     folder_path = os.path.join(sample_path, folder_name)
     for fname in os.listdir(folder_path):
       fpath = os.path.join(folder_path, fname)
+      is_jpeg_ok = False
       try:
         fobj = open(fpath, "rb")
-        is_jfif = tf.compat.as_bytes("JFIF") in fobj.peek(20)
-        is_jfif = (is_jfif or tf.compat.as_bytes("Lavc") in fobj.peek(20))
+        is_jpeg_ok = tf.compat.as_bytes("JFIF") in fobj.peek(20)
+        is_jpeg_ok = (is_jpeg_ok or tf.compat.as_bytes("Lavc") in fobj.peek(20))
+        check_chars = fobj.read()[-2:]
+        is_jpeg_ok = (is_jpeg_ok and check_chars == b'\xff\xd9')
       except Exception as ex:
+        is_jpeg_ok = False
         logging.error(f'{ex}')
       finally:
         fobj.close()
 
-      if not is_jfif:
+      if not is_jpeg_ok:
         num_skipped += 1        
         os.remove(fpath)
         logging.info(f'{fpath} seems INvalid and is removed from filesystem')
