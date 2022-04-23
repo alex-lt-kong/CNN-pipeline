@@ -71,7 +71,7 @@ def main():
   image_size = definition.target_image_size   
   
 
-  _, val_ds = utils.prepare_dataset(
+  train_ds, val_ds = utils.prepare_dataset(
     settings['dataset']['path'], image_size=image_size, batch_size=definition.batch_size
   )
   model = tf.keras.models.load_model(settings['model']['save_to']['model'])

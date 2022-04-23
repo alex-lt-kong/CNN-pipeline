@@ -54,9 +54,9 @@ def predict_frames(model, frames_dir, img_size):
     prediction_raw = model.predict(img_array)
     prediction = np.argmax(tf.nn.softmax(prediction_raw[0]))
    # print(prediction_raw, prediction)
-    tf.keras.utils.save_img(
-      os.path.join('/tmp/frames-out', f'{count}.jpg'), img_array[0].numpy().astype("uint8")
-    )
+    #tf.keras.utils.save_img(
+    #  os.path.join('/tmp/frames-out', f'{count}.jpg'), img_array[0].numpy().astype("uint8")
+   # )
     predictions.append(prediction)
 
   return predictions
