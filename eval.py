@@ -1,5 +1,5 @@
 from sklearn import metrics
-from sklearn.metrics import classification_report, plot_confusion_matrix
+from sklearn.metrics import classification_report, ConfusionMatrixDisplay
 from tensorflow import keras
 
 import logging

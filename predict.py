@@ -81,7 +81,7 @@ def main():
 
   listing = glob.glob(settings['prediction']['source'])
   listing.sort(reverse=True) 
-  for file_path in listing[1:]:
+  for file_path in listing:
     if os.path.isfile(file_path):
       videos.append(file_path)
 
