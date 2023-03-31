@@ -25,12 +25,8 @@
     "report": "/tmp/current/diagnostics/report.txt",
     "misclassified": "/tmp/current/data/misclassified"
   },
-  "misc": {
-    "log_path": "/var/log/ak-studio/motion-models/model.log"
-  },
   "prediction": {
-    "source": "/tmp/*_360.mp4",
-    "frames_dir": "/tmp/frames/",
-    "results": "/tmp/current/predictions.json"
+    "input_file_path": "/tmp/input.jpg",
+    "on_detected": "echo detected"
   }
 }

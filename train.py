@@ -41,8 +41,9 @@ def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
 
 
 def main():
+    utils.set_environment_vars()
     settings = utils.read_config_file()
-    utils.initialize_logger(settings['misc']['log_path'])
+    utils.initialize_logger()
     sys.path.insert(1, settings['model']['path'])
     import definition
     
@@ -51,17 +52,21 @@ def main():
 
     
     logging.info(settings)
+    logging.info('Checking valid GPUs')
     utils.check_gpu()
-    utils.remove_invalid_samples(settings['dataset']['path'])
+    #logging.info('Removing invalid samples, this could take a while...')
+    #utils.remove_invalid_samples(settings['dataset']['path'])
+    logging.info('Separating data into a training set and a test set')
     train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=definition.batch_size)
 
     func = definition.data_augmentation()
+    logging.info('Saving some samples as preview')
     preview_samples(
         dest_dir=settings['dataset']['preview_save_to'],
         dataset=train_ds,
         data_augmentation=func)
     
-    
+    logging.info('calling make_model()')
     model = definition.make_model(input_shape=image_size + (3,), data_augmentation=func, num_classes=2)
     # + (1,) for grayscale, + (3,) for rgb
     model.build((None,) + image_size + (3,))
@@ -94,7 +99,7 @@ def main():
     plt.figure(figsize = (16/2, 9/2))
     plt.rcParams.update({'font.size': 15})
     #fig = df[['accuracy', 'accuracy_ma', 'val_accuracy', 'val_accuracy_ma']].plot(kind='line', figsize=(16, 9/2), fontsize=12).get_figure()
-    plt.plot(df['accuracy'],         linewidth=1.75, label="accuracy",         color='C0')    
+    plt.plot(df['accuracy'],     linewidth=1.75, label="accuracy",     color='C0')    
     plt.plot(df['val_accuracy'], linewidth=1.75, label="val_accuracy", color='C1')
     plt.legend()
     plt.xlabel('Epochs')

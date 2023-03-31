@@ -65,7 +65,7 @@ def plot_confusion_matrix(y_true, y_pred_cat, classes, path):
 
 def main():
     settings = utils.read_config_file()
-    utils.initialize_logger(settings['misc']['log_path'])
+    utils.initialize_logger()
     sys.path.insert(1, settings['model']['path'])
     import definition    
     image_size = definition.target_image_size     

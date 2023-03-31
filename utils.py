@@ -9,9 +9,14 @@ import sys
 import tensorflow as tf
 
 
+def set_environment_vars() -> None:
+    os.environ['XLA_FLAGS'] = "--xla_gpu_cuda_data_dir=/usr/local/cuda-11.8/targets/x86_64-linux/lib/"
+
+
 def remove_invalid_samples(sample_path):
     num_skipped = 0
     for folder_name in ("0", "1"):
+        logging.info(f'Now checking samples in {folder_name} directory')
         folder_path = os.path.join(sample_path, folder_name)
         for fname in os.listdir(folder_path):
             fpath = os.path.join(folder_path, fname)
@@ -40,11 +45,8 @@ def remove_invalid_samples(sample_path):
 
 def read_config_file():
     ap = argparse.ArgumentParser()
-    ap.add_argument(
-        '--config', 
-        dest='config',
-        help='the path of the JSON format configuration file to be used by the model',
-        default='./config.json'
+    ap.add_argument('--config', dest='config', required=True,
+        help='the path of the JSON format configuration file to be used by the model'        
     )
     args = vars(ap.parse_args())
     config_path = args['config']
@@ -66,7 +68,19 @@ def check_gpu():
         tf.config.experimental.set_memory_growth(gpu, True)
     logging.info(gpus)
 
-def initialize_logger(log_path: str):
+def initialize_logger():
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+
+
+    return
+
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
         
