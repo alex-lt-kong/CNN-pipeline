@@ -11,6 +11,7 @@ import tensorflow as tf
 
 def set_environment_vars() -> None:
     os.environ['XLA_FLAGS'] = "--xla_gpu_cuda_data_dir=/usr/local/cuda-11.8/targets/x86_64-linux/lib/"
+    #os.environ['LD_LIBRARY_PATH'] = f"{os.environ['CONDA_PREFIX']}/lib/"
 
 
 def remove_invalid_samples(sample_path):
@@ -74,23 +75,9 @@ def initialize_logger():
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
     handler.setFormatter(formatter)
     root.addHandler(handler)
-
-
-    return
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-        
-    formatter = logging.Formatter('%(asctime)s | %(levelname)6s | %(message)s')
-    file_handler = logging.FileHandler(log_path)
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    if (logger.hasHandlers()):
-        logger.handlers.clear()
-    logger.addHandler(file_handler)
 
 
 def prepare_dataset(sample_path, image_size, batch_size, seed=168) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
