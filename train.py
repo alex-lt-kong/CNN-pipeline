@@ -1,4 +1,5 @@
 from tensorflow import keras
+from keras import backend as K
 
 import utils
 import logging
@@ -83,7 +84,7 @@ def main():
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=['accuracy']
     )
-
+    K.set_value(model.optimizer.learning_rate, 0.001)
 
     history = model.fit(train_ds, epochs=definition.epochs, validation_data=val_ds)
     # epochs: an epoch is an iteration over the entire x and y data provided

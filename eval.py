@@ -8,6 +8,7 @@ import numpy as np
 import os
 import pandas as pd
 import seaborn as sn
+import shutil
 import sys
 import tensorflow as tf
 import utils
@@ -38,8 +39,9 @@ def get_predictions(dataset, model, misclassified_dest):
 
             if y_pred_cat[-1] != y[i]:
                 label_dir = os.path.join(misclassified_dest, str(y[i].numpy()))
-                if os.path.isdir(label_dir) is False:
-                    os.mkdir(label_dir)
+                if os.path.isdir(label_dir) is True:
+                    shutil.rmtree(label_dir)
+                os.mkdir(label_dir)
                 tf.keras.utils.save_img(
                     os.path.join(label_dir, f'{count}.jpg'), x[i].numpy().astype("uint8")
                 )

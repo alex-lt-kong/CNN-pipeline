@@ -17,11 +17,11 @@ import zmq
   
 
 app = Flask(__name__)
-prediction_interval = 60
+prediction_interval = 3600
 ev_flag = True
 image_queue_mutex = Lock()
 image_kinda_queue = []
-image_kinda_queue_min_len = 6
+image_kinda_queue_min_len = 12
 image_kinda_queue_max_len = image_kinda_queue_min_len * 2
 
 @app.route("/")
@@ -43,12 +43,15 @@ def signal_handler(signum, frame):
 def limit_gpu_memory_usage() -> None:
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
-        # Currently, memory growth needs to be the same across GPUs
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-
+            tf.config.experimental.set_virtual_device_configuration(
+                gpu,
+                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)]
+            )
     else:
         raise RuntimeError('How come?')
+    return
 
 
 def predict_frames(model, img_path, img_size):
@@ -94,7 +97,7 @@ def prediction_thread() -> None:
     settings = utils.read_config_file()
     img_path = settings['prediction']['input_file_path']
     sys.path.insert(1, settings['model']['path'])
-    import definition    
+    import definition
 
     model = tf.keras.models.load_model(settings['model']['save_to']['model'])
     while ev_flag:
