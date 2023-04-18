@@ -19,7 +19,9 @@ def get_predictions(dataset, model, misclassified_dest):
     # y_true = np.concatenate([y for x, y in val_ds], axis=0)
     # cannot use this approach as it loads all the samples into memory, which 
     # gets exhausted very fast.
-    
+    if os.path.isdir(misclassified_dest) is True:
+        shutil.rmtree(misclassified_dest)
+    os.mkdir(misclassified_dest)
     y_true = []
     y_pred = []
     y_pred_cat = []
@@ -39,9 +41,8 @@ def get_predictions(dataset, model, misclassified_dest):
 
             if y_pred_cat[-1] != y[i]:
                 label_dir = os.path.join(misclassified_dest, str(y[i].numpy()))
-                if os.path.isdir(label_dir) is True:
-                    shutil.rmtree(label_dir)
-                os.mkdir(label_dir)
+                if os.path.isdir(label_dir) is False:
+                    os.mkdir(label_dir)
                 tf.keras.utils.save_img(
                     os.path.join(label_dir, f'{count}.jpg'), x[i].numpy().astype("uint8")
                 )
