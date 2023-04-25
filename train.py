@@ -1,12 +1,11 @@
 from tensorflow import keras
-from keras import backend as K
 
 import utils
 import logging
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
-
+import json
 import shutil
 import sys
 import tensorflow as tf
@@ -58,7 +57,11 @@ def main():
     #logging.info('Removing invalid samples, this could take a while...')
     #utils.remove_invalid_samples(settings['dataset']['path'])
     logging.info('Separating data into a training set and a test set')
-    train_ds, val_ds = utils.prepare_dataset(settings['dataset']['path'], image_size=image_size, batch_size=definition.batch_size)
+    train_ds, val_ds = utils.prepare_dataset(
+        settings['dataset']['path'],
+        image_size=image_size,
+        batch_size=definition.batch_size
+    )
 
     func = definition.data_augmentation()
     logging.info('Saving some samples as preview')
@@ -69,8 +72,7 @@ def main():
     
     logging.info('calling make_model()')
     model = definition.make_model(input_shape=image_size + (3,), data_augmentation=func, num_classes=2)
-    # + (1,) for grayscale, + (3,) for rgb
-    model.build((None,) + image_size + (3,))
+
     # https://stackoverflow.com/questions/55908188/this-model-has-not-yet-been-built-error-on-model-summary
     keras.utils.plot_model(
         model, show_shapes=True, to_file=settings['model']['save_to']['model_plot']
@@ -78,13 +80,8 @@ def main():
 
     with open(settings['model']['save_to']['summary'], 'w') as f:        
         model.summary(print_fn=lambda x: f.write(x + '\n'))
-
-    model.compile(
-        optimizer='adam',
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=['accuracy']
-    )
-    K.set_value(model.optimizer.learning_rate, 0.001)
+    with open(settings['model']['save_to']['optimizer_config'], "w") as f:
+        f.write(str(model.optimizer.get_config()))
 
     history = model.fit(train_ds, epochs=definition.epochs, validation_data=val_ds)
     # epochs: an epoch is an iteration over the entire x and y data provided
