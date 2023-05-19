@@ -10,7 +10,7 @@ import shutil
 import sys
 import tensorflow as tf
 
-
+settings = {}
 
 def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
 
@@ -39,9 +39,52 @@ def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
         if enough_sample >= len(count.keys()):
             break
 
+def save_model(model) -> None:
+    if os.path.isdir(settings['model']['save_to']['model']):
+        shutil.rmtree(settings['model']['save_to']['model'])
+    
+    tf.keras.models.save_model(
+        model=model, filepath=settings['model']['save_to']['model']
+    )
+
+def save_stats_and_plots(history: keras.callbacks.History) -> None:
+    df = pd.DataFrame(data=history.history)
+    df['auc_ma'] = df['auc'].rolling(window=5).mean()
+    df['val_auc_ma'] = df['val_auc'].rolling(window=5).mean()
+    df.to_csv(settings['model']['save_to']['history'])
+    plt.figure(figsize = (16/2, 9/2))
+    plt.rcParams.update({'font.size': 15})
+    #fig = df[['AUC', 'AUC_ma', 'val_AUC', 'val_AUC_ma']].plot(kind='line', figsize=(16, 9/2), fontsize=12).get_figure()
+    plt.plot(df['auc'],     linewidth=1.75, label="auc",     color='C0')    
+    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc", color='C1')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('AUC')
+    plt.savefig(
+        settings['model']['save_to']['historical_auc_plot'], bbox_inches='tight'
+    )
+
+    # clear figure
+    plt.clf()
+
+    plt.figure(figsize = (16/2, 9/2))
+    plt.rcParams.update({'font.size': 15})
+    # df['loss'].iloc[0] could be huge, let's exclude it..
+    plt.plot(df['loss'].iloc[1:],     linewidth=1.75, label="loss",     color='C0')    
+    plt.plot(df['val_loss'].iloc[1:], linewidth=1.75, label="val_loss", color='C1')
+    plt.yscale('log')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.savefig(
+        settings['model']['save_to']['historical_loss_plot'], bbox_inches='tight'
+    )
+
+    
 
 def main():
     utils.set_environment_vars()
+    global settings
     settings = utils.read_config_file()
     utils.initialize_logger()
     sys.path.insert(1, settings['model']['path'])
@@ -71,11 +114,14 @@ def main():
         data_augmentation=func)
     
     logging.info('calling make_model()')
-    model = definition.make_model(input_shape=image_size + (3,), data_augmentation=func, num_classes=2)
+    model = definition.make_model(
+        input_shape=image_size + (3,), data_augmentation=func, num_classes=2
+    )
 
     # https://stackoverflow.com/questions/55908188/this-model-has-not-yet-been-built-error-on-model-summary
     keras.utils.plot_model(
-        model, show_shapes=True, to_file=settings['model']['save_to']['model_plot']
+        model, show_shapes=True,
+        to_file=settings['model']['save_to']['model_plot']
     )
 
     with open(settings['model']['save_to']['summary'], 'w') as f:        
@@ -83,28 +129,13 @@ def main():
     with open(settings['model']['save_to']['optimizer_config'], "w") as f:
         f.write(str(model.optimizer.get_config()))
 
-    history = model.fit(train_ds, epochs=definition.epochs, validation_data=val_ds)
-    # epochs: an epoch is an iteration over the entire x and y data provided
-    # (unless the steps_per_epoch flag is set to something other than None)
+    history = model.fit(
+        train_ds, epochs=definition.epochs, validation_data=val_ds
+    )
+    assert isinstance(history, keras.callbacks.History)
     
-    if os.path.isdir(settings['model']['save_to']['model']):
-        shutil.rmtree(settings['model']['save_to']['model'])
-    
-    tf.keras.models.save_model(model=model, filepath=settings['model']['save_to']['model'])
-    df = pd.DataFrame(data=history.history)
-    df['accuracy_ma'] = df['accuracy'].rolling(window=5).mean()
-    df['val_accuracy_ma'] = df['val_accuracy'].rolling(window=5).mean()
-    plt.figure(figsize = (16/2, 9/2))
-    plt.rcParams.update({'font.size': 15})
-    #fig = df[['accuracy', 'accuracy_ma', 'val_accuracy', 'val_accuracy_ma']].plot(kind='line', figsize=(16, 9/2), fontsize=12).get_figure()
-    plt.plot(df['accuracy'],     linewidth=1.75, label="accuracy",     color='C0')    
-    plt.plot(df['val_accuracy'], linewidth=1.75, label="val_accuracy", color='C1')
-    plt.legend()
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.savefig(settings['model']['save_to']['history_plot'], bbox_inches='tight')
-
-    df.to_csv(settings['model']['save_to']['history'])
+    save_model(model)
+    save_stats_and_plots(history)
     
 
 if __name__ == '__main__':

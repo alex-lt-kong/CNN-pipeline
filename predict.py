@@ -61,7 +61,6 @@ def predict_frames(model, img_path, img_size):
 
     prediction_raw = model.predict(img_array)
     prediction = np.argmax(tf.nn.softmax(prediction_raw[0]))
-
     return prediction
 
 
@@ -118,6 +117,7 @@ def prediction_thread() -> None:
         prediction = predict_frames(
             model, img_path, definition.target_image_size
         )
+        logging.info(f'prediction: {prediction}')
         if prediction == 1:
             logging.info('Target detected, preparing context frames')
             for i in range(image_kinda_queue_min_len):
