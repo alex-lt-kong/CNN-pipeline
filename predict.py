@@ -59,7 +59,7 @@ def predict_frames(model, img_path, img_size):
     img_array = tf.keras.utils.img_to_array(img)
     img_array = tf.expand_dims(img_array, 0) # Create a batch
 
-    return model.predict(img_array)
+    return model.predict(img_array)[0][0]
 
 
 def zeromq_thread() -> None:
@@ -115,9 +115,9 @@ def prediction_thread() -> None:
         prediction = predict_frames(
             model, img_path, definition.target_image_size
         )
-        logging.info(f'prediction: {prediction}')
-        if prediction == 1:
-            logging.info('Target detected, preparing context frames')
+        logging.info(f'Prediction: {prediction}')
+        if prediction > 0.5:
+            logging.warning('Target detected, preparing context frames')
             for i in range(image_kinda_queue_min_len):
                 with open(f'/tmp/frame{i}.jpg', "wb") as binary_file:
                     binary_file.write(image_kinda_queue[i])
