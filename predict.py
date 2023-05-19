@@ -59,9 +59,7 @@ def predict_frames(model, img_path, img_size):
     img_array = tf.keras.utils.img_to_array(img)
     img_array = tf.expand_dims(img_array, 0) # Create a batch
 
-    prediction_raw = model.predict(img_array)
-    prediction = np.argmax(tf.nn.softmax(prediction_raw[0]))
-    return prediction
+    return model.predict(img_array)
 
 
 def zeromq_thread() -> None:
