@@ -8,6 +8,7 @@ import pandas as pd
 import json
 import shutil
 import sys
+import time
 import tensorflow as tf
 
 settings = {}
@@ -79,10 +80,9 @@ def save_stats_and_plots(history: keras.callbacks.History) -> None:
     plt.savefig(
         settings['model']['save_to']['historical_loss_plot'], bbox_inches='tight'
     )
-
     
 
-def main():
+def main() -> None:
     utils.set_environment_vars()
     global settings
     settings = utils.read_config_file()
@@ -103,7 +103,8 @@ def main():
     train_ds, val_ds = utils.prepare_dataset(
         settings['dataset']['path'],
         image_size=image_size,
-        batch_size=definition.batch_size
+        batch_size=definition.batch_size,
+        seed=settings['dataset']['validation_split_seed']
     )
 
     func = definition.data_augmentation()

@@ -1,10 +1,7 @@
 {
   "dataset":{
     "path": "/tmp/current/data/input",
-    "image": {
-      "width": 355,
-      "height": 200
-    },
+    "validation_split_seed": 123,
     "preview_save_to": "/tmp/current/data/preview"
   },
   "model": {
@@ -21,10 +18,12 @@
     }
   },
   "diagnostics": {
-    "confusion_matrix": "/tmp/current/diagnostics/cm.png",
+    "confusion_matrix_train": "/tmp/current/diagnostics/cm-train.png",
+    "confusion_matrix_val": "/tmp/current/diagnostics/cm-val.png",
     "roc": "/tmp/current/diagnostics/roc.png",
     "report": "/tmp/current/diagnostics/report.txt",
-    "misclassified": "/tmp/current/data/misclassified"
+    "misclassified_train": "/tmp/current/data/misclassified-train",
+    "misclassified_val": "/tmp/current/data/misclassified-val"
   },
   "prediction": {
     "input_file_path": "/tmp/input.jpg",

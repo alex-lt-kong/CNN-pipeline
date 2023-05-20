@@ -1,5 +1,5 @@
 from subprocess import Popen, PIPE
-from typing import Tuple
+from typing import Tuple, Dict, Any
 
 import argparse
 import json
@@ -44,7 +44,7 @@ def remove_invalid_samples(sample_path):
     logging.info(f"Deleted {num_skipped} images")
 
 
-def read_config_file():
+def read_config_file() -> Dict[str, Any]:
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', dest='config', required=True,
         help='the path of the JSON format configuration file to be used by the model'        
@@ -59,7 +59,7 @@ def read_config_file():
     return settings
 
 
-def check_gpu():
+def check_gpu() -> None:
     process = Popen(['nvidia-smi'], stdout=PIPE)
     (output, err) = process.communicate()
     exit_code = process.wait()
@@ -69,7 +69,7 @@ def check_gpu():
         tf.config.experimental.set_memory_growth(gpu, True)
     logging.info(gpus)
 
-def initialize_logger():
+def initialize_logger() -> None:
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
@@ -80,7 +80,9 @@ def initialize_logger():
     root.addHandler(handler)
 
 
-def prepare_dataset(sample_path, image_size, batch_size, seed=168) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
+def prepare_dataset(
+    sample_path, image_size, batch_size, seed=168
+) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
 
     train_ds = tf.keras.preprocessing.image_dataset_from_directory(
         sample_path,
