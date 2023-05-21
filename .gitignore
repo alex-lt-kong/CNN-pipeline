@@ -1,7 +1,5 @@
 # my ignores
-data-out/
-data-in/
-data-test/
+predict.sqlite
 config.json
 
 # Byte-compiled / optimized / DLL files

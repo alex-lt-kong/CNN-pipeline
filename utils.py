@@ -69,6 +69,7 @@ def check_gpu() -> None:
         tf.config.experimental.set_memory_growth(gpu, True)
     logging.info(gpus)
 
+
 def initialize_logger() -> None:
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
