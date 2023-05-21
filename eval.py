@@ -58,7 +58,7 @@ def get_predictions(dataset: tf.data.Dataset, model: keras.models.Model,
                 ),
                 x[i].numpy().astype("uint8")
             )
-
+        #breakpoint()
 
     return y_true, y_pred, y_pred_cat
 
@@ -84,7 +84,8 @@ def plot_roc_curve(y_true_train: np.ndarray, y_true_val: np.ndarray,
     y_pred_train: np.ndarray, y_pred_val: np.ndarray, path: str) -> None:
     
     plt.clf()
-    
+    plt.figure(figsize = (16/2, 9/2))
+    plt.rcParams.update({'font.size': 15})
     fpr_train, tpr_train, thresholds_train = metrics.roc_curve(
         y_true_train, y_pred_train
     )
@@ -97,9 +98,8 @@ def plot_roc_curve(y_true_train: np.ndarray, y_true_val: np.ndarray,
     plt.plot(fpr_val, tpr_val, label='Val')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC Curve')
     plt.legend()
-    plt.savefig(path)
+    plt.savefig(path, bbox_inches='tight')
 
 
 def main() -> None:

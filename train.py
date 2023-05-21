@@ -1,8 +1,11 @@
 from tensorflow import keras
+from typing import Dict, Any
+from sklearn.utils import class_weight
 
 import utils
 import logging
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 import pandas as pd
 import json
@@ -40,13 +43,15 @@ def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
         if enough_sample >= len(count.keys()):
             break
 
-def save_model(model) -> None:
+
+def save_model(model: keras.models.Model) -> None:
     if os.path.isdir(settings['model']['save_to']['model']):
         shutil.rmtree(settings['model']['save_to']['model'])
     
     tf.keras.models.save_model(
         model=model, filepath=settings['model']['save_to']['model']
     )
+
 
 def save_stats_and_plots(history: keras.callbacks.History) -> None:
     df = pd.DataFrame(data=history.history)
@@ -80,7 +85,45 @@ def save_stats_and_plots(history: keras.callbacks.History) -> None:
     plt.savefig(
         settings['model']['save_to']['historical_loss_plot'], bbox_inches='tight'
     )
-    
+
+
+def lr_scheduler_by_epoch(epoch: int, lr: float) -> float:
+    # The below formula is from:
+    # https://keras.io/api/optimizers/learning_rate_schedules/exponential_decay/
+    decay_rate = 0.9
+    decay_epoches = 1.0
+    return lr * (decay_rate ** (epoch / decay_epoches))
+
+
+class exponential_model_saver(keras.callbacks.Callback):
+
+    def __init__(self, model_path: str) -> None:
+        super().__init__()
+        self.model_path = model_path
+
+    def is_power_of_two(self, n: int) -> bool:
+        """Returns True if n is a power of two, False otherwise."""
+        return n != 0 and (n & (n - 1)) == 0
+
+    def on_epoch_end(self, epoch: int, logs: Dict[Any, Any]) -> None:
+        # logs is something like:
+        # {
+        #   'loss': 100.83602905273438, 'auc': 0.6829984784126282,
+        #   'val_loss': 1.1813486814498901, 'val_auc': 0.7612717151641846
+        # }
+        epoch += 1
+        if self.is_power_of_two(epoch):
+            self.model.save(self.model_path.format(epoch=epoch))
+
+
+def get_balanced_class_weights() -> Dict[int, float]:
+
+    class_weights = class_weight.compute_class_weight(
+        class_weight='balanced', classes=np.unique(y), y=y
+    )
+    class_weight_dict = {i: class_weights[i] for i in range(len(class_weights))}
+    logging.info(f'class_weight_dict: {class_weight_dict}')
+    return class_weight_dict
 
 def main() -> None:
     utils.set_environment_vars()
@@ -131,10 +174,20 @@ def main() -> None:
         f.write(str(model.optimizer.get_config()))
 
     history = model.fit(
-        train_ds, epochs=definition.epochs, validation_data=val_ds
+        train_ds,
+        epochs=definition.epochs,
+        validation_data=val_ds,
+        callbacks=[
+            exponential_model_saver(
+                settings['model']['save_to']['model_checkpoint']
+            ),
+            tf.keras.callbacks.LearningRateScheduler(lr_scheduler_by_epoch)
+        ],
+        class_weight=get_balanced_class_weights(),
+        verbose=2
     )
     assert isinstance(history, keras.callbacks.History)
-    
+
     save_model(model)
     save_stats_and_plots(history)
     
