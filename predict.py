@@ -165,7 +165,7 @@ def prediction_thread() -> None:
             logging.info(f'stderr: {result.stderr}')
             
             count = 0
-            while count < 60 * 2 and ev_flag:
+            while count < 90 * 2 and ev_flag:
                 count += 1
                 time.sleep(0.5)
         else:
