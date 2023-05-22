@@ -1,8 +1,11 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from sklearn import metrics
 from sklearn.metrics import classification_report
 from tensorflow import keras
 
+# The directory of definition.py should be added to $PYTHONPATH and optionally
+# other corresponding settings of other autocomplete/linting tools
+import definition
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,9 +13,11 @@ import os
 import pandas as pd
 import seaborn as sn
 import shutil
-import sys
 import tensorflow as tf
 import utils
+
+
+settings: Dict[str, Any] = {}
 
 
 def get_predictions(dataset: tf.data.Dataset, model: keras.models.Model,
@@ -63,6 +68,50 @@ def get_predictions(dataset: tf.data.Dataset, model: keras.models.Model,
     return y_true, y_pred, y_pred_cat
 
 
+def plot_history() -> None:
+
+    df = pd.read_csv(settings['diagnostics']['history'])
+
+    plt.figure(figsize = (16/2, 9/2))
+    plt.rcParams.update({'font.size': 15})
+    #fig = df[['AUC', 'AUC_ma', 'val_AUC', 'val_AUC_ma']].plot(kind='line', figsize=(16, 9/2), fontsize=12).get_figure()
+    plt.plot(df['auc'],     linewidth=1.75, label="auc",     color='C0')    
+    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc", color='C1')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('AUC')
+    plt.savefig(
+        settings['diagnostics']['historical_auc_plot'], bbox_inches='tight'
+    )
+
+    # clear figure
+    plt.clf()
+
+    plt.figure(figsize = (16/2, 9/2))
+    plt.rcParams.update({'font.size': 15})
+    # df['loss'].iloc[0] could be huge, let's exclude it..
+    plt.plot(df['loss'].iloc[1:],     linewidth=1.75, label="loss",     color='C0')    
+    plt.plot(df['val_loss'].iloc[1:], linewidth=1.75, label="val_loss", color='C1')
+    plt.yscale('log')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.savefig(
+        settings['diagnostics']['historical_loss_plot'], bbox_inches='tight'
+    )
+    plt.clf()
+
+    plt.figure(figsize = (16/2, 9/2))
+    plt.rcParams.update({'font.size': 15})
+    plt.plot(df['lr'], linewidth=1.75, label="Learning rate", color='C0')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Learning rate')
+    plt.savefig(
+        settings['diagnostics']['historical_lr_plot'], bbox_inches='tight'
+    )
+
+
 def plot_confusion_matrix(
     y_true: np.ndarray, y_pred_cat: np.ndarray, classes: List[str], path: str
 ) -> None:
@@ -96,6 +145,7 @@ def plot_roc_curve(y_true_train: np.ndarray, y_true_val: np.ndarray,
     # plot both ROC curves on the same graph
     plt.plot(fpr_train, tpr_train, label='Train')
     plt.plot(fpr_val, tpr_val, label='Val')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='r', label='Random guess')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.legend()
@@ -103,21 +153,19 @@ def plot_roc_curve(y_true_train: np.ndarray, y_true_val: np.ndarray,
 
 
 def main() -> None:
-
+    global settings
     settings = utils.read_config_file()
     utils.initialize_logger()
-    sys.path.insert(1, settings['model']['path'])
-    import definition    
-    image_size = definition.target_image_size     
     
+    plot_history()
 
     train_ds, val_ds = utils.prepare_dataset(
         settings['dataset']['path'],
-        image_size=image_size,
+        image_size=definition.target_image_size,
         batch_size=definition.batch_size,
         seed=settings['dataset']['validation_split_seed']
     )
-    model = tf.keras.models.load_model(settings['model']['save_to']['model'])
+    model = tf.keras.models.load_model(settings['model']['model'])
 
     classes = ['Not Detected', 'Detected']
 

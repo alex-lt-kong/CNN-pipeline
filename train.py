@@ -2,21 +2,24 @@ from tensorflow import keras
 from typing import Dict, Any
 from sklearn.utils import class_weight
 
+# The directory of definition.py should be added to $PYTHONPATH and optionally
+# other corresponding settings of other autocomplete/linting tools
+import definition
 import utils
 import logging
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-import json
 import shutil
-import sys
-import time
 import tensorflow as tf
 
-settings = {}
 
-def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
+settings: Dict[str, Any] = {}
+
+
+def preview_samples(
+    dest_dir: str, dataset: tf.data.Dataset, data_augmentation
+) -> None:
 
     count = {
         '0': 0,
@@ -33,7 +36,8 @@ def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
                 os.mkdir(label_dir)
 
             tf.keras.utils.save_img(
-                os.path.join(label_dir, f'{count[label]}.jpg'), augmented_images[i].numpy().astype("uint8")
+                os.path.join(label_dir, f'{count[label]}.jpg'),
+                augmented_images[i].numpy().astype("uint8")
             )
 
         enough_sample = 0
@@ -45,54 +49,17 @@ def preview_samples(dest_dir: str, dataset: tf.data.Dataset, data_augmentation):
 
 
 def save_model(model: keras.models.Model) -> None:
-    if os.path.isdir(settings['model']['save_to']['model']):
-        shutil.rmtree(settings['model']['save_to']['model'])
+    if os.path.isdir(settings['model']['model']):
+        shutil.rmtree(settings['model']['model'])
     
     tf.keras.models.save_model(
-        model=model, filepath=settings['model']['save_to']['model']
+        model=model, filepath=settings['model']['model']
     )
 
 
-def save_stats_and_plots(history: keras.callbacks.History) -> None:
+def save_history(history: keras.callbacks.History) -> None:
     df = pd.DataFrame(data=history.history)
-    df['auc_ma'] = df['auc'].rolling(window=5).mean()
-    df['val_auc_ma'] = df['val_auc'].rolling(window=5).mean()
-    df.to_csv(settings['model']['save_to']['history'])
-    plt.figure(figsize = (16/2, 9/2))
-    plt.rcParams.update({'font.size': 15})
-    #fig = df[['AUC', 'AUC_ma', 'val_AUC', 'val_AUC_ma']].plot(kind='line', figsize=(16, 9/2), fontsize=12).get_figure()
-    plt.plot(df['auc'],     linewidth=1.75, label="auc",     color='C0')    
-    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc", color='C1')
-    plt.legend()
-    plt.xlabel('Epochs')
-    plt.ylabel('AUC')
-    plt.savefig(
-        settings['model']['save_to']['historical_auc_plot'], bbox_inches='tight'
-    )
-
-    # clear figure
-    plt.clf()
-
-    plt.figure(figsize = (16/2, 9/2))
-    plt.rcParams.update({'font.size': 15})
-    # df['loss'].iloc[0] could be huge, let's exclude it..
-    plt.plot(df['loss'].iloc[1:],     linewidth=1.75, label="loss",     color='C0')    
-    plt.plot(df['val_loss'].iloc[1:], linewidth=1.75, label="val_loss", color='C1')
-    plt.yscale('log')
-    plt.legend()
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.savefig(
-        settings['model']['save_to']['historical_loss_plot'], bbox_inches='tight'
-    )
-
-
-def lr_scheduler_by_epoch(epoch: int, lr: float) -> float:
-    # The below formula is from:
-    # https://keras.io/api/optimizers/learning_rate_schedules/exponential_decay/
-    decay_rate = 0.9
-    decay_epoches = 1.0
-    return lr * (decay_rate ** (epoch / decay_epoches))
+    df.to_csv(settings['diagnostics']['history'])
 
 
 class exponential_model_saver(keras.callbacks.Callback):
@@ -116,7 +83,7 @@ class exponential_model_saver(keras.callbacks.Callback):
             self.model.save(self.model_path.format(epoch=epoch))
 
 
-def get_balanced_class_weights() -> Dict[int, float]:
+def get_balanced_class_weights(y: np.ndarray) -> Dict[int, float]:
 
     class_weights = class_weight.compute_class_weight(
         class_weight='balanced', classes=np.unique(y), y=y
@@ -125,17 +92,12 @@ def get_balanced_class_weights() -> Dict[int, float]:
     logging.info(f'class_weight_dict: {class_weight_dict}')
     return class_weight_dict
 
+
 def main() -> None:
     utils.set_environment_vars()
     global settings
     settings = utils.read_config_file()
     utils.initialize_logger()
-    sys.path.insert(1, settings['model']['path'])
-    import definition
-    
-    image_size = definition.target_image_size
-
-
     
     logging.info(settings)
     logging.info('Checking valid GPUs')
@@ -145,7 +107,7 @@ def main() -> None:
     logging.info('Separating data into a training set and a test set')
     train_ds, val_ds = utils.prepare_dataset(
         settings['dataset']['path'],
-        image_size=image_size,
+        image_size=definition.target_image_size,
         batch_size=definition.batch_size,
         seed=settings['dataset']['validation_split_seed']
     )
@@ -159,37 +121,39 @@ def main() -> None:
     
     logging.info('calling make_model()')
     model = definition.make_model(
-        input_shape=image_size + (3,), data_augmentation=func, num_classes=2
+        input_shape=definition.target_image_size + (3,),
+        data_augmentation=func,
+        num_classes=2
     )
 
     # https://stackoverflow.com/questions/55908188/this-model-has-not-yet-been-built-error-on-model-summary
     keras.utils.plot_model(
-        model, show_shapes=True,
-        to_file=settings['model']['save_to']['model_plot']
+        model, show_shapes=True, to_file=settings['model']['plot']
     )
 
-    with open(settings['model']['save_to']['summary'], 'w') as f:        
+    with open(settings['model']['summary'], 'w') as f:        
         model.summary(print_fn=lambda x: f.write(x + '\n'))
-    with open(settings['model']['save_to']['optimizer_config'], "w") as f:
+    with open(settings['model']['optimizer_config'], "w") as f:
         f.write(str(model.optimizer.get_config()))
-
+    
+    y_true = np.concatenate([y for x, y in train_ds.map(lambda x, y: (x, y))])
     history = model.fit(
         train_ds,
         epochs=definition.epochs,
         validation_data=val_ds,
-        callbacks=[
-            exponential_model_saver(
-                settings['model']['save_to']['model_checkpoint']
+        callbacks=[exponential_model_saver(
+                settings['model']['model_checkpoint']
             ),
-            tf.keras.callbacks.LearningRateScheduler(lr_scheduler_by_epoch)
-        ],
-        class_weight=get_balanced_class_weights(),
+            tf.keras.callbacks.LearningRateScheduler(
+                definition.lr_scheduler_by_epoch
+        )],
+        class_weight=get_balanced_class_weights(y_true),
         verbose=2
     )
     assert isinstance(history, keras.callbacks.History)
 
     save_model(model)
-    save_stats_and_plots(history)
+    save_history(history)
     
 
 if __name__ == '__main__':

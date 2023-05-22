@@ -5,20 +5,17 @@
     "preview_save_to": "/tmp/current/data/preview"
   },
   "model": {
-    "path": "/tmp/current/model/",
-    "epochs": 5,
-    "batch_size": 3,
-    "save_to":{
-      "history": "/tmp/current/model/history.csv",
-      "historical_loss_plot": "/tmp/current/model/historical-loss-plot.png",
-      "historical_auc_plot": "/tmp/current/model/historical-auc-plot.png",
-      "model": "/tmp/current/model/model.hdf5",
-      "model_checkpoint": "/tmp/current/model/model_{epoch:03d}.hdf5",
-      "model_plot": "/tmp/current/model/model-plot.png",
-      "summary": "/tmp/current/model/summary.txt"
-    }
+    "model": "/tmp/current/model/model.hdf5",
+    "model_checkpoint": "/tmp/current/model/model_{epoch:03d}.hdf5",
+    "plot": "/tmp/current/model/model-plot.png",
+    "summary": "/tmp/current/model/summary.txt",
+    "optimizer_config": "/tmp/current/model/optimizer_config.txt"
   },
   "diagnostics": {
+    "history": "/tmp/current/model/history.csv",
+    "historical_loss_plot": "/tmp/current/model/historical-loss-plot.png",
+    "historical_auc_plot": "/tmp/current/model/historical-auc-plot.png",
+    "historical_lr_plot": "/tmp/current/model/historical-lr-plot.png",
     "confusion_matrix_train": "/tmp/current/diagnostics/cm-train.png",
     "confusion_matrix_val": "/tmp/current/diagnostics/cm-val.png",
     "roc": "/tmp/current/diagnostics/roc.png",
