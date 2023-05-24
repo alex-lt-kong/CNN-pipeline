@@ -74,9 +74,22 @@ def plot_history() -> None:
 
     plt.figure(figsize = (16/2, 9/2))
     plt.rcParams.update({'font.size': 15})
-    #fig = df[['AUC', 'AUC_ma', 'val_AUC', 'val_AUC_ma']].plot(kind='line', figsize=(16, 9/2), fontsize=12).get_figure()
-    plt.plot(df['auc'],     linewidth=1.75, label="auc",     color='C0')    
-    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc", color='C1')
+    plt.plot(df['auc'],     linewidth=1.75, label="auc_roc",     color='C0')
+    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc_roc", color='C1')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('AUC')
+    plt.savefig(
+        settings['diagnostics']['historical_auc_plot'], bbox_inches='tight'
+    )
+
+    # clear figure
+    plt.clf()
+    
+    plt.figure(figsize = (16/2, 9/2))
+    plt.rcParams.update({'font.size': 15})
+    plt.plot(df['auc'],     linewidth=1.75, label="auc_pr",      color='C0')
+    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc_pr", color='C1')
     plt.legend()
     plt.xlabel('Epochs')
     plt.ylabel('AUC')
