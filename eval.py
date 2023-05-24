@@ -74,8 +74,8 @@ def plot_history() -> None:
 
     plt.figure(figsize = (16/2, 9/2))
     plt.rcParams.update({'font.size': 15})
-    plt.plot(df['auc'],     linewidth=1.75, label="auc_roc",     color='C0')
-    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc_roc", color='C1')
+    plt.plot(df['auc_roc'],     linewidth=1.75, label="auc_roc",     color='C0')
+    plt.plot(df['val_auc_roc'], linewidth=1.75, label="val_auc_roc", color='C1')
     plt.legend()
     plt.xlabel('Epochs')
     plt.ylabel('AUC')
@@ -88,8 +88,8 @@ def plot_history() -> None:
     
     plt.figure(figsize = (16/2, 9/2))
     plt.rcParams.update({'font.size': 15})
-    plt.plot(df['auc'],     linewidth=1.75, label="auc_pr",      color='C0')
-    plt.plot(df['val_auc'], linewidth=1.75, label="val_auc_pr", color='C1')
+    plt.plot(df['auc_pr'],     linewidth=1.75, label="auc_pr",      color='C0')
+    plt.plot(df['val_auc_pr'], linewidth=1.75, label="val_auc_pr", color='C1')
     plt.legend()
     plt.xlabel('Epochs')
     plt.ylabel('AUC')
