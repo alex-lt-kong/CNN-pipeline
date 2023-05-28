@@ -1,6 +1,7 @@
 from flask import Flask, request, Response
 from threading import Thread, Lock
 
+import definition
 import datetime as dt
 import logging
 import os
@@ -64,7 +65,7 @@ def prepare_database() -> None:
     conn.commit()
 
 
-def limit_gpu_memory_usage() -> None:
+def config_tf() -> None:
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
         for gpu in gpus:
@@ -75,6 +76,7 @@ def limit_gpu_memory_usage() -> None:
             )
     else:
         raise RuntimeError('How come?')
+    tf.compat.v1.disable_eager_execution()
     return
 
 
@@ -84,7 +86,7 @@ def predict_frames(model, img_path, img_size) -> float:
     img_array = tf.keras.utils.img_to_array(img)
     img_array = tf.expand_dims(img_array, 0) # Create a batch
 
-    pred = model.predict(img_array)[0][0].item()
+    pred = model.predict(img_array, steps=1)[0][0].item()
     assert isinstance(pred, float)
     return pred
 
@@ -126,13 +128,10 @@ def prediction_thread() -> None:
     global prediction_interval, ev_flag
     settings = utils.read_config_file()
     img_path = settings['prediction']['input_file_path']
-    sys.path.insert(1, settings['model']['path'])
 
-    import definition
-    
     conn = sqlite3.connect(db_path)
 
-    model = tf.keras.models.load_model(settings['model']['save_to']['model'])
+    model = tf.keras.models.load_model(settings['model']['model'])
     while ev_flag:
         logging.info("Iterating prediction loop...")
         image_queue_mutex.acquire()
@@ -187,7 +186,7 @@ def waitress_thread() -> None:
 def main() -> None:
     utils.initialize_logger()
     utils.set_environment_vars()
-    limit_gpu_memory_usage()
+    config_tf()
     prepare_database()
 
     signal.signal(signal.SIGINT, signal_handler)
