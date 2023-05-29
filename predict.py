@@ -53,7 +53,8 @@ def prepare_database() -> None:
         CREATE TABLE IF NOT EXISTS prediction_results (
             id INTEGER PRIMARY KEY,
             timestamp TEXT,
-            prediction REAL
+            prediction REAL,
+            elapsed_time_ms REAL
     )''')
     conn.commit()
     
@@ -76,8 +77,8 @@ def config_tf() -> None:
             )
     else:
         raise RuntimeError('How come?')
-    tf.compat.v1.disable_eager_execution()
-    return
+    #tf.compat.v1.disable_eager_execution()
+    #return
 
 
 def predict_frames(model, img_path, img_size) -> float:
@@ -86,7 +87,7 @@ def predict_frames(model, img_path, img_size) -> float:
     img_array = tf.keras.utils.img_to_array(img)
     img_array = tf.expand_dims(img_array, 0) # Create a batch
 
-    pred = model.predict(img_array, steps=1)[0][0].item()
+    pred = model.predict(img_array)[0][0].item()
     assert isinstance(pred, float)
     return pred
 
@@ -115,11 +116,16 @@ def zeromq_thread() -> None:
     logging.info('zeromq_thread() exited gracefully')
 
 
-def insert_prediction_to_db(conn: sqlite3.Connection, pred: float) -> None:
+def insert_prediction_to_db(
+    conn: sqlite3.Connection, pred: float, elapsed_time_ms: float
+) -> None:
 
     cur = conn.cursor()
-    sql = "INSERT INTO prediction_results(timestamp, prediction) VALUES (?, ?)"
-    cur.execute(sql, (dt.datetime.now().isoformat(), pred))
+    sql = """
+        INSERT INTO prediction_results(timestamp, prediction, elapsed_time_ms)
+        VALUES (?, ?, ?)
+    """
+    cur.execute(sql, (dt.datetime.now().isoformat(), pred, elapsed_time_ms))
     conn.commit()
 
 
@@ -147,8 +153,11 @@ def prediction_thread() -> None:
         with open(img_path, "wb") as binary_file:
             binary_file.write(image_kinda_queue[3])
         
+        start_time = time.time()
         pred = predict_frames(model, img_path, definition.target_image_size)
-        insert_prediction_to_db(conn, pred)
+        elapsed_time = time.time() - start_time
+
+        insert_prediction_to_db(conn, pred, round(elapsed_time * 1000.0, 1))
         if pred > 0.5:
             logging.warning('Target detected, preparing context frames')
             for i in range(image_kinda_queue_min_len):
