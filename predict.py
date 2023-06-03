@@ -125,7 +125,10 @@ def insert_prediction_to_db(
         INSERT INTO prediction_results(timestamp, prediction, elapsed_time_ms)
         VALUES (?, ?, ?)
     """
-    cur.execute(sql, (dt.datetime.now().isoformat(), pred, elapsed_time_ms))
+    cur.execute(
+        sql,
+        (dt.datetime.now().isoformat(), round(pred, 5), elapsed_time_ms)
+    )
     conn.commit()
 
 
