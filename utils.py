@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
-from typing import Tuple, Dict, Any
+from tensorflow import keras
+from typing import Tuple, Dict, Any, Union
 
 import argparse
 import json
@@ -7,6 +8,20 @@ import logging
 import os
 import sys
 import tensorflow as tf
+
+
+def predict_image(
+    model: Union[keras.models.Model, str], img_path: str, img_size: Tuple[int, int]
+) -> float:
+    if isinstance(model, str):
+        model = tf.keras.models.load_model(model)
+    img = tf.keras.utils.load_img(img_path, target_size=img_size)
+    img_array = tf.keras.utils.img_to_array(img)
+    img_array = tf.expand_dims(img_array, 0) # Create a batch
+
+    pred = model.predict(img_array)[0][0].item()
+    assert isinstance(pred, float)
+    return pred
 
 
 def set_environment_vars() -> None:

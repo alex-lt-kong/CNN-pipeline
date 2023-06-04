@@ -1,11 +1,11 @@
 from flask import Flask, request, Response
 from threading import Thread, Lock
+from typing import List, Any
 
 import definition
 import datetime as dt
 import logging
 import os
-import sys
 import tensorflow as tf
 import time
 import utils
@@ -14,16 +14,16 @@ import sqlite3
 import subprocess
 import waitress
 import zmq
-  
+
 
 app = Flask(__name__)
 curr_dir = os.path.dirname(os.path.realpath(__file__))
 prediction_interval = 600
 ev_flag = True
 image_queue_mutex = Lock()
-image_kinda_queue = []
-image_kinda_queue_min_len = 12
-image_kinda_queue_max_len = image_kinda_queue_min_len * 2
+image_queue: List[Any] = []
+image_queue_min_len = 16
+image_queue_max_len = image_queue_min_len * 2
 db_path = os.path.join(curr_dir, 'predict.sqlite')
 
 
@@ -81,17 +81,6 @@ def config_tf() -> None:
     #return
 
 
-def predict_frames(model, img_path, img_size) -> float:
-
-    img = tf.keras.utils.load_img(img_path, target_size=img_size)
-    img_array = tf.keras.utils.img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0) # Create a batch
-
-    pred = model.predict(img_array)[0][0].item()
-    assert isinstance(pred, float)
-    return pred
-
-
 def zeromq_thread() -> None:
 
     context = zmq.Context()
@@ -108,9 +97,9 @@ def zeromq_thread() -> None:
         #  Get the reply.
         message = socket.recv()
         image_queue_mutex.acquire()
-        while len(image_kinda_queue) >= image_kinda_queue_max_len:
-            image_kinda_queue.pop(0)
-        image_kinda_queue.append(message)
+        while len(image_queue) >= image_queue_max_len:
+            image_queue.pop(0)
+        image_queue.append(message)
         image_queue_mutex.release()
 
     logging.info('zeromq_thread() exited gracefully')
@@ -144,9 +133,9 @@ def prediction_thread() -> None:
     while ev_flag:
         logging.info("Iterating prediction loop...")
         image_queue_mutex.acquire()
-        if len(image_kinda_queue) < image_kinda_queue_min_len:
+        if len(image_queue) < image_queue_min_len:
             logging.warning(
-                f'len(image_kinda_queue): {len(image_kinda_queue)}, '
+                f'len(image_queue): {len(image_queue)}, '
                 'waiting for more frames...'
             )
             image_queue_mutex.release()
@@ -154,18 +143,18 @@ def prediction_thread() -> None:
             continue
 
         with open(img_path, "wb") as binary_file:
-            binary_file.write(image_kinda_queue[3])
+            binary_file.write(image_queue[3])
         
         start_time = time.time()
-        pred = predict_frames(model, img_path, definition.target_image_size)
+        pred = utils.predict_image(model, img_path, definition.target_image_size)
         elapsed_time = time.time() - start_time
 
         insert_prediction_to_db(conn, pred, round(elapsed_time * 1000.0, 1))
         if pred > 0.5:
             logging.warning('Target detected, preparing context frames')
-            for i in range(image_kinda_queue_min_len):
+            for i in range(image_queue_min_len):
                 with open(f'/tmp/frame{i}.jpg', "wb") as binary_file:
-                    binary_file.write(image_kinda_queue[i])
+                    binary_file.write(image_queue[i])
             image_queue_mutex.release()
             logging.info('Calling downstream program...')
             result = subprocess.run(
@@ -190,11 +179,6 @@ def prediction_thread() -> None:
     conn.close()
 
 
-def waitress_thread() -> None:
-   # server = 
-    
-    app.run(host='0.0.0.0', port=4386)
-
 def main() -> None:
     utils.initialize_logger()
     utils.set_environment_vars()
@@ -206,8 +190,6 @@ def main() -> None:
     th_pred.start()
     th_zmq = Thread(target=zeromq_thread)
     th_zmq.start()
-    #th_waitress = Thread(target=waitress_thread)
-    #th_waitress.start()
     waitress.serve(app, host='127.0.0.1', port='4386')
     logging.info('main() exited gracefully')
 

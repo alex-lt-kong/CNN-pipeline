@@ -1,5 +1,6 @@
 # my ignores
 predict.sqlite
+predict.sqlite-journal
 config.json
 
 # Byte-compiled / optimized / DLL files
