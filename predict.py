@@ -57,7 +57,7 @@ def prepare_database() -> None:
             elapsed_time_ms REAL
     )''')
     conn.commit()
-    
+
     cutoff_date = dt.datetime.now() - dt.timedelta(days=15)
 
     cur.execute(
@@ -77,8 +77,8 @@ def config_tf() -> None:
             )
     else:
         raise RuntimeError('How come?')
-    #tf.compat.v1.disable_eager_execution()
-    #return
+    # tf.compat.v1.disable_eager_execution()
+    # return
 
 
 def zeromq_thread() -> None:
@@ -91,7 +91,6 @@ def zeromq_thread() -> None:
     socket.connect("tcp://127.0.0.1:4242")
     socket.setsockopt(zmq.SUBSCRIBE, b'')
     print("Connected to endpoint")
-
 
     while ev_flag:
         #  Get the reply.
@@ -144,7 +143,7 @@ def prediction_thread() -> None:
 
         with open(img_path, "wb") as binary_file:
             binary_file.write(image_queue[3])
-        
+
         start_time = time.time()
         pred = utils.predict_image(model, img_path, definition.target_image_size)
         elapsed_time = time.time() - start_time
@@ -163,7 +162,7 @@ def prediction_thread() -> None:
             )
             logging.info(f'stdout: {result.stdout}')
             logging.info(f'stderr: {result.stderr}')
-            
+
             count = 0
             while count < 90 * 2 and ev_flag:
                 count += 1
@@ -172,9 +171,9 @@ def prediction_thread() -> None:
             image_queue_mutex.release()
 
         count = 0
-        while count < prediction_interval and ev_flag:
+        while count < prediction_interval * 10.0 and ev_flag:
             count += 1
-            time.sleep(1)
+            time.sleep(0.1)
     logging.info('prediction_thread() exited gracefully')
     conn.close()
 
@@ -192,6 +191,7 @@ def main() -> None:
     th_zmq.start()
     waitress.serve(app, host='127.0.0.1', port='4386')
     logging.info('main() exited gracefully')
+
 
 if __name__ == '__main__':
     main()
