@@ -90,7 +90,7 @@ def zeromq_thread() -> None:
     #  Socket to talk to server
     print("Connecting to publisher endpoint")
     socket = context.socket(zmq.SUB)
-    socket.connect("tcp://127.0.0.1:4242")
+    socket.connect("tcp://127.0.0.1:4241")
     socket.setsockopt(zmq.SUBSCRIBE, b'')
     print("Connected to endpoint")
 
@@ -107,10 +107,8 @@ def zeromq_thread() -> None:
 
 
 def insert_prediction_to_db(
-    conn: sqlite3.Connection, pred: float, elapsed_time_ms: float
+    cur: sqlite3.Cursor, pred: float, elapsed_time_ms: float
 ) -> None:
-
-    cur = conn.cursor()
     sql = """
         INSERT INTO prediction_results(timestamp, prediction, elapsed_time_ms)
         VALUES (?, ?, ?)
@@ -119,7 +117,6 @@ def insert_prediction_to_db(
         sql,
         (dt.datetime.now().isoformat(), round(pred, 5), elapsed_time_ms)
     )
-    conn.commit()
 
 
 def prediction_thread() -> None:
@@ -129,9 +126,11 @@ def prediction_thread() -> None:
     img_path = settings['prediction']['input_file_path']
 
     conn = sqlite3.connect(db_path)
-
+    cur = conn.cursor()
     model = tf.keras.models.load_model(settings['model']['model'])
+    iter_count = 0
     while ev_flag:
+        iter_count += 1
         logging.info("Iterating prediction loop...")
         image_queue_mutex.acquire()
         if len(image_queue) < image_queue_min_len:
@@ -145,13 +144,20 @@ def prediction_thread() -> None:
 
         with open(img_path, "wb") as binary_file:
             bytes_written = binary_file.write(image_queue[3])
-            logging.info(f'{bytes_written} bytes written to {img_path}')
 
         start_time = time.time()
         pred = utils.predict_image(model, img_path, definition.target_image_size)
         elapsed_time = time.time() - start_time
+        
+        insert_prediction_to_db(cur, pred, round(elapsed_time * 1000.0, 1))
+        
+        if iter_count > 60:
+            # commit() could be a very expensive operation
+            # profiling shows it takes 1+ sec to complete            
+            conn.commit()
+            logging.info(f'SQLite commit()ed')
+            iter_count = 0
 
-        insert_prediction_to_db(conn, pred, round(elapsed_time * 1000.0, 1))
         if pred > 0.5:
             logging.warning('Target detected, preparing context frames')
             for i in range(image_queue_min_len):
@@ -177,6 +183,8 @@ def prediction_thread() -> None:
         while count < prediction_interval * 10.0 and ev_flag:
             count += 1
             time.sleep(0.1)
+    conn.commit()
+    logging.info(f'SQLite commit()ed')
     logging.info('prediction_thread() exited gracefully')
     conn.close()
 
