@@ -147,7 +147,7 @@ def main() -> None:
             tf.keras.callbacks.LearningRateScheduler(
                 definition.lr_scheduler_by_epoch
         )],
-        class_weight=get_balanced_class_weights(y_true),
+      #  class_weight=get_balanced_class_weights(y_true),
         verbose=2
     )
     assert isinstance(history, keras.callbacks.History)

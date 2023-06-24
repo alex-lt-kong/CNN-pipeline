@@ -29,7 +29,7 @@ def set_environment_vars() -> None:
     #os.environ['LD_LIBRARY_PATH'] = f"{os.environ['CONDA_PREFIX']}/lib/"
 
 
-def remove_invalid_samples(sample_path):
+def remove_invalid_samples(sample_path: str) -> None:
     num_skipped = 0
     for folder_name in ("0", "1"):
         logging.info(f'Now checking samples in {folder_name} directory')
@@ -71,6 +71,7 @@ def read_config_file() -> Dict[str, Any]:
     with open(config_path, 'r') as json_file:
         json_str = json_file.read()
         settings = json.loads(json_str)
+        assert isinstance(settings, Dict)
     return settings
 
 
@@ -79,6 +80,8 @@ def check_gpu() -> None:
     (output, err) = process.communicate()
     exit_code = process.wait()
     logging.info(output.decode('utf8'))
+    if exit_code != 0:
+        logging.error(err.decode('utf8'))
     gpus = tf.config.list_physical_devices('GPU')
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
@@ -91,13 +94,15 @@ def initialize_logger() -> None:
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    formatter = logging.Formatter(
+        '%(asctime)s | %(name)s | %(levelname)s | %(message)s'
+    )
     handler.setFormatter(formatter)
     root.addHandler(handler)
 
 
 def prepare_dataset(
-    sample_path, image_size, batch_size, seed=168
+    sample_path: str, image_size: Tuple[int, int], batch_size: int, seed: int=168
 ) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
 
     train_ds = tf.keras.preprocessing.image_dataset_from_directory(

@@ -5,6 +5,6 @@
   "editor.formatOnSave": true,
   "[python]": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "ms-python.autopep8"
+    "editor.defaultFormatter": "ms-python.python"
   }
 }

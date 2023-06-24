@@ -27,7 +27,7 @@ image_queue_max_len = image_queue_min_len * 2
 db_path = os.path.join(curr_dir, 'predict.sqlite')
 
 
-def signal_handler(signum, frame) -> None:
+def signal_handler(signum: int, frame: Any) -> None:
     global ev_flag
     print('Signal handler called with signal', signum)
     ev_flag = False
@@ -39,7 +39,9 @@ def set_prediction_interval() -> Response:
     global prediction_interval
     try:
         prediction_interval = float(request.args.get('prediction_interval', '1'))
+        logging.info(f'prediction_interval changed to {prediction_interval}')
     except Exception as ex:
+        logging.exception('Unabled to set new prediction_interval')
         return Response(f"{ex}", status=400)
     return Response(f'prediction_interval: {prediction_interval} sec', status=200)
 
@@ -142,7 +144,8 @@ def prediction_thread() -> None:
             continue
 
         with open(img_path, "wb") as binary_file:
-            binary_file.write(image_queue[3])
+            bytes_written = binary_file.write(image_queue[3])
+            logging.info(f'{bytes_written} bytes written to {img_path}')
 
         start_time = time.time()
         pred = utils.predict_image(model, img_path, definition.target_image_size)

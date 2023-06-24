@@ -68,55 +68,47 @@ def get_predictions(dataset: tf.data.Dataset, model: keras.models.Model,
     return y_true, y_pred, y_pred_cat
 
 
-def plot_history() -> None:
+def plot_history_graphs() -> None:
 
     df = pd.read_csv(settings['diagnostics']['history'])
 
-    plt.figure(figsize = (16/2, 9/2))
-    plt.rcParams.update({'font.size': 15})
-    plt.plot(df['auc_roc'],     linewidth=1.75, label="auc_roc",     color='C0')
-    plt.plot(df['val_auc_roc'], linewidth=1.75, label="val_auc_roc", color='C1')
-    plt.legend()
-    plt.xlabel('Epochs')
-    plt.ylabel('AUC')
-    plt.savefig(
-        settings['diagnostics']['historical_auc_plot'], bbox_inches='tight'
-    )
-
-    # clear figure
-    plt.clf()
+    def plotter(col1: str, col2: str, xlbl: str, ylbl: str,
+        dest: str, yscale: str='linear') -> None:
+        plt.clf()
+        plt.figure(figsize = (16/2, 9/2))
+        plt.rcParams.update({'font.size': 15})
+        plt.plot(df[col1],     linewidth=1.75, label=col1)
+        plt.plot(df[col2], linewidth=1.75, label=col2)
+        plt.yscale(yscale)
+        plt.legend()
+        plt.xlabel(xlbl)
+        plt.ylabel(ylbl)
+        plt.savefig(dest, bbox_inches='tight')
     
-    plt.figure(figsize = (16/2, 9/2))
-    plt.rcParams.update({'font.size': 15})
-    plt.plot(df['auc_pr'],     linewidth=1.75, label="auc_pr",      color='C0')
-    plt.plot(df['val_auc_pr'], linewidth=1.75, label="val_auc_pr", color='C1')
-    plt.legend()
-    plt.xlabel('Epochs')
-    plt.ylabel('AUC')
-    plt.savefig(
-        settings['diagnostics']['historical_auc_plot'], bbox_inches='tight'
+
+    plotter(
+        'auc_roc', 'val_auc_roc', 'Epochs', 'AUC',
+        settings['diagnostics']['historical_auc_roc_plot']
+    )
+    plotter(
+        'auc_pr', 'val_auc_pr', 'Epochs', 'AUC',
+        settings['diagnostics']['historical_auc_pr_plot']
+    )
+    plotter(
+        'loss', 'val_loss', 'Epochs', 'Loss',
+        settings['diagnostics']['historical_loss_plot'], 'log'
     )
 
-    # clear figure
-    plt.clf()
+    plotter(
+        'loss', 'val_loss', 'Epochs', 'Loss',
+        settings['diagnostics']['historical_loss_plot'], 'log'
+    )
+
 
     plt.figure(figsize = (16/2, 9/2))
     plt.rcParams.update({'font.size': 15})
-    # df['loss'].iloc[0] could be huge, let's exclude it..
-    plt.plot(df['loss'].iloc[1:],     linewidth=1.75, label="loss",     color='C0')    
-    plt.plot(df['val_loss'].iloc[1:], linewidth=1.75, label="val_loss", color='C1')
+    plt.plot(df['lr'], linewidth=1.75, label="Learning rate")
     plt.yscale('log')
-    plt.legend()
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.savefig(
-        settings['diagnostics']['historical_loss_plot'], bbox_inches='tight'
-    )
-    plt.clf()
-
-    plt.figure(figsize = (16/2, 9/2))
-    plt.rcParams.update({'font.size': 15})
-    plt.plot(df['lr'], linewidth=1.75, label="Learning rate", color='C0')
     plt.legend()
     plt.xlabel('Epochs')
     plt.ylabel('Learning rate')
@@ -170,7 +162,7 @@ def main() -> None:
     settings = utils.read_config_file()
     utils.initialize_logger()
     
-    plot_history()
+    plot_history_graphs()
 
     train_ds, val_ds = utils.prepare_dataset(
         settings['dataset']['path'],
@@ -201,6 +193,7 @@ def main() -> None:
 
     plot_roc_curve(y_true_train, y_true_val, y_pred_train, y_pred_val,
         settings['diagnostics']['roc'])
+
 
 if __name__ == '__main__':
     main()
