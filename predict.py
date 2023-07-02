@@ -13,7 +13,6 @@ import logging
 import model
 import os
 import time
-#import utils
 import signal
 import sqlite3
 import subprocess
@@ -145,7 +144,7 @@ def read_config_file() -> Dict[str, Any]:
 
 class CustomDataset(Dataset):
     def __init__(
-        self, images: List[Image], transform:torchvision.transforms.Compose=None
+        self, images, transform:torchvision.transforms.Compose=None
     ) -> None:
         self.images = images
         self.transform = transform
@@ -230,14 +229,16 @@ def prediction_thread() -> None:
         nonzero_preds = torch.nonzero(pred_tensor)
         if len(nonzero_preds) > 0:
             logging.warning(
-                f'Target detected at {nonzero_preds[0].item()}-th frame in batch '
-                f'({nonzero_preds[0].item() + DATASET_SIZE}-th frame in the queue), '
+                f'Target detected at {nonzero_preds[0].item()}-th frame in '
+                f'a batch of {DATASET_SIZE} frames '
+                f'({nonzero_preds[0].item() + DATASET_SIZE}-th frame in the '
+                f'queue of {len(image_queue)} frames), '
                 'preparing context frames')
-            for i in range(0, (image_context_end - image_context_start) * 2, 2):
+            for i in range(image_context_end - image_context_start):
                 temp_img_path = f'/tmp/frame{i}.jpg'
                 with open(temp_img_path, "wb") as binary_file:
                     image_idx = DATASET_SIZE + nonzero_preds[0].item() + \
-                                image_context_start + i
+                                image_context_start + i * 2
                     logging.info(f'Writing {image_idx}-th frame from the queue '
                                  f'to path [{temp_img_path}]')
                     binary_file.write(image_queue[image_idx])
