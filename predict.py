@@ -2,7 +2,8 @@ from flask import Flask, request, Response
 from threading import Thread, Lock
 from typing import List, Any, Dict
 from PIL import Image
-
+from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 
 import argparse
 import datetime as dt
@@ -17,6 +18,7 @@ import signal
 import sqlite3
 import subprocess
 import torch
+import torchvision
 import waitress
 import sys
 import zmq
@@ -28,8 +30,10 @@ prediction_interval = 600
 ev_flag = True
 image_queue_mutex = Lock()
 image_queue: List[Any] = []
-image_queue_min_len = 16
+image_queue_min_len = 48
 image_queue_max_len = image_queue_min_len * 2
+image_context_start = -3
+image_context_end = 12
 db_path = os.path.join(curr_dir, 'predict.sqlite')
 
 
@@ -139,6 +143,22 @@ def read_config_file() -> Dict[str, Any]:
         assert isinstance(settings, Dict)
     return settings
 
+class CustomDataset(Dataset):
+    def __init__(
+        self, images: List[Image], transform:torchvision.transforms.Compose=None
+    ) -> None:
+        self.images = images
+        self.transform = transform
+        
+    def __len__(self) -> int:
+        return len(self.images)
+    
+    def __getitem__(self, idx: int):
+        image = self.images[idx]
+        if self.transform:
+            image = self.transform(image)
+        return image
+
 def prediction_thread() -> None:
     logging.info('prediction_thread() started')
     global prediction_interval
@@ -153,11 +173,14 @@ def prediction_thread() -> None:
     logging.info(f'Loading weights to model from: {settings["model"]["model"]}')
     v16mm.load_state_dict(torch.load(settings['model']['model']))
     logging.info('Weights loaded')
-    iter_count = 0
+    DATASET_SIZE = 8
+    assert DATASET_SIZE + image_context_start > 0
+    iter_count = 0    
     while ev_flag:
         iter_count += 1
-        logging.info("Iterating prediction loop...")
         image_queue_mutex.acquire()
+        logging.info("Iterating prediction loop "
+                     f"(len(image_queue): {len(image_queue)})...")
         if len(image_queue) < image_queue_min_len:
             logging.warning(
                 f'len(image_queue): {len(image_queue)}, '
@@ -171,28 +194,56 @@ def prediction_thread() -> None:
             continue
 
         start_time = time.time()
-        image = Image.open(io.BytesIO(image_queue[3]))
-        input_data = v16mm.transforms(image).unsqueeze(0).to(device)
+        
+        # Create an instance of your custom dataset class
+        dataset = CustomDataset([
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 0])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 1])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 2])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 3])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 4])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 5])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 6])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 7]))
+        ], transform=v16mm.transforms)
+        dataloader = DataLoader(dataset, batch_size=16, shuffle=False, num_workers=4)
+
         # Classify the image using the model
         with torch.no_grad():
-            output = v16mm(input_data)
-            _, pred_tensor = torch.max(output.data, 1)
+            for batch in dataloader:
+                batch = batch.to(device)
+                output = v16mm(batch)
+                # output = v16mm(input_data)
+                _, pred_tensor = torch.max(output.data, 1)
         elapsed_time = time.time() - start_time
-        insert_prediction_to_db(cur, str(output), int(pred_tensor[0]),
-                                round(elapsed_time * 1000.0, 1))
+        for i in range(DATASET_SIZE):
+            insert_prediction_to_db(cur, str(output[i]), int(pred_tensor[i]),
+                                    round(elapsed_time * 1000.0, 1))
         
-        if iter_count > 120:
+        if iter_count > 60:
             # commit() could be a very expensive operation
             # profiling shows it takes 1+ sec to complete            
             conn.commit()
             logging.info(f'SQLite commit()ed')
             iter_count = 0
 
-        if pred_tensor[0] == 1:
-            logging.warning('Target detected, preparing context frames')
-            for i in range(image_queue_min_len):
-                with open(f'/tmp/frame{i}.jpg', "wb") as binary_file:
-                    binary_file.write(image_queue[i])
+        nonzero_preds = torch.nonzero(pred_tensor)
+        if len(nonzero_preds) > 0:
+            logging.warning(
+                f'Target detected at {nonzero_preds[0].item()}-th frame in batch '
+                f'({nonzero_preds[0].item() + DATASET_SIZE}-th frame in the queue), '
+                'preparing context frames')
+            for i in range(0, (image_context_end - image_context_start) * 2, 2):
+                temp_img_path = f'/tmp/frame{i}.jpg'
+                with open(temp_img_path, "wb") as binary_file:
+                    image_idx = DATASET_SIZE + nonzero_preds[0].item() + \
+                                image_context_start + i
+                    logging.info(f'Writing {image_idx}-th frame from the queue '
+                                 f'to path [{temp_img_path}]')
+                    binary_file.write(image_queue[image_idx])
+
+            for i in range(DATASET_SIZE):
+                image_queue.pop(0)
             image_queue_mutex.release()
             logging.info('Calling downstream program...')
             result = subprocess.run(
@@ -202,11 +253,16 @@ def prediction_thread() -> None:
             logging.info(f'stdout: {result.stdout}')
             logging.info(f'stderr: {result.stderr}')
 
+            cooldown_sec = 90
+            logging.info(f'Entered cooldown period ({cooldown_sec} sec)')
             count = 0
-            while count < 90 * 2 and ev_flag:
+            while count < cooldown_sec * 2 and ev_flag:
                 count += 1
                 time.sleep(0.5)
         else:
+
+            for i in range(DATASET_SIZE):
+                image_queue.pop(0)
             image_queue_mutex.release()
 
         count = 0
