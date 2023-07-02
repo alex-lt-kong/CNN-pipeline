@@ -1,24 +1,18 @@
 from flask import Flask, request, Response
 from threading import Thread, Lock
-from typing import List, Any, Dict
-from PIL import Image
+from typing import List, Any
 
-
-import argparse
+import definition
 import datetime as dt
-import io
-import json
 import logging
-import model
 import os
+import tensorflow as tf
 import time
-#import utils
+import utils
 import signal
 import sqlite3
 import subprocess
-import torch
 import waitress
-import sys
 import zmq
 
 
@@ -58,11 +52,10 @@ def prepare_database() -> None:
     cur = conn.cursor()
 
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS inference_records (
+        CREATE TABLE IF NOT EXISTS prediction_results (
             id INTEGER PRIMARY KEY,
             timestamp TEXT,
-            model_output TEXT,
-            prediction INTEGER,
+            prediction REAL,
             elapsed_time_ms REAL
     )''')
     conn.commit()
@@ -70,21 +63,36 @@ def prepare_database() -> None:
     cutoff_date = dt.datetime.now() - dt.timedelta(days=15)
 
     cur.execute(
-        "DELETE FROM inference_records WHERE timestamp < ?", (cutoff_date,)
+        "DELETE FROM prediction_results WHERE timestamp < ?", (cutoff_date,)
     )
     conn.commit()
+
+
+def config_tf() -> None:
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+            tf.config.experimental.set_virtual_device_configuration(
+                gpu,
+                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)]
+            )
+    else:
+        raise RuntimeError('How come?')
+    # tf.compat.v1.disable_eager_execution()
+    # return
 
 
 def zeromq_thread() -> None:
 
     context = zmq.Context()
-    url = "tcp://127.0.0.1:4241"
+
     #  Socket to talk to server
-    logging.info(f"Connecting to publisher endpoint [{url}]")
+    print("Connecting to publisher endpoint")
     socket = context.socket(zmq.SUB)
-    socket.connect(url)
+    socket.connect("tcp://127.0.0.1:4241")
     socket.setsockopt(zmq.SUBSCRIBE, b'')
-    logging.info("Connected to endpoint")
+    print("Connected to endpoint")
 
     while ev_flag:
         #  Get the reply.
@@ -98,61 +106,28 @@ def zeromq_thread() -> None:
     logging.info('zeromq_thread() exited gracefully')
 
 
-def insert_prediction_to_db(cur: sqlite3.Cursor, model_output: str,
-                            prediction: int, elapsed_time_ms: float
+def insert_prediction_to_db(
+    cur: sqlite3.Cursor, pred: float, elapsed_time_ms: float
 ) -> None:
     sql = """
-        INSERT INTO inference_records(
-            timestamp, model_output, prediction, elapsed_time_ms
-        )
-        VALUES (?, ?, ?, ?)
+        INSERT INTO prediction_results(timestamp, prediction, elapsed_time_ms)
+        VALUES (?, ?, ?)
     """
-    cur.execute(sql,
-        (dt.datetime.now().isoformat(), model_output,
-         prediction, elapsed_time_ms)
+    cur.execute(
+        sql,
+        (dt.datetime.now().isoformat(), round(pred, 5), elapsed_time_ms)
     )
 
-def initialize_logger() -> None:
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '%(asctime)s | %(name)9s | %(levelname)8s | %(message)s'
-    )
-    handler.setFormatter(formatter)
-    root.addHandler(handler)
-
-def read_config_file() -> Dict[str, Any]:
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--config', dest='config', required=True,
-        help='the path of the JSON format configuration file to be used by the model'        
-    )
-    args = vars(ap.parse_args())
-    config_path = args['config']
-    if os.path.isfile(config_path) is False:
-        raise FileNotFoundError(f'File [{config_path}] not found')
-    with open(config_path, 'r') as json_file:
-        json_str = json_file.read()
-        settings = json.loads(json_str)
-        assert isinstance(settings, Dict)
-    return settings
 
 def prediction_thread() -> None:
     logging.info('prediction_thread() started')
-    global prediction_interval
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    settings = read_config_file()
+    global prediction_interval, ev_flag
+    settings = utils.read_config_file()
     img_path = settings['prediction']['input_file_path']
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    v16mm = model.VGG16MinusMinus(2)
-    v16mm.to(device)
-    logging.info(f'Loading weights to model from: {settings["model"]["model"]}')
-    v16mm.load_state_dict(torch.load(settings['model']['model']))
-    logging.info('Weights loaded')
+    model = tf.keras.models.load_model(settings['model']['model'])
     iter_count = 0
     while ev_flag:
         iter_count += 1
@@ -164,31 +139,26 @@ def prediction_thread() -> None:
                 'waiting for more frames...'
             )
             image_queue_mutex.release()
-            count = 0
-            while count < 5 and ev_flag:
-                count += 1
-                time.sleep(1)
+            time.sleep(5)
             continue
 
+        with open(img_path, "wb") as binary_file:
+            bytes_written = binary_file.write(image_queue[3])
+
         start_time = time.time()
-        image = Image.open(io.BytesIO(image_queue[3]))
-        input_data = v16mm.transforms(image).unsqueeze(0).to(device)
-        # Classify the image using the model
-        with torch.no_grad():
-            output = v16mm(input_data)
-            _, pred_tensor = torch.max(output.data, 1)
+        pred = utils.predict_image(model, img_path, definition.target_image_size)
         elapsed_time = time.time() - start_time
-        insert_prediction_to_db(cur, str(output), int(pred_tensor[0]),
-                                round(elapsed_time * 1000.0, 1))
         
-        if iter_count > 120:
+        insert_prediction_to_db(cur, pred, round(elapsed_time * 1000.0, 1))
+        
+        if iter_count > 60:
             # commit() could be a very expensive operation
             # profiling shows it takes 1+ sec to complete            
             conn.commit()
             logging.info(f'SQLite commit()ed')
             iter_count = 0
 
-        if pred_tensor[0] == 1:
+        if pred > 0.5:
             logging.warning('Target detected, preparing context frames')
             for i in range(image_queue_min_len):
                 with open(f'/tmp/frame{i}.jpg', "wb") as binary_file:
@@ -220,8 +190,11 @@ def prediction_thread() -> None:
 
 
 def main() -> None:
-    initialize_logger()
+    utils.initialize_logger()
+    utils.set_environment_vars()
+    config_tf()
     prepare_database()
+
     signal.signal(signal.SIGINT, signal_handler)
     th_pred = Thread(target=prediction_thread)
     th_pred.start()
