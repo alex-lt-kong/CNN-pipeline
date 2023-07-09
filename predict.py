@@ -2,8 +2,7 @@ from flask import Flask, request, Response
 from threading import Thread, Lock
 from typing import List, Any, Dict
 from PIL import Image
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 import argparse
 import datetime as dt
@@ -122,7 +121,7 @@ def initialize_logger() -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        '%(asctime)s | %(name)9s | %(levelname)8s | %(message)s'
+        '%(asctime)s | %(name)8s | %(levelname)7s | %(message)s'
     )
     handler.setFormatter(formatter)
     root.addHandler(handler)
@@ -163,7 +162,6 @@ def prediction_thread() -> None:
     global prediction_interval
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     settings = read_config_file()
-    img_path = settings['prediction']['input_file_path']
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
@@ -219,7 +217,7 @@ def prediction_thread() -> None:
             insert_prediction_to_db(cur, str(output[i]), int(pred_tensor[i]),
                                     round(elapsed_time * 1000.0, 1))
         
-        if iter_count > 60:
+        if iter_count > 15:
             # commit() could be a very expensive operation
             # profiling shows it takes 1+ sec to complete            
             conn.commit()
@@ -234,6 +232,7 @@ def prediction_thread() -> None:
                 f'({nonzero_preds[0].item() + DATASET_SIZE}-th frame in the '
                 f'queue of {len(image_queue)} frames), '
                 'preparing context frames')
+            logging.warning(f'The entire output is: {pred_tensor}')
             for i in range(image_context_end - image_context_start):
                 temp_img_path = f'/tmp/frame{i}.jpg'
                 with open(temp_img_path, "wb") as binary_file:
