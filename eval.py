@@ -30,40 +30,44 @@ def read_config_file() -> Dict[str, Any]:
         assert isinstance(settings, Dict)
     return settings
 
+
 settings = read_config_file()
 v16mm.load_state_dict(torch.load(settings['model']['model']))
-
-train_loader, val_loader = model.get_data_loaders(
-        v16mm.transforms, settings["dataset"]["path"],
-        settings['dataset']['validation_split_seed']
-    )
+dataset = ImageFolder(root=settings['dataset']['path'], transform=v16mm.transforms)
 
 # Define the batch size
 batch_size = 16
 misclassified_count = 0
+data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # Classify the image using the model
 with torch.no_grad():
-  # Loop through the images in batches
-    for batch_idx, (images, y_trues) in enumerate(train_loader):
-        print(f'{batch_idx}/{len(train_loader)}')
+    # Loop through the images in batches
+    for batch_idx, (images, y_trues) in enumerate(data_loader):
+        print(y_trues)
+        print(f'{batch_idx}/{len(data_loader)}')
         images = images.to(device)
         # Use your model to make predictions for the batch of images
         output = v16mm(images)
         _, predicted = torch.max(output, 1)
-        
+        #breakpoint()
         # Loop through the predicted labels and check if they match the true labels
         for j, pred_label in enumerate(predicted):
             y_true = y_trues[j].item()
             pred_label = pred_label.item()
             if pred_label != y_true:
                 misclassified_count += 1
-                print(f"[{misclassified_count}] {j}-th sample's y-true is "
+                print(f"[{misclassified_count}-th misclassified sample] {j}-th sample's y-true is "
                       f"{y_true} but y-hat is {pred_label}", end='')
                 # If the predicted label is incorrect, save the misclassified image to the file system
                 folder_name = str(y_true)
-                output_dir = os.path.join("/tmp/misclassified", folder_name)
+                output_dir = os.path.join(
+                    settings['diagnostics']['misclassified'], folder_name)
                 os.makedirs(output_dir, exist_ok=True)
-                output_path = os.path.join(output_dir, train_loader.data.samples[batch_idx * batch_size + j][0].split("/")[-1])
+                output_path = os.path.join(
+                    output_dir,
+                    dataset.samples[batch_idx * batch_size + j][0].split("/")[-1]
+                )
                 print(f', sample saved to {output_path}')
-                Image.open(train_loader.data.samples[batch_idx * batch_size + j][0]).save(output_path)
+                Image.open(dataset.samples[batch_idx * batch_size + j][0]).save(output_path)
+                # breakpoint()
