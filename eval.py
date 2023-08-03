@@ -42,7 +42,8 @@ dataset = ImageFolder(root=settings['dataset']['path'], transform=v16mm.transfor
 
 batch_size = 16
 misclassified_count = 0
-data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+# shuffle breaks the relationship of batch and file path.
 
 
 # Write the string to a text file
@@ -60,7 +61,7 @@ with torch.no_grad():
         output = v16mm(images)
         y_preds = torch.argmax(output, dim=1)
 
-        print(f'{batch_idx+1}/{len(data_loader)}: {y_trues} vs {y_preds}')
+        # print(f'{batch_idx+1}/{len(data_loader)}: {y_trues} vs {y_preds}')
 
         # Loop through the predicted labels and check if they match the true labels
         for i, pred_label in enumerate(y_preds):
@@ -82,7 +83,7 @@ with torch.no_grad():
                 output_dir,
                 dataset.samples[batch_idx * batch_size + i][0].split("/")[-1]
             )
-            print(f', sample saved to {output_path}')
+            print(f', sample copied from {dataset.samples[batch_idx * batch_size + i][0]} to {output_path}')
             Image.open(dataset.samples[batch_idx * batch_size + i][0]).save(output_path)
             # if ('20230520-163835_走廊_00016.jpg' in dataset.samples[batch_idx * batch_size + i][0]):
             # breakpoint()
