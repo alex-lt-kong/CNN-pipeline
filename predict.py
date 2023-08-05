@@ -169,7 +169,9 @@ def prediction_thread() -> None:
     v16mm.to(device)
     logging.info(f'Loading weights to model from: {settings["model"]["model"]}')
     v16mm.load_state_dict(torch.load(settings['model']['model']))
-    logging.info('Weights loaded')
+    total_params = sum(p.numel() for p in v16mm.parameters())
+    logging.info(f"Weights loaded, number of parameters: {total_params:,}")
+
     DATASET_SIZE = 8
     assert DATASET_SIZE + image_context_start > 0
     iter_count = 0    
