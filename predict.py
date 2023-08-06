@@ -247,7 +247,9 @@ def prediction_thread() -> None:
             for i in range(DATASET_SIZE):
                 image_queue.pop(0)
             image_queue_mutex.release()
-            logging.info('Calling downstream program...')
+            logging.info(
+                f'Calling program [{settings["prediction"]["on_detected"]}]...'
+            )
             result = subprocess.run(
                 [settings['prediction']['on_detected']],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
