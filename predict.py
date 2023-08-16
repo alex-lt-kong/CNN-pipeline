@@ -172,7 +172,7 @@ def prediction_thread() -> None:
     total_params = sum(p.numel() for p in v16mm.parameters())
     logging.info(f"Weights loaded, number of parameters: {total_params:,}")
 
-    DATASET_SIZE = 8
+    DATASET_SIZE = 16
     assert DATASET_SIZE + image_context_start > 0
     iter_count = 0    
     while ev_flag:
@@ -203,9 +203,18 @@ def prediction_thread() -> None:
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 4])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 5])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 6])),
-            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 7]))
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 7])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 8])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 9])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 10])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 11])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 12])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 13])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 14])),
+            Image.open(io.BytesIO(image_queue[DATASET_SIZE + 15]))
         ], transform=v16mm.transforms)
-        dataloader = DataLoader(dataset, batch_size=16, shuffle=False, num_workers=4)
+        assert DATASET_SIZE == len(dataset.images)
+        dataloader = DataLoader(dataset, batch_size=DATASET_SIZE, shuffle=False, num_workers=4)
 
         # Classify the image using the model
         with torch.no_grad():
@@ -281,6 +290,7 @@ def prediction_thread() -> None:
 
 def main() -> None:
     initialize_logger()
+    logging.info('predict.py started')
     prepare_database()
     signal.signal(signal.SIGINT, signal_handler)
     th_pred = Thread(target=prediction_thread)
