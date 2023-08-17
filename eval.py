@@ -17,6 +17,7 @@ print(device)
 v16mm = model.VGG16MinusMinus(2)
 v16mm.to(device)
 
+
 def read_config_file() -> Dict[str, Any]:
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', dest='config', required=True,
@@ -40,7 +41,7 @@ if os.path.exists(settings['diagnostics']['misclassified']):
 dataset = ImageFolder(root=settings['dataset']['path'], transform=v16mm.transforms)
 
 
-batch_size = 16
+batch_size = 48
 misclassified_count = 0
 data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 # shuffle breaks the relationship of batch and file path.
@@ -48,7 +49,7 @@ data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
 # Write the string to a text file
 with open('/tmp/dataset_samples_str.txt', 'w', encoding="utf-8") as f:
-    f.write( json.dumps(dataset.samples))
+    f.write(json.dumps(dataset.samples))
 
 v16mm.eval()
 # Classify the image using the model
@@ -61,7 +62,7 @@ with torch.no_grad():
         output = v16mm(images)
         y_preds = torch.argmax(output, dim=1)
 
-        # print(f'{batch_idx+1}/{len(data_loader)}: {y_trues} vs {y_preds}')
+        print(f'Evaluating {batch_idx+1}/{len(data_loader)} batch of samples...')
 
         # Loop through the predicted labels and check if they match the true labels
         for i, pred_label in enumerate(y_preds):

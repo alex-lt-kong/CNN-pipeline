@@ -114,6 +114,7 @@ def insert_prediction_to_db(cur: sqlite3.Cursor, model_output: str,
          prediction, elapsed_time_ms)
     )
 
+
 def initialize_logger() -> None:
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
@@ -125,6 +126,7 @@ def initialize_logger() -> None:
     )
     handler.setFormatter(formatter)
     root.addHandler(handler)
+
 
 def read_config_file() -> Dict[str, Any]:
     ap = argparse.ArgumentParser()
@@ -141,21 +143,23 @@ def read_config_file() -> Dict[str, Any]:
         assert isinstance(settings, Dict)
     return settings
 
+
 class CustomDataset(Dataset):
     def __init__(
         self, images, transform:torchvision.transforms.Compose=None
     ) -> None:
         self.images = images
         self.transform = transform
-        
+
     def __len__(self) -> int:
         return len(self.images)
-    
+
     def __getitem__(self, idx: int):
         image = self.images[idx]
         if self.transform:
             image = self.transform(image)
         return image
+
 
 def prediction_thread() -> None:
     logging.info('prediction_thread() started')
@@ -227,12 +231,12 @@ def prediction_thread() -> None:
         for i in range(DATASET_SIZE):
             insert_prediction_to_db(cur, str(output[i]), int(pred_tensor[i]),
                                     round(elapsed_time * 1000.0, 1))
-        
+
         if iter_count > 15:
             # commit() could be a very expensive operation
-            # profiling shows it takes 1+ sec to complete            
+            # profiling shows it takes 1+ sec to complete
             conn.commit()
-            logging.info(f'SQLite commit()ed')
+            logging.info('SQLite commit()ed')
             iter_count = 0
 
         nonzero_preds = torch.nonzero(pred_tensor)
@@ -283,7 +287,7 @@ def prediction_thread() -> None:
             count += 1
             time.sleep(0.1)
     conn.commit()
-    logging.info(f'SQLite commit()ed')
+    logging.info('SQLite commit()ed')
     logging.info('prediction_thread() exited gracefully')
     conn.close()
 
