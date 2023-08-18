@@ -178,6 +178,7 @@ def prediction_thread() -> None:
 
     DATASET_SIZE = 16
     assert DATASET_SIZE + image_context_start > 0
+    # assert image_context_end - image_context_start == DATASET_SIZE
     iter_count = 0    
     while ev_flag:
         iter_count += 1
@@ -218,14 +219,16 @@ def prediction_thread() -> None:
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 15]))
         ], transform=v16mm.transforms)
         assert DATASET_SIZE == len(dataset.images)
-        dataloader = DataLoader(dataset, batch_size=DATASET_SIZE, shuffle=False, num_workers=4)
+        dataloader = DataLoader(
+            dataset, batch_size=DATASET_SIZE, shuffle=False, num_workers=4
+        )
 
         # Classify the image using the model
+        v16mm.eval()
         with torch.no_grad():
             for batch in dataloader:
                 batch = batch.to(device)
                 output = v16mm(batch)
-                # output = v16mm(input_data)
                 _, pred_tensor = torch.max(output.data, 1)
         elapsed_time = time.time() - start_time
         for i in range(DATASET_SIZE):
