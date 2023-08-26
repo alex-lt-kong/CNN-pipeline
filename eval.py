@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, Dataset
 import argparse
 import json
 import model
+import helper
 import os
 import shutil
 import torch
@@ -17,39 +18,16 @@ print(device)
 v16mm = model.VGG16MinusMinus(2)
 v16mm.to(device)
 
-
-def read_config_file() -> Dict[str, Any]:
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--config', dest='config', required=True,
-        help='the path of the JSON format configuration file to be used by the model'        
-    )
-    args = vars(ap.parse_args())
-    config_path = args['config']
-    if os.path.isfile(config_path) is False:
-        raise FileNotFoundError(f'File [{config_path}] not found')
-    with open(config_path, 'r') as json_file:
-        json_str = json_file.read()
-        settings = json.loads(json_str)
-        assert isinstance(settings, Dict)
-    return settings
-
-
-settings = read_config_file()
-v16mm.load_state_dict(torch.load(settings['model']['model']))
+settings = helper.read_config_file()
+v16mm.load_state_dict(torch.load(settings['model']['parameters']))
 if os.path.exists(settings['diagnostics']['misclassified']):
     shutil.rmtree(settings['diagnostics']['misclassified'])
-dataset = ImageFolder(root=settings['dataset']['path'], transform=v16mm.transforms)
-
+dataset = ImageFolder(root=settings['dataset']['path'], transform=helper.transforms)
 
 batch_size = 48
 misclassified_count = 0
 data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 # shuffle breaks the relationship of batch and file path.
-
-
-# Write the string to a text file
-with open('/tmp/dataset_samples_str.txt', 'w', encoding="utf-8") as f:
-    f.write(json.dumps(dataset.samples))
 
 v16mm.eval()
 # Classify the image using the model

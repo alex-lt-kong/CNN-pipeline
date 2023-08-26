@@ -101,8 +101,7 @@ def zeromq_thread() -> None:
 
 
 def insert_prediction_to_db(cur: sqlite3.Cursor, model_output: str,
-                            prediction: int, elapsed_time_ms: float
-) -> None:
+                            prediction: int, elapsed_time_ms: float) -> None:
     sql = """
         INSERT INTO inference_records(
             timestamp, model_output, prediction, elapsed_time_ms
@@ -171,8 +170,8 @@ def prediction_thread() -> None:
     cur = conn.cursor()
     v16mm = model.VGG16MinusMinus(2)
     v16mm.to(device)
-    logging.info(f'Loading weights to model from: {settings["model"]["model"]}')
-    v16mm.load_state_dict(torch.load(settings['model']['model']))
+    logging.info(f'Loading weights to model from: {settings["model"]["parameters"]}')
+    v16mm.load_state_dict(torch.load(settings['model']['parameters']))
     total_params = sum(p.numel() for p in v16mm.parameters())
     logging.info(f"Weights loaded, number of parameters: {total_params:,}")
 
@@ -198,7 +197,7 @@ def prediction_thread() -> None:
             continue
 
         start_time = time.time()
-        
+
         # Create an instance of your custom dataset class
         dataset = CustomDataset([
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 0])),
@@ -217,7 +216,7 @@ def prediction_thread() -> None:
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 13])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 14])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 15]))
-        ], transform=v16mm.transforms)
+        ], transform=transforms)
         assert DATASET_SIZE == len(dataset.images)
         dataloader = DataLoader(
             dataset, batch_size=DATASET_SIZE, shuffle=False, num_workers=4

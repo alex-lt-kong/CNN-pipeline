@@ -1,7 +1,59 @@
-# my ignores
+#
+# ===== my ignores =====
+#
 predict.sqlite
 predict.sqlite-journal
 config.json
+*.out
+data/*
+model*.hdf5
+runs/*
+*.out
+*.pt
+*.pth
+*.bak
+diagnostics/
+
+#
+# ===== C++ =====
+#
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+#
+# ===== Python =====
+#
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

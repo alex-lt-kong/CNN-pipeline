@@ -6,6 +6,6 @@ InlayHints:
 
 CompileFlags:
   Add: 
-    - '-I~/repos/libtorch/include/'
+    - '-I/usr/local/include/torch'
     - '-I/usr/local/include/opencv4/'
   
