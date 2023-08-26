@@ -1,0 +1,11 @@
+InlayHints:
+  Enabled: Yes
+  ParameterNames: No
+  DeducedTypes: No
+  Designators: No
+
+CompileFlags:
+  Add: 
+    - '-I~/repos/libtorch/include/'
+    - '-I/usr/local/include/opencv4/'
+  
