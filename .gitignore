@@ -178,12 +178,12 @@ predict.sqlite
 predict.sqlite-journal
 config.json
 *.out
-data/
-runs/*
+
 *.out
 *.pt
 *.pth
 *.bak
 diagnostics/
 !diagnostics/.gitkeep
+data/
 !data/.gitkeep
