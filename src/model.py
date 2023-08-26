@@ -289,7 +289,7 @@ def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Modu
     v16mm.to(device)
     if load_parameters:
         logging.warning(
-            'Loading existing model parameters for continue training')
+            'Loading existing model parameters to continue training')
         v16mm.load_state_dict(torch.load(config['model']['parameters']))
     logging.info(v16mm)
     total_params = sum(p.numel() for p in v16mm.parameters())

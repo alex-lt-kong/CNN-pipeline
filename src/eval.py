@@ -1,10 +1,7 @@
 from PIL import Image
-from typing import List, Any, Dict
 from torchvision.datasets import ImageFolder
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
-import argparse
-import json
 import model
 import helper
 import os

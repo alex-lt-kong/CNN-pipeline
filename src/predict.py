@@ -1,13 +1,12 @@
 from flask import Flask, request, Response
 from threading import Thread, Lock
-from typing import List, Any, Dict
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
-import argparse
+
 import datetime as dt
+import helper
 import io
-import json
 import logging
 import model
 import os
@@ -109,8 +108,7 @@ def insert_prediction_to_db(cur: sqlite3.Cursor, model_output: str,
         VALUES (?, ?, ?, ?)
     """
     cur.execute(sql,
-        (dt.datetime.now().isoformat(), model_output,
-         prediction, elapsed_time_ms)
+        (dt.datetime.now().isoformat(), model_output, prediction, elapsed_time_ms)
     )
 
 
@@ -127,25 +125,9 @@ def initialize_logger() -> None:
     root.addHandler(handler)
 
 
-def read_config_file() -> Dict[str, Any]:
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--config', dest='config', required=True,
-        help='the path of the JSON format configuration file to be used by the model'        
-    )
-    args = vars(ap.parse_args())
-    config_path = args['config']
-    if os.path.isfile(config_path) is False:
-        raise FileNotFoundError(f'File [{config_path}] not found')
-    with open(config_path, 'r') as json_file:
-        json_str = json_file.read()
-        settings = json.loads(json_str)
-        assert isinstance(settings, Dict)
-    return settings
-
-
 class CustomDataset(Dataset):
     def __init__(
-        self, images, transform:torchvision.transforms.Compose=None
+        self, images, transform: torchvision.transforms.Compose = None
     ) -> None:
         self.images = images
         self.transform = transform
@@ -153,7 +135,7 @@ class CustomDataset(Dataset):
     def __len__(self) -> int:
         return len(self.images)
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> Image:
         image = self.images[idx]
         if self.transform:
             image = self.transform(image)
@@ -161,10 +143,11 @@ class CustomDataset(Dataset):
 
 
 def prediction_thread() -> None:
+
     logging.info('prediction_thread() started')
     global prediction_interval
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    settings = read_config_file()
+    settings = helper.read_config_file()
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
@@ -216,7 +199,7 @@ def prediction_thread() -> None:
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 13])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 14])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 15]))
-        ], transform=transforms)
+        ], transform=helper.transforms)
         assert DATASET_SIZE == len(dataset.images)
         dataloader = DataLoader(
             dataset, batch_size=DATASET_SIZE, shuffle=False, num_workers=4
@@ -266,7 +249,7 @@ def prediction_thread() -> None:
                 f'Calling program [{settings["prediction"]["on_detected"]}]...'
             )
             result = subprocess.run(
-                [settings['prediction']['on_detected']],
+                settings['prediction']['on_detected'],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             logging.info(f'stdout: {result.stdout}')

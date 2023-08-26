@@ -5,13 +5,15 @@
   },
   "model": {
     "parameters": "/tmp/vgg16-based-pipeline/model.pth",
-    "torch_script_serialization": "/tmp/vgg16-based-pipeline/model.pt",
-    "optimizer_config": "/tmp/vgg16-based-pipeline/optimizer_config.txt"
+    "torch_script_serialization": "/tmp/vgg16-based-pipeline/model.pt"
   },
   "diagnostics": {
     "misclassified": "/tmp/vgg16-based-pipeline/diagnostics/misclassified"
   },
   "prediction": {
-    "on_detected": ""
+    "on_detected": [
+      "echo",
+      "detected"
+    ]
   }
 }
