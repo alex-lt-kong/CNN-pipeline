@@ -1,18 +1,4 @@
-#
-# ===== my ignores =====
-#
-predict.sqlite
-predict.sqlite-journal
-config.json
-*.out
-data/*
-model*.hdf5
-runs/*
-*.out
-*.pt
-*.pth
-*.bak
-diagnostics/
+
 
 #
 # ===== C++ =====
@@ -184,3 +170,20 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#
+# ===== my ignores =====
+#
+predict.sqlite
+predict.sqlite-journal
+config.json
+*.out
+data/
+runs/*
+*.out
+*.pt
+*.pth
+*.bak
+diagnostics/
+!diagnostics/.gitkeep
+!data/.gitkeep

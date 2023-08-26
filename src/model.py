@@ -393,7 +393,7 @@ def generate_curves(filename: str, mv_window: int = 1) -> None:
 def main() -> None:
 
     global config
-    with open(os.path.join(curr_dir, 'config.json')) as j:
+    with open(os.path.join(curr_dir, '..', 'config.json')) as j:
         config = json.load(j)
     logging.basicConfig(
         level=logging.INFO,

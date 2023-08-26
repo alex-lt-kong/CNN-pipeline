@@ -2,7 +2,11 @@
 
 A framework built to be a component in a pipeline of data processing using PyTorch.
 
-## Install Libtorch
+## Prepare environment
+
+### Install `libtorch`
+* While PyTorch is used in training, `libtorch` is used to productionize the
+model in C++ to enhance performance.
 
 * Ubuntu 22.04 provides package `libtorch-dev` but seems it doesn't work.
 

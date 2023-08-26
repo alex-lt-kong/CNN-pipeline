@@ -1,31 +1,17 @@
 {
-  "dataset":{
-    "path": "/tmp/current/data/input",
-    "validation_split_seed": 123,
-    "preview_save_to": "/tmp/current/data/preview"
+  "dataset": {
+    "path": "/tmp/vgg16-based-pipeline/data/",
+    "validation_split_seed": 233
   },
   "model": {
-    "model": "/tmp/current/model/model.hdf5",
-    "model_checkpoint": "/tmp/current/model/model_{epoch:03d}.hdf5",
-    "plot": "/tmp/current/model/model-plot.png",
-    "summary": "/tmp/current/model/summary.txt",
-    "optimizer_config": "/tmp/current/model/optimizer_config.txt"
+    "parameters": "/tmp/vgg16-based-pipeline/model.pth",
+    "torch_script_serialization": "/tmp/vgg16-based-pipeline/model.pt",
+    "optimizer_config": "/tmp/vgg16-based-pipeline/optimizer_config.txt"
   },
   "diagnostics": {
-    "history": "/tmp/current/model/history.csv",
-    "historical_loss_plot": "/tmp/current/model/historical-loss-plot.png",
-    "historical_auc_roc_plot": "/tmp/current/model/historical-auc-roc-plot.png",
-    "historical_auc_pr_plot": "/tmp/current/model/historical-auc-pr-plot.png",
-    "historical_lr_plot": "/tmp/current/model/historical-lr-plot.png",
-    "confusion_matrix_train": "/tmp/current/diagnostics/cm-train.png",
-    "confusion_matrix_val": "/tmp/current/diagnostics/cm-val.png",
-    "roc": "/tmp/current/diagnostics/roc.png",
-    "report": "/tmp/current/diagnostics/report.txt",
-    "misclassified_train": "/tmp/current/data/misclassified-train",
-    "misclassified_val": "/tmp/current/data/misclassified-val"
+    "misclassified": "/tmp/vgg16-based-pipeline/diagnostics/misclassified"
   },
   "prediction": {
-    "input_file_path": "/tmp/input.jpg",
-    "on_detected": "echo detected"
+    "on_detected": ""
   }
 }
