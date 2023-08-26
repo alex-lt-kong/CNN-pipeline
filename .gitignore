@@ -1,5 +1,3 @@
-
-
 #
 # ===== C++ =====
 #
@@ -183,7 +181,7 @@ config.json
 *.pt
 *.pth
 *.bak
-diagnostics/
+diagnostics/*
 !diagnostics/.gitkeep
-data/
+data/*
 !data/.gitkeep
