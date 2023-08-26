@@ -42,7 +42,8 @@ transforms = torchvision.transforms.Compose([
 
 class VGG16MinusMinus(nn.Module):
     dropout = 0.7
-    def __init__(self, num_classes=10):
+
+    def __init__(self, num_classes: int = 10) -> None:
         super(VGG16MinusMinus, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
@@ -111,6 +112,7 @@ class VGG16MinusMinus(nn.Module):
             nn.ReLU())
         self.fc2 = nn.Sequential(
             nn.Linear(int(4096 / 6), num_classes))
+
 
     def forward(self, x):
         x = self.layer1(x)

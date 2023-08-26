@@ -8,8 +8,6 @@ import os
 import torch
 import torchvision
 
-
-
 # This transforms should be similar to the transform defined in model.py
 # but withOUT unnecessary distortions.
 transforms = torchvision.transforms.Compose([
@@ -25,8 +23,7 @@ transforms = torchvision.transforms.Compose([
 def read_config_file() -> Dict[str, Any]:
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', '-c', dest='config', required=True,
-        help='the path of the JSON configuration file to be used by the model'
-    )
+                    help='the path of the JSON config file')
     args = vars(ap.parse_args())
     config_path = args['config']
     if os.path.isfile(config_path) is False:
@@ -61,6 +58,7 @@ def main() -> None:
     print(output)
     y_pred = torch.argmax(output, dim=1)
     print(y_pred)
+
 
 if __name__ == '__main__':
     main()

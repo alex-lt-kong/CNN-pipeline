@@ -2,7 +2,7 @@ from flask import Flask, request, Response
 from threading import Thread, Lock
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-
+from typing import List, Any
 
 import datetime as dt
 import helper
