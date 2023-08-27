@@ -107,9 +107,8 @@ def insert_prediction_to_db(cur: sqlite3.Cursor, model_output: str,
         )
         VALUES (?, ?, ?, ?)
     """
-    cur.execute(sql,
-        (dt.datetime.now().isoformat(), model_output, prediction, elapsed_time_ms)
-    )
+    cur.execute(sql, (dt.datetime.now().isoformat(), model_output,
+                      prediction, elapsed_time_ms))
 
 
 def initialize_logger() -> None:
@@ -161,7 +160,7 @@ def prediction_thread() -> None:
     DATASET_SIZE = 16
     assert DATASET_SIZE + image_context_start > 0
     # assert image_context_end - image_context_start == DATASET_SIZE
-    iter_count = 0    
+    iter_count = 0
     while ev_flag:
         iter_count += 1
         image_queue_mutex.acquire()
@@ -236,8 +235,10 @@ def prediction_thread() -> None:
             for i in range(image_context_end - image_context_start):
                 temp_img_path = f'/tmp/frame{i}.jpg'
                 with open(temp_img_path, "wb") as binary_file:
-                    image_idx = DATASET_SIZE + nonzero_preds[0].item() + \
-                                image_context_start + i * 2
+                    image_idx = int(
+                        DATASET_SIZE + nonzero_preds[0].item() +
+                        image_context_start + i * 2
+                    )
                     logging.info(f'Writing {image_idx}-th frame from the queue '
                                  f'to path [{temp_img_path}]')
                     binary_file.write(image_queue[image_idx])

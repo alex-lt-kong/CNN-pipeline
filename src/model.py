@@ -2,11 +2,12 @@ from sklearn import metrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 
 
 import argparse
 import datetime as dt
+import helper
 import logging
 import json
 import matplotlib.pyplot as plt
@@ -25,19 +26,8 @@ import time
 
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = helper.get_cuda_device()
 config: Dict[str, Any]
-
-transforms = torchvision.transforms.Compose([
-    torchvision.transforms.Resize(size=(224, 426)),  # size is in (h,w)
-    torchvision.transforms.RandomHorizontalFlip(),
-    torchvision.transforms.RandomRotation(3),
-    torchvision.transforms.ToTensor(),
-    # Why we use different means/std here?:
-    # https://stackoverflow.com/questions/58151507/why-pytorch-officially-use-mean-0-485-0-456-0-406-and-std-0-229-0-224-0-2
-    torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-])
 
 
 class VGG16MinusMinus(nn.Module):
@@ -113,8 +103,7 @@ class VGG16MinusMinus(nn.Module):
         self.fc2 = nn.Sequential(
             nn.Linear(int(4096 / 6), num_classes))
 
-
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
@@ -135,11 +124,28 @@ class VGG16MinusMinus(nn.Module):
         return x
 
 
-def get_data_loaders(transforms: torchvision.transforms.Compose,
-                     data_path: str, random_seed=0) -> Tuple[DataLoader, DataLoader]:
-    dataset = ImageFolder(
-        root=data_path,
-        transform=transforms)
+def get_data_loaders(data_path: str,
+                     random_seed: int = 0) -> Tuple[DataLoader, DataLoader]:
+
+    class TransformedSubset(torch.utils.data.Subset):
+
+        def __init__(
+            self, subset: torch.utils.data.Subset,
+            transform: Optional[torchvision.transforms.Compose] = None
+        ) -> None:
+            self.subset = subset
+            self.transform = transform
+
+        def __getitem__(self, index: int) -> Tuple[Any, Any]:
+            x, y = self.subset[index]
+            if self.transform:
+                x = self.transform(x)
+            return x, y
+
+        def __len__(self) -> int:
+            return len(self.subset)
+
+    dataset = ImageFolder(root=data_path, transform=None)
     val_split = 0.2
     train_size = int((1 - val_split) * len(dataset))
     val_size = len(dataset) - train_size
@@ -148,6 +154,10 @@ def get_data_loaders(transforms: torchvision.transforms.Compose,
         generator=torch.Generator().manual_seed(random_seed))
     batch_size = 20
     shuffle = True
+    # Apply the respective transformations to each subset
+    train_dataset = TransformedSubset(train_dataset, transform=helper.train_transforms)
+    val_dataset = TransformedSubset(val_dataset, transform=helper.test_transforms)
+
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size, shuffle=shuffle)
     val_loader = DataLoader(val_dataset,
@@ -211,7 +221,7 @@ def evalute_model_classification(
                     false_negatives[y_trues[i]] += 1
 
     # compute the accuracy
-    accuracy = num_correct / total_samples
+    # accuracy = num_correct / total_samples
     # logging.info('Accuracy: {:.2f}%'.format(accuracy * 100))
     # compute the precision, recall, and f-score for each class
     precision = np.zeros(num_classes)
@@ -280,10 +290,26 @@ def save_ts_model(m: nn.Module) -> None:
     )
 
 
+def save_transformed_samples(dataloader: DataLoader,
+                             save_dir: str, num_samples: int) -> None:
+    logging.info(f'Saving transformed samples to {save_dir}')
+    from torchvision.utils import save_image
+    shutil.rmtree(save_dir)
+    os.mkdir(save_dir)
+    dataset_size = len(dataloader.dataset)
+    for i in range(num_samples):
+        image_dst_path = f"{save_dir}/sample_{i}.jpg"
+        sample_idx = random.randint(0, dataset_size - 1)
+        save_image(
+            dataloader.dataset[sample_idx][0],
+            # dataloader.dataset[sample_idx][1] is label
+            image_dst_path
+        )
+
+
 def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Module:
     start_ts = time.time()
 
-    assert device != 'cpu', 'CPU training will be very slooow!'
     logging.info(f'Training using {device}')
 
     num_classes = 2
@@ -299,8 +325,14 @@ def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Modu
 
     # Define the dataset and data loader for the training set
     train_loader, val_loader = get_data_loaders(
-        transforms, config["dataset"]["path"],
+        config["dataset"]["path"],
         config['dataset']['validation_split_seed']
+    )
+    save_transformed_samples(
+        train_loader, config['diagnostics']['preview']['training_samples'], 50
+    )
+    save_transformed_samples(
+        val_loader, config['diagnostics']['preview']['validation_samples'], 10
     )
 
     # Define the loss function, optimizer and learning rate scheduler
@@ -422,7 +454,7 @@ def main() -> None:
         epochs = 10
     m = train(args['load_parameters'], lr, epochs)
     save_params(m)
-    save_ts_model(m)
+    # save_ts_model(m)
     logging.info('Training completed')
 
 

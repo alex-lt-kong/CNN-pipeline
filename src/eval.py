@@ -19,7 +19,8 @@ settings = helper.read_config_file()
 v16mm.load_state_dict(torch.load(settings['model']['parameters']))
 if os.path.exists(settings['diagnostics']['misclassified']):
     shutil.rmtree(settings['diagnostics']['misclassified'])
-dataset = ImageFolder(root=settings['dataset']['path'], transform=helper.transforms)
+dataset = ImageFolder(root=settings['dataset']['path'],
+                      transform=helper.test_transforms)
 
 batch_size = 48
 misclassified_count = 0
