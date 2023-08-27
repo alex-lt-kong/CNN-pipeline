@@ -51,22 +51,8 @@ def read_config_file() -> Dict[str, Any]:
     return settings
 
 
-def preprocess_image(image_path: str) -> Image:
+def preprocess_image(image_path: str) -> torch.Tensor:
     image = Image.open(image_path)
-    image = test_transforms(image).unsqueeze(0)
-    return image
-
-
-# def main() -> None:
-#    settings = read_config_file()
-#    v16mm = model.VGG16MinusMinus(2)
-#    v16mm.load_state_dict(torch.load(settings['model']['parameters']))
-#    image_path = input("Enter the path of image to inference:\n")
-#    output = v16mm(preprocess_image(image_path))
-#    print(output)
-#    y_pred = torch.argmax(output, dim=1)
-#    print(y_pred)
-
-
-# if __name__ == '__main__':
-#    main()
+    image_tensor = test_transforms(image).unsqueeze(0)
+    assert isinstance(image_tensor, torch.Tensor)
+    return image_tensor

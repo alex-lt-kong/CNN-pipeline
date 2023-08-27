@@ -1,6 +1,6 @@
 # VGG16-based pipeline
 
-A framework built to be a component in a pipeline of data processing using PyTorch.
+A deep learning pipeline based on the good old [VGG16 model](https://www.kaggle.com/code/blurredmachine/vggnet-16-architecture-a-complete-guide).
 
 ## Prepare environment
 

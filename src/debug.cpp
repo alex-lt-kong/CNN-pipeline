@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <getopt.h>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -8,18 +10,58 @@
 
 using namespace std;
 
-int main(int argc, const char *argv[]) {
-  if (argc != 3) {
-    std::cerr
-        << "usage: model.cpp <path-to-exported-script-module> <image-path>"
-        << std::endl;
-    return -1;
+void print_usage(string binary_name) {
+
+  cerr << "Usage: " << binary_name << " [OPTION]\n\n";
+
+  cerr << "Options:\n"
+       << "  --help, -h             display this help and exit\n"
+       << "  --config, -c           Path of the JSON config file\n"
+       << "  --image-path, -p       Path of image to be inferenced" << endl;
+}
+
+void parse_arguments(int argc, char **argv, string &config_path,
+                     string &image_path) {
+  static struct option long_options[] = {
+      {"config", required_argument, 0, 'c'},
+      {"image-path", required_argument, 0, 'p'},
+      {"help", optional_argument, 0, 'h'},
+      {0, 0, 0, 0}};
+
+  int opt, option_index = 0;
+
+  while ((opt = getopt_long(argc, argv, "c:p:h", long_options,
+                            &option_index)) != -1) {
+    switch (opt) {
+    case 'c':
+      if (optarg != NULL) {
+        config_path = string(optarg);
+      }
+      break;
+    case 'p':
+      if (optarg != NULL) {
+        image_path = string(optarg);
+      }
+      break;
+    default:
+      print_usage(argv[0]);
+      exit(EXIT_FAILURE);
+    }
   }
+  if (config_path.empty() || image_path.empty()) {
+    print_usage(argv[0]);
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main(int argc, char **argv) {
+  string config_path, image_path;
+  parse_arguments(argc, argv, config_path, image_path);
+
   torch::jit::script::Module m;
   try {
-
     // Deserialize the ScriptModule from a file using torch::jit::load().
-    m = torch::jit::load(argv[1]);
+    m = torch::jit::load(config_path);
   } catch (const c10::Error &e) {
     std::cerr << "error loading the model\n";
     std::cerr << e.what() << std::endl;
@@ -32,8 +74,8 @@ int main(int argc, const char *argv[]) {
   3. Preprocess the input image:
   */
   // Load and preprocess the input image using OpenCV
-  cv::Mat image = cv::imread(argv[2]);
-  // cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+  cv::Mat image = cv::imread(image_path);
+  cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 
   cv::resize(image, image, cv::Size(426, 224));
 

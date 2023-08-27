@@ -416,9 +416,9 @@ def generate_curves(filename: str, mv_window: int = 1) -> None:
         plt.plot(df.index, df[col], label=col)
 
     # Customize chart
-    plt.title('Line Chart')
-    plt.xlabel('X-axis')
-    plt.ylabel('Y-axis')
+    plt.title(filename)
+    plt.xlabel('Epochs')
+    plt.ylabel('Metrics')
     plt.grid(True)
     plt.legend()
     plt.savefig(img_path)
