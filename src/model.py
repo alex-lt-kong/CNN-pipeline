@@ -31,7 +31,7 @@ config: Dict[str, Any]
 
 
 class VGG16MinusMinus(nn.Module):
-    dropout = 0.7
+    dropout = 0.6
 
     def __init__(self, num_classes: int = 10) -> None:
         super(VGG16MinusMinus, self).__init__()
@@ -454,7 +454,7 @@ def main() -> None:
         epochs = 10
     m = train(args['load_parameters'], lr, epochs)
     save_params(m)
-    # save_ts_model(m)
+    save_ts_model(m)
     logging.info('Training completed')
 
 

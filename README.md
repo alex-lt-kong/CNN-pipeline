@@ -16,3 +16,9 @@ model in C++ to enhance performance.
   `/usr/local/include/torch/` and copy `./lib/*` to `/usr/local/lib/torch/`
   * Add the share objects path to `LD_LIBRARY_PATH`:
   `export LD_LIBRARY_PATH=/usr/local/lib/torch/:$LD_LIBRARY_PATH`
+
+### Install other libraries
+
+```
+apt install nlohmann-json3-dev
+```
