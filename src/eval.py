@@ -22,7 +22,7 @@ if os.path.exists(settings['diagnostics']['misclassified']):
 dataset = ImageFolder(root=settings['dataset']['path'],
                       transform=helper.test_transforms)
 
-batch_size = 48
+batch_size = 64
 misclassified_count = 0
 data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 # shuffle breaks the relationship of batch and file path.
@@ -62,7 +62,6 @@ with torch.no_grad():
             )
             print(f', sample copied from {dataset.samples[batch_idx * batch_size + i][0]} to {output_path}')
             Image.open(dataset.samples[batch_idx * batch_size + i][0]).save(output_path)
-            # if ('20230520-163835_走廊_00016.jpg' in dataset.samples[batch_idx * batch_size + i][0]):
-            # breakpoint()
+
 
 print(f'{misclassified_count} misclassified samples found')

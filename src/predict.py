@@ -198,7 +198,7 @@ def prediction_thread() -> None:
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 13])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 14])),
             Image.open(io.BytesIO(image_queue[DATASET_SIZE + 15]))
-        ], transform=helper.transforms)
+        ], transform=helper.test_transforms)
         assert DATASET_SIZE == len(dataset.images)
         dataloader = DataLoader(
             dataset, batch_size=DATASET_SIZE, shuffle=False, num_workers=4

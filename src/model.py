@@ -124,6 +124,18 @@ class VGG16MinusMinus(nn.Module):
         return x
 
 
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
+    # Prevents PyTorch from using the cudnn auto-tuner to find the fastest
+    # convolution algorithms, which can result in non-deterministic behavior.
+    torch.backends.cudnn.benchmark = False
+
+
 def get_data_loaders(data_path: str,
                      random_seed: int = 0) -> Tuple[DataLoader, DataLoader]:
 
@@ -326,7 +338,7 @@ def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Modu
     # Define the dataset and data loader for the training set
     train_loader, val_loader = get_data_loaders(
         config["dataset"]["path"],
-        config['dataset']['validation_split_seed']
+        config['model']['random_seed']
     )
     save_transformed_samples(
         train_loader, config['diagnostics']['preview']['training_samples'], 50
@@ -344,7 +356,7 @@ def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Modu
         lr=(0.001 if lr is None else lr),
         weight_decay=3e-4
     )
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
 
     # Train the model
     for epoch in range(epochs):
@@ -432,7 +444,7 @@ def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s | %(levelname)7s | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
+        datefmt='%Y-%m-%d %H:%M:%S.%f',
         handlers=[logging.StreamHandler(sys.stdout)]
     )
 
@@ -452,6 +464,7 @@ def main() -> None:
         epochs = int(args['epochs'])
     except Exception:
         epochs = 10
+    set_seed(config['model']['random_seed'])
     m = train(args['load_parameters'], lr, epochs)
     save_params(m)
     save_ts_model(m)

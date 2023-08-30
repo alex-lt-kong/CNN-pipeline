@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import argparse
 import helper
+import logging
 import json
 import model
 import os
@@ -17,6 +18,12 @@ def main() -> None:
                     help='Path of the JSON config file')
     ap.add_argument('--image-path', '-p', dest='image-path', required=True,
                     help='Path of image to be inferenced')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s.%(msecs)03d | %(levelname)7s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
     args = vars(ap.parse_args())
     config_path = args['config']
     image_path = args['image-path']
@@ -28,34 +35,34 @@ def main() -> None:
         settings = json.loads(json_str)
         assert isinstance(settings, Dict)
     v16mm = model.VGG16MinusMinus(2)
-    print(f'Loading parameters from {settings["model"]["parameters"]}')
+    logging.info(f'Loading parameters from {settings["model"]["parameters"]}')
     v16mm.load_state_dict(torch.load(settings['model']['parameters']))
-    print('Parameters loaded')
+    logging.info('Parameters loaded')
 
     preview_ele_num = 5
     for name, param in v16mm.named_parameters():
         if param.requires_grad:
             if len(param.data.shape) <= 1:
-                print(f'{name}({param.data.shape}): {param.data[:preview_ele_num]}')
+                logging.info(f'{name}({param.data.shape}): {param.data[:preview_ele_num]}')
             elif len(param.data.shape) <= 2:
-                print(f'{name}({param.data.shape}): {param.data[0][:preview_ele_num]}')
+                logging.info(f'{name}({param.data.shape}): {param.data[0][:preview_ele_num]}')
             elif len(param.data.shape) <= 3:
-                print(f'{name}({param.data.shape}): {param.data[0][0][:preview_ele_num]}')
+                logging.info(f'{name}({param.data.shape}): {param.data[0][0][:preview_ele_num]}')
             elif len(param.data.shape) <= 4:
-                print(f'{name}({param.data.shape}): {param.data[0][0][0][:preview_ele_num]}')
+                logging.info(f'{name}({param.data.shape}): {param.data[0][0][0][:preview_ele_num]}')
             else:
-                print(f'{name}({param.data.shape}): {param.data[0][0][0][0][:preview_ele_num]}')
+                logging.info(f'{name}({param.data.shape}): {param.data[0][0][0][0][:preview_ele_num]}')
 
     v16mm.eval()
-    print(f'Loading and transforming image from {image_path}')
+    logging.info(f'Loading and transforming image from {image_path}')
     input = helper.preprocess_image(image_path)
-    print('Image ready')
-    print('Running inference')
+    logging.info('Image ready')
+    logging.info('Running inference')
     output = v16mm(input)
-    print('Done')
-    print(f'Raw output: {output}')
+    logging.info('Done')
+    logging.info(f'Raw output: {output}')
     y_pred = torch.argmax(output, dim=1)
-    print(f'y_pred: {y_pred}')
+    logging.info(f'y_pred: {y_pred}')
 
 
 if __name__ == '__main__':

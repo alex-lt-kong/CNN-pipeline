@@ -62,7 +62,7 @@ string tensor_to_string(const torch::Tensor &t, const long ele_count) {
   std::ostringstream oss;
   oss << std::scientific;
   oss << "tensor([";
-  oss << std::setprecision(6);
+  oss << std::setprecision(4);
   for (long i = 0; i < ele_count && i < t.sizes()[0]; ++i) {
     oss << t[i].item<float>();
     if (i < ele_count - 1 && i < t.sizes()[0] - 1) {
