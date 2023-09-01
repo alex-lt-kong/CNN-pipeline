@@ -1,5 +1,7 @@
+#define FMT_HEADER_ONLY
 #include "torch/csrc/api/include/torch/types.h"
 #include <cstdlib>
+#include <filesystem>
 #include <getopt.h>
 #include <iostream>
 #include <memory>
@@ -8,6 +10,7 @@
 
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
+#include <spdlog/spdlog.h>
 #include <torch/script.h> // One-stop header.
 
 using namespace std;
@@ -19,12 +22,10 @@ void print_usage(string binary_name) {
 
   cerr << "Options:\n"
        << "  --help, -h             display this help and exit\n"
-       << "  --config, -c           Path of the JSON config file\n"
        << "  --image-path, -p       Path of image to be inferenced" << endl;
 }
 
-void parse_arguments(int argc, char **argv, string &config_path,
-                     string &image_path) {
+void parse_arguments(int argc, char **argv, string &image_path) {
   static struct option long_options[] = {
       {"config", required_argument, 0, 'c'},
       {"image-path", required_argument, 0, 'p'},
@@ -33,14 +34,9 @@ void parse_arguments(int argc, char **argv, string &config_path,
 
   int opt, option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "c:p:h", long_options,
-                            &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "p:h", long_options, &option_index)) !=
+         -1) {
     switch (opt) {
-    case 'c':
-      if (optarg != NULL) {
-        config_path = string(optarg);
-      }
-      break;
     case 'p':
       if (optarg != NULL) {
         image_path = string(optarg);
@@ -51,7 +47,7 @@ void parse_arguments(int argc, char **argv, string &config_path,
       exit(EXIT_FAILURE);
     }
   }
-  if (config_path.empty() || image_path.empty()) {
+  if (image_path.empty()) {
     print_usage(argv[0]);
     exit(EXIT_FAILURE);
   }
@@ -75,9 +71,13 @@ string tensor_to_string(const torch::Tensor &t, const long ele_count) {
 }
 
 int main(int argc, char **argv) {
+  spdlog::set_pattern("%Y-%m-%d %T.%e | %7l | %v");
+  filesystem::path binaryPath = filesystem::canonical(argv[0]);
+  filesystem::path parentPath = binaryPath.parent_path().parent_path();
   string config_path, image_path;
-  parse_arguments(argc, argv, config_path, image_path);
 
+  parse_arguments(argc, argv, image_path);
+  config_path = (parentPath / "config.json").string();
   ifstream f(config_path);
   json settings = json::parse(f);
 
@@ -95,22 +95,21 @@ int main(int argc, char **argv) {
   for (const auto &pair : v16mm.named_parameters()) {
     const string &name = pair.name;
     const torch::Tensor &tensor = pair.value;
+    std::ostringstream oss;
+    oss << tensor.sizes();
+    string tensorStr;
     if (tensor.sizes().size() <= 1) {
-      cout << name << "(" << tensor.sizes()
-           << "): " << tensor_to_string(tensor, 5) << endl;
+      tensorStr = tensor_to_string(tensor, 5);
     } else if (tensor.sizes().size() <= 2) {
-      cout << name << "(" << tensor.sizes()
-           << "): " << tensor_to_string(tensor[0], 5) << endl;
+      tensorStr = tensor_to_string(tensor[0], 5);
     } else if (tensor.sizes().size() <= 3) {
-      cout << name << "(" << tensor.sizes()
-           << "): " << tensor_to_string(tensor[0][0], 5) << endl;
+      tensorStr = tensor_to_string(tensor[0][0], 5);
     } else if (tensor.sizes().size() <= 4) {
-      cout << name << "(" << tensor.sizes()
-           << "): " << tensor_to_string(tensor[0][0][0], 5) << endl;
+      tensorStr = tensor_to_string(tensor[0][0][0], 5);
     } else {
-      cout << name << "(" << tensor.sizes()
-           << "): " << tensor_to_string(tensor[0][0][0][0], 5) << endl;
+      tensorStr = tensor_to_string(tensor[0][0][0][0], 5);
     }
+    spdlog::info("{}({}): {}", name, oss.str(), tensorStr);
   }
 
   v16mm.eval();

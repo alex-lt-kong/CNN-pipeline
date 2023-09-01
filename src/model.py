@@ -4,7 +4,6 @@ from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
 from typing import Dict, Any, Tuple, Optional
 
-
 import argparse
 import datetime as dt
 import helper
@@ -31,7 +30,7 @@ config: Dict[str, Any]
 
 
 class VGG16MinusMinus(nn.Module):
-    dropout = 0.6
+    dropout = 0.5
 
     def __init__(self, num_classes: int = 10) -> None:
         super(VGG16MinusMinus, self).__init__()
@@ -62,14 +61,14 @@ class VGG16MinusMinus(nn.Module):
         #    nn.BatchNorm2d(256),
         #    nn.ReLU())
         self.layer7 = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 256 * 2, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256 * 2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
-        self.layer8 = nn.Sequential(
-            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU())
+        # self.layer8 = nn.Sequential(
+        #     nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
+        #     nn.BatchNorm2d(512),
+        #     nn.ReLU())
         # self.layer9 = nn.Sequential(
         #    nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
         #    nn.BatchNorm2d(512),
@@ -79,29 +78,29 @@ class VGG16MinusMinus(nn.Module):
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
-        self.layer11 = nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU())
+        # self.layer11 = nn.Sequential(
+        #     nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+        #     nn.BatchNorm2d(512),
+        #     nn.ReLU())
         # self.layer12 = nn.Sequential(
-        #    nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-        #    nn.BatchNorm2d(512),
-        #    nn.ReLU())
+        #     nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+        #     nn.BatchNorm2d(512),
+        #     nn.ReLU())
         self.layer13 = nn.Sequential(
             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 32) * int(426 / 32) * 512, int(4096 / 6)),
+            nn.Linear(int(224 / 32) * int(426 / 32) * 512, int(4096 / 8)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 6), int(4096 / 6)),
+            nn.Linear(int(4096 / 8), int(4096 / 8)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 6), num_classes))
+            nn.Linear(int(4096 / 8), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer1(x)
@@ -111,10 +110,10 @@ class VGG16MinusMinus(nn.Module):
         x = self.layer5(x)
         # x = self.layer6(x)
         x = self.layer7(x)
-        x = self.layer8(x)
+        # x = self.layer8(x)
         # x = self.layer9(x)
         x = self.layer10(x)
-        x = self.layer11(x)
+        # x = self.layer11(x)
         # x = self.layer12(x)
         x = self.layer13(x)
         x = x.reshape(x.size(0), -1)
@@ -272,11 +271,7 @@ def evalute_model_classification(
 
 def save_params(m: nn.Module) -> None:
     if os.path.exists(config['model']['parameters']):
-        dst_path = config["model"]["parameters"] + ".bak"
-        logging.warning(
-            'Model saved from the previous training exists, '
-            f'will move from [{config["model"]["parameters"]}] to [{dst_path}]'
-        )
+        dst_path = config["model"]["parameters"] + '.bak'
         shutil.move(config['model']['parameters'], dst_path)
     torch.save(m.state_dict(), config['model']['parameters'])
     logging.info('Model weights saved to '
@@ -286,12 +281,7 @@ def save_params(m: nn.Module) -> None:
 def save_ts_model(m: nn.Module) -> None:
     logging.info('Serializing model to Torch Script file')
     if os.path.exists(config['model']['torch_script_serialization']):
-        dst_path = config["model"]["torch_script_serialization"] + ".bak"
-        logging.warning(
-            'Torch Script file saved from the previous training exists, '
-            f'will move from [{config["model"]["torch_script_serialization"]}] '
-            f'to [{dst_path}]'
-        )
+        dst_path = config["model"]["torch_script_serialization"] + '.bak'
         shutil.move(config['model']['torch_script_serialization'], dst_path)
     m_ts = torch.jit.script(m)
     logging.info('Torch Script model created')
@@ -308,7 +298,10 @@ def save_transformed_samples(dataloader: DataLoader,
     from torchvision.utils import save_image
     shutil.rmtree(save_dir)
     os.mkdir(save_dir)
-    dataset_size = len(dataloader.dataset)
+    dataset_size = len(dataloader.dataset)  # type: ignore
+    logging.info(
+        f"{dataset_size} images are in this dataset and we sample {num_samples} from it."
+    )
     for i in range(num_samples):
         image_dst_path = f"{save_dir}/sample_{i}.jpg"
         sample_idx = random.randint(0, dataset_size - 1)
@@ -411,6 +404,8 @@ def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Modu
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
             f', estimated training duration: {(eta - start_ts)/3600:.1f} hrs'
         )
+        save_params(v16mm)
+        save_ts_model(v16mm)
     return v16mm
 
 
@@ -428,7 +423,7 @@ def generate_curves(filename: str, mv_window: int = 1) -> None:
         plt.plot(df.index, df[col], label=col)
 
     # Customize chart
-    plt.title(filename)
+    plt.title(f'{filename}_{mv_window}')
     plt.xlabel('Epochs')
     plt.ylabel('Metrics')
     plt.grid(True)
@@ -443,8 +438,8 @@ def main() -> None:
         config = json.load(j)
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s | %(levelname)7s | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S.%f',
+        format='%(asctime)s.%(msecs)03d | %(levelname)7s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
         handlers=[logging.StreamHandler(sys.stdout)]
     )
 
@@ -465,9 +460,7 @@ def main() -> None:
     except Exception:
         epochs = 10
     set_seed(config['model']['random_seed'])
-    m = train(args['load_parameters'], lr, epochs)
-    save_params(m)
-    save_ts_model(m)
+    train(args['load_parameters'], lr, epochs)
     logging.info('Training completed')
 
 

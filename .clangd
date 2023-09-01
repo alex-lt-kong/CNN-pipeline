@@ -8,4 +8,4 @@ CompileFlags:
   Add: 
     - '-I/usr/local/include/torch'
     - '-I/usr/local/include/opencv4/'
-  
+    - '-std=c++17'

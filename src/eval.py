@@ -3,6 +3,7 @@ from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
 
 import model
+import json
 import helper
 import os
 import shutil
@@ -15,7 +16,11 @@ print(device)
 v16mm = model.VGG16MinusMinus(2)
 v16mm.to(device)
 
-settings = helper.read_config_file()
+curr_dir = os.path.dirname(os.path.abspath(__file__))
+# settings: Dict[str, Any]
+with open(os.path.join(curr_dir, '..', 'config.json')) as j:
+    settings = json.load(j)
+
 v16mm.load_state_dict(torch.load(settings['model']['parameters']))
 if os.path.exists(settings['diagnostics']['misclassified']):
     shutil.rmtree(settings['diagnostics']['misclassified'])

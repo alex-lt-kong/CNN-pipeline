@@ -21,4 +21,5 @@ model in C++ to enhance performance.
 
 ```
 apt install nlohmann-json3-dev
+apt install libspdlog-dev
 ```

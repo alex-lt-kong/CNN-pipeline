@@ -1,3 +1,4 @@
+from typing import Any, Dict
 from flask import Flask, request, Response
 from threading import Thread, Lock
 from PIL import Image
@@ -8,6 +9,7 @@ import datetime as dt
 import helper
 import io
 import logging
+import json
 import model
 import os
 import time
@@ -118,7 +120,7 @@ def initialize_logger() -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        '%(asctime)s | %(name)8s | %(levelname)7s | %(message)s'
+        '%(asctime)s.%(msecs)03d | %(name)8s | %(levelname)7s | %(message)s',
     )
     handler.setFormatter(formatter)
     root.addHandler(handler)
@@ -146,7 +148,9 @@ def prediction_thread() -> None:
     logging.info('prediction_thread() started')
     global prediction_interval
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    settings = helper.read_config_file()
+    settings: Dict[str, Any]
+    with open(os.path.join(curr_dir, '..', 'config.json')) as j:
+        settings = json.load(j)
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
