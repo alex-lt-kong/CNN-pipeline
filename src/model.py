@@ -288,7 +288,7 @@ def save_ts_model(m: nn.Module) -> None:
     m_ts.save(config['model']['torch_script_serialization'])
     logging.info(
         'Torch Script model saved to '
-        f'{config["model"]["torch_script_serialization"]}'
+        f'[{config["model"]["torch_script_serialization"]}]'
     )
 
 
