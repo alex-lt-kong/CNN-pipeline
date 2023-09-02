@@ -1,20 +1,45 @@
+from PIL import Image
+from typing import Any, List
+
 import argparse
 import helper
 import logging
 import json
 import model
 import os
+import PIL
 import sys
+import time
 import torch
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def get_tensor_from_img_dir(images_dir: str) -> torch.Tensor:
+    images: List[Image.Image] = []
+    for filename in sorted(os.listdir(images_dir)):
+        file_path = os.path.join(images_dir, filename)
+        if os.path.isfile(file_path):
+            image = Image.open(file_path)
+            images.append(image)
+            assert isinstance(image, Image.Image)
+
+    tensor_images = torch.empty(
+        (len(images), 3, helper.target_img_size[0], helper.target_img_size[1])
+    )
+    for i in range(len(images)):
+        assert images[i] is not None
+        tensor_images[i] = helper.test_transforms(images[i])
+        assert isinstance(tensor_images[i], torch.Tensor)
+
+    return tensor_images
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--image-path', '-p', dest='image-path', required=True,
-                    help='Path of image to be inferenced')
+    ap.add_argument('--image-dir', '-d', dest='image-dir', required=True,
+                    help='Directory that is full of images!')
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s.%(msecs)03d | %(levelname)7s | %(message)s',
@@ -22,7 +47,7 @@ def main() -> None:
         handlers=[logging.StreamHandler(sys.stdout)]
     )
     args = vars(ap.parse_args())
-    image_path = args['image-path']
+    image_path = str(args['image-dir'])
 
     with open(os.path.join(curr_dir, '..', 'config.json')) as j:
         settings = json.load(j)
@@ -34,9 +59,10 @@ def main() -> None:
 
     preview_ele_num = 5
     layer_count = 0
+    logging.info("Sample values from some layers:")
     for name, param in v16mm.named_parameters():
         layer_count += 1
-        if layer_count % 4 != 0:
+        if layer_count % 5 != 0:
             continue
         if param.requires_grad:
             if len(param.data.shape) <= 1:
@@ -63,20 +89,24 @@ def main() -> None:
     v16mm.to(device)
     v16mm.eval()
     logging.info(f'Loading and transforming image from {image_path}')
-    tensor_image = helper.preprocess_image(image_path)
+    images_tensor = get_tensor_from_img_dir(image_path)
 
+    rounded_unix_time = int(time.time() / 100000)
+    h = rounded_unix_time % helper.target_img_size[0]
+    w = rounded_unix_time % (helper.target_img_size[1] - preview_ele_num)
     logging.info(
-        f'Image tensor ready, tensor shape: {tensor_image.shape}, '
-        f'sample vlaues:'
+        f'Image tensor ready, tensor shape: {images_tensor.shape}, '
+        f'sample vlaues start from (w{w}, h{h}):'
     )
-    for i in range(0, tensor_image.shape[1]):
-        logging.info(tensor_image[0][i][i][:preview_ele_num])
 
-    tensor_image = tensor_image.to(device)
+    for i in range(0, images_tensor.shape[1]):
+        logging.info(images_tensor[0][i][h][w: w + preview_ele_num])
+
+    images_tensor = images_tensor.to(device)
     logging.info('Running inference')
-    output = v16mm(tensor_image)
-    logging.info('Done')
-    logging.info(f'Raw output: {output}')
+    output = v16mm(images_tensor)
+    assert isinstance(output, torch.Tensor)
+    logging.info(f'Done, raw output:\n{output}')
     y_pred = torch.argmax(output, dim=1)
     logging.info(f'y_pred: {y_pred}')
 

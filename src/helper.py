@@ -1,8 +1,5 @@
-from PIL import Image, ImageCms
-from typing import Any, Dict
+from PIL import Image
 
-import argparse
-import json
 import os
 import torch
 import torchvision
@@ -40,11 +37,3 @@ def get_cuda_device() -> torch.device:
         return torch.device("cuda")
     else:
         raise RuntimeError('CUDA device not available')
-
-
-def preprocess_image(image_path: str) -> torch.Tensor:
-    image = Image.open(image_path).convert("RGB")
-    image_tensor = test_transforms(image)
-    assert isinstance(image_tensor, torch.Tensor)
-    image_tensor = image_tensor.unsqueeze(0)
-    return image_tensor
