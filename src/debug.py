@@ -96,7 +96,7 @@ def main() -> None:
     w = rounded_unix_time % (helper.target_img_size[1] - preview_ele_num)
     logging.info(
         f'Image tensor ready, tensor shape: {images_tensor.shape}, '
-        f'sample vlaues start from (w{w}, h{h}):'
+        f'sample values start from (w{w}, h{h}):'
     )
 
     for i in range(0, images_tensor.shape[1]):

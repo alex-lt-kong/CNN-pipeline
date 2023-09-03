@@ -17,7 +17,9 @@ model in C++ to enhance performance.
   * Add the share objects path to `LD_LIBRARY_PATH`:
   `export LD_LIBRARY_PATH=/usr/local/lib/torch/:$LD_LIBRARY_PATH`
 
-### Install `OpenCV`
+### Install `OpenCV` and `FFmpeg`
+
+* `OpenCV` (and `FFmpeg` as its Video IO backend) is used to decode/manipulate images before sending to them to `libtorch`,
 
 * Refer to instructions [here](https://github.com/alex-lt-kong/the-nitty-gritty/tree/main/c-cpp/cpp/06_poc/05_cudacodec-vs-ffmpeg)
 
@@ -33,10 +35,14 @@ apt install libspdlog-dev
 * `debug.cpp`/`debug.py` can infer images from a directory with images. We may
 need to extract frames from a video/GIF file and save all the frames to a
 directory:
-```
-IN_FILE=/tmp/video.mp4
-OUT_FILES=/tmp/video_%05d.jpg
+```bash
+IN_FILE="/tmp/sample.mp4"
+OUT_FILES="/tmp/sample/video_%05d.jpg"
 # Ignore FPS if input file is a gif animation.
 FPS=5
-ffmpeg -i "${IN_FILE}" -r "${FPS}" "${OUT_FILES}"
+# OpenCV and PIL have different resizing algorithms that almost
+# always result in different images. Preparing the images in
+# desired resolution first could avoid this discrepancy
+RESOLUTION="426x224"
+ffmpeg -i "${IN_FILE}" -r "${FPS}" -s "${RESOLUTION}" "${OUT_FILES}"
 ```

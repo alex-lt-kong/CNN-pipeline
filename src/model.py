@@ -136,7 +136,7 @@ def set_seed(seed: int) -> None:
 
 
 def get_data_loaders(data_path: str,
-                     random_seed: int = 0) -> Tuple[DataLoader, DataLoader]:
+                     random_seed: int = 0) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
     class TransformedSubset(torch.utils.data.Subset):
 
@@ -167,13 +167,16 @@ def get_data_loaders(data_path: str,
     shuffle = True
     # Apply the respective transformations to each subset
     train_dataset = TransformedSubset(train_dataset, transform=helper.train_transforms)
+    train_dataset_for_eval = TransformedSubset(train_dataset, transform=helper.test_transforms)
     val_dataset = TransformedSubset(val_dataset, transform=helper.test_transforms)
 
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size, shuffle=shuffle)
+    train_loader_for_eval = DataLoader(train_dataset_for_eval,
+                                       batch_size=batch_size, shuffle=shuffle)
     val_loader = DataLoader(val_dataset,
                             batch_size=batch_size, shuffle=shuffle)
-    return (train_loader, val_loader)
+    return (train_loader, train_loader_for_eval, val_loader)
 
 
 def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
@@ -312,7 +315,8 @@ def save_transformed_samples(dataloader: DataLoader,
         )
 
 
-def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Module:
+def train(load_parameters: bool, lr: float = 0.001,
+          epochs: int = 10) -> nn.Module:
     start_ts = time.time()
 
     logging.info(f'Training using {device}')
@@ -329,12 +333,16 @@ def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Modu
     logging.info(f"Number of parameters: {total_params:,}")
 
     # Define the dataset and data loader for the training set
-    train_loader, val_loader = get_data_loaders(
+    train_loader, train_loader_for_eval, val_loader = get_data_loaders(
         config["dataset"]["path"],
         config['model']['random_seed']
     )
     save_transformed_samples(
         train_loader, config['diagnostics']['preview']['training_samples'], 50
+    )
+    save_transformed_samples(
+        train_loader_for_eval,
+        config['diagnostics']['preview']['training_samples_for_eval'], 50
     )
     save_transformed_samples(
         val_loader, config['diagnostics']['preview']['validation_samples'], 10
@@ -395,7 +403,7 @@ def train(load_parameters: bool, lr: float = 0.001, epochs: int = 10) -> nn.Modu
                                      'training_eval-off', 0.1)
         # switch to evaluation mode
         v16mm.eval()
-        evalute_model_classification(v16mm, num_classes, train_loader,
+        evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
                                      'training_eval-on', 0.1)
         evalute_model_classification(v16mm, num_classes, val_loader,
                                      'validation', 0.5)

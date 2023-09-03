@@ -35,7 +35,7 @@ void print_usage(string binary_name) {
 void parse_arguments(int argc, char **argv, string &image_path) {
   static struct option long_options[] = {
       {"config", required_argument, 0, 'c'},
-      {"image-dir", required_argument, 0, 'p'},
+      {"image-dir", required_argument, 0, 'd'},
       {"help", optional_argument, 0, 'h'},
       {0, 0, 0, 0}};
 

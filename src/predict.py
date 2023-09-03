@@ -260,7 +260,7 @@ def prediction_thread() -> None:
             logging.info(f'stdout: {result.stdout}')
             logging.info(f'stderr: {result.stderr}')
 
-            cooldown_sec = 90
+            cooldown_sec = 150
             logging.info(f'Entered cooldown period ({cooldown_sec} sec)')
             count = 0
             while count < cooldown_sec * 2 and ev_flag:
