@@ -27,7 +27,7 @@ if os.path.exists(settings['diagnostics']['misclassified']):
 dataset = ImageFolder(root=settings['dataset']['path'],
                       transform=helper.test_transforms)
 
-batch_size = 64
+batch_size = 16
 misclassified_count = 0
 data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 # shuffle breaks the relationship of batch and file path.

@@ -163,11 +163,12 @@ def get_data_loaders(data_path: str,
     train_dataset, val_dataset = random_split(
         dataset, [train_size, val_size],
         generator=torch.Generator().manual_seed(random_seed))
+    train_dataset_for_eval = train_dataset
     batch_size = 20
     shuffle = True
     # Apply the respective transformations to each subset
     train_dataset = TransformedSubset(train_dataset, transform=helper.train_transforms)
-    train_dataset_for_eval = TransformedSubset(train_dataset, transform=helper.test_transforms)
+    train_dataset_for_eval = TransformedSubset(train_dataset_for_eval, transform=helper.test_transforms)
     val_dataset = TransformedSubset(val_dataset, transform=helper.test_transforms)
 
     train_loader = DataLoader(train_dataset,
@@ -264,9 +265,9 @@ def evalute_model_classification(
     write_metrics_to_csv(f'{ds_name}.csv', metrics_dict)
 
     generate_curves(ds_name)
-    generate_curves(ds_name, 10)
-    generate_curves(ds_name, 20)
-    generate_curves(ds_name, 40)
+    generate_curves(ds_name, 4)
+    generate_curves(ds_name, 16)
+    generate_curves(ds_name, 64)
 
     cm = metrics.confusion_matrix(y_trues_total, y_preds_total)
     logging.info(f'Confusion matrix (true-by-pred):\n{cm}')
@@ -400,20 +401,20 @@ def train(load_parameters: bool, lr: float = 0.001,
         scheduler.step()
 
         evalute_model_classification(v16mm, num_classes, train_loader,
-                                     'training_eval-off', 0.1)
+                                     'training_eval-off', 0.05)
         # switch to evaluation mode
         v16mm.eval()
         evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
-                                     'training_eval-on', 0.1)
+                                     'training_eval-on', 0.05)
         evalute_model_classification(v16mm, num_classes, val_loader,
-                                     'validation', 0.5)
+                                     'validation', 0.25)
+        save_params(v16mm)
+        save_ts_model(v16mm)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
             f', estimated training duration: {(eta - start_ts)/3600:.1f} hrs'
         )
-        save_params(v16mm)
-        save_ts_model(v16mm)
     return v16mm
 
 

@@ -10,7 +10,8 @@ target_img_stds = [0.229, 0.224, 0.225]
 train_transforms = torchvision.transforms.Compose([
     torchvision.transforms.Resize(
         size=target_img_size,
-        interpolation=torchvision.transforms.InterpolationMode.BILINEAR
+        interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
+        antialias=True
     ),
     # torchvision.transforms.RandomHorizontalFlip(),
     torchvision.transforms.ColorJitter(brightness=0.25, contrast=0.25, hue=0.25, saturation=0.25),
@@ -24,7 +25,8 @@ train_transforms = torchvision.transforms.Compose([
 test_transforms = torchvision.transforms.Compose([
     torchvision.transforms.Resize(
         size=target_img_size,
-        interpolation=torchvision.transforms.InterpolationMode.BILINEAR
+        interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
+        antialias=True
     ),
     torchvision.transforms.ToTensor(),
     torchvision.transforms.Normalize(mean=target_img_means, std=target_img_stds)
