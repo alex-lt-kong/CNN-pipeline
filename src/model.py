@@ -30,7 +30,7 @@ config: Dict[str, Any]
 
 
 class VGG16MinusMinus(nn.Module):
-    dropout = 0.5
+    dropout = 0.66
 
     def __init__(self, num_classes: int = 10) -> None:
         super(VGG16MinusMinus, self).__init__()
@@ -273,27 +273,27 @@ def evalute_model_classification(
     logging.info(f'Confusion matrix (true-by-pred):\n{cm}')
 
 
-def save_params(m: nn.Module) -> None:
-    if os.path.exists(config['model']['parameters']):
-        dst_path = config["model"]["parameters"] + '.bak'
-        shutil.move(config['model']['parameters'], dst_path)
-    torch.save(m.state_dict(), config['model']['parameters'])
-    logging.info('Model weights saved to '
-                 f'[{config["model"]["parameters"]}]')
+def save_params(m: nn.Module, model_index: int) -> None:
+    model_params_path = config['model']['parameters'].replace(r'{idx}', str(model_index))
+    if os.path.exists(model_params_path):
+        dst_path = model_params_path + '.bak'
+        shutil.move(model_params_path, dst_path)
+    torch.save(m.state_dict(), model_params_path)
+    logging.info(f'Model weights saved to [{model_params_path}]')
 
 
-def save_ts_model(m: nn.Module) -> None:
+def save_ts_model(m: nn.Module, model_index: int) -> None:
     logging.info('Serializing model to Torch Script file')
-    if os.path.exists(config['model']['torch_script_serialization']):
-        dst_path = config["model"]["torch_script_serialization"] + '.bak'
-        shutil.move(config['model']['torch_script_serialization'], dst_path)
+    ts_serialization_path = config['model'][
+        'torch_script_serialization'
+    ].replace(r'{idx}', str(model_index))
+    if os.path.exists(ts_serialization_path):
+        dst_path = ts_serialization_path + '.bak'
+        shutil.move(ts_serialization_path, dst_path)
     m_ts = torch.jit.script(m)
     logging.info('Torch Script model created')
-    m_ts.save(config['model']['torch_script_serialization'])
-    logging.info(
-        'Torch Script model saved to '
-        f'[{config["model"]["torch_script_serialization"]}]'
-    )
+    m_ts.save(ts_serialization_path)
+    logging.info(f'Torch Script model saved to [{ts_serialization_path}]')
 
 
 def save_transformed_samples(dataloader: DataLoader,
@@ -316,7 +316,7 @@ def save_transformed_samples(dataloader: DataLoader,
         )
 
 
-def train(load_parameters: bool, lr: float = 0.001,
+def train(load_parameters: bool, model_index: int, lr: float = 0.001,
           epochs: int = 10) -> nn.Module:
     start_ts = time.time()
 
@@ -328,7 +328,9 @@ def train(load_parameters: bool, lr: float = 0.001,
     if load_parameters:
         logging.warning(
             'Loading existing model parameters to continue training')
-        v16mm.load_state_dict(torch.load(config['model']['parameters']))
+        v16mm.load_state_dict(torch.load(
+            config['model']['parameters'].replace(r'{idx}', str(model_index))
+        ))
     logging.info(v16mm)
     total_params = sum(p.numel() for p in v16mm.parameters())
     logging.info(f"Number of parameters: {total_params:,}")
@@ -401,15 +403,15 @@ def train(load_parameters: bool, lr: float = 0.001,
         scheduler.step()
 
         evalute_model_classification(v16mm, num_classes, train_loader,
-                                     'training_eval-off', 0.05)
+                                     f'training_eval-off_{model_index}', 0.05)
         # switch to evaluation mode
         v16mm.eval()
         evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
-                                     'training_eval-on', 0.05)
+                                     f'training_eval-on_{model_index}', 0.05)
         evalute_model_classification(v16mm, num_classes, val_loader,
-                                     'validation', 0.25)
-        save_params(v16mm)
-        save_ts_model(v16mm)
+                                     f'validation_{model_index}', 0.25)
+        save_params(v16mm, model_index)
+        save_ts_model(v16mm, model_index)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
@@ -458,6 +460,7 @@ def main() -> None:
     ap.add_argument('--learning-rate', '-lr', dest='learning_rate',
                     help='Specify a learning rate')
     ap.add_argument('--epochs', '-e', dest='epochs')
+    ap.add_argument('--model-index', '-i', dest='model-index', required=True)
     args = vars(ap.parse_args())
 
     try:
@@ -468,8 +471,12 @@ def main() -> None:
         epochs = int(args['epochs'])
     except Exception:
         epochs = 10
+    try:
+        model_index = int(args['model-index'])
+    except Exception:
+        model_index = 0
     set_seed(config['model']['random_seed'])
-    train(args['load_parameters'], lr, epochs)
+    train(args['load_parameters'], model_index, lr, epochs)
     logging.info('Training completed')
 
 
