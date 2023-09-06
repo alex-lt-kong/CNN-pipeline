@@ -34,12 +34,12 @@ class VGG16MinusMinus(nn.Module):
 
     def __init__(self, num_classes: int = 10) -> None:
         super(VGG16MinusMinus, self).__init__()
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU())
+        # self.layer1 = nn.Sequential(
+        #     nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+        #     nn.BatchNorm2d(64),
+        #     nn.ReLU())
         self.layer2 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
@@ -92,18 +92,18 @@ class VGG16MinusMinus(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 32) * int(426 / 32) * 512, int(4096 / 8)),
+            nn.Linear(int(224 / 32) * int(426 / 32) * 512, int(4096 / 10)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 8), int(4096 / 8)),
+            nn.Linear(int(4096 / 10), int(4096 / 10)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 8), num_classes))
+            nn.Linear(int(4096 / 10), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.layer1(x)
+        # x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
@@ -164,7 +164,7 @@ def get_data_loaders(data_path: str,
         dataset, [train_size, val_size],
         generator=torch.Generator().manual_seed(random_seed))
     train_dataset_for_eval = train_dataset
-    batch_size = 20
+    batch_size = 12
     shuffle = True
     # Apply the respective transformations to each subset
     train_dataset = TransformedSubset(train_dataset, transform=helper.train_transforms)
@@ -274,7 +274,9 @@ def evalute_model_classification(
 
 
 def save_params(m: nn.Module, model_index: int) -> None:
-    model_params_path = config['model']['parameters'].replace(r'{idx}', str(model_index))
+    model_params_path = config['model']['parameters'].replace(
+        r'{idx}', str(model_index)
+    )
     if os.path.exists(model_params_path):
         dst_path = model_params_path + '.bak'
         shutil.move(model_params_path, dst_path)
@@ -300,7 +302,8 @@ def save_transformed_samples(dataloader: DataLoader,
                              save_dir: str, num_samples: int) -> None:
     logging.info(f'Saving transformed samples to {save_dir}')
     from torchvision.utils import save_image
-    shutil.rmtree(save_dir)
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
     os.mkdir(save_dir)
     dataset_size = len(dataloader.dataset)  # type: ignore
     logging.info(
@@ -341,14 +344,19 @@ def train(load_parameters: bool, model_index: int, lr: float = 0.001,
         config['model']['random_seed']
     )
     save_transformed_samples(
-        train_loader, config['diagnostics']['preview']['training_samples'], 50
+        train_loader,
+        config['diagnostics']['preview']['training_samples'].replace(r'{idx}', str(model_index)),
+        50
     )
     save_transformed_samples(
         train_loader_for_eval,
-        config['diagnostics']['preview']['training_samples_for_eval'], 50
+        config['diagnostics']['preview']['training_samples_for_eval'].replace(r'{idx}', str(model_index)),
+        50
     )
     save_transformed_samples(
-        val_loader, config['diagnostics']['preview']['validation_samples'], 10
+        val_loader,
+        config['diagnostics']['preview']['validation_samples'].replace(r'{idx}', str(model_index)),
+        10
     )
 
     # Define the loss function, optimizer and learning rate scheduler
