@@ -1,13 +1,17 @@
+from typing import List, Any
 from sklearn import metrics
+from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
 from typing import Dict, Any, Tuple, Optional
 
+
 import argparse
 import datetime as dt
 import helper
 import logging
+import itertools
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -140,18 +144,39 @@ def get_data_loaders(data_path: str,
 
     class TransformedSubset(torch.utils.data.Subset):
 
+        cached_data: List[Any] = []
+
         def __init__(
             self, subset: torch.utils.data.Subset,
-            transform: Optional[torchvision.transforms.Compose] = None
+            dataset_name: str,
+            transform: Optional[torchvision.transforms.Compose] = None,            
         ) -> None:
+            assert isinstance(subset, torch.utils.data.Subset)
             self.subset = subset
+            self.dataset_name = dataset_name
             self.transform = transform
+            for i in range(len(self.subset)):
+                if i % 1000 == 0:
+                    logging.info(f'{i}/{len(self.subset)}')
+                # x, y = self.subset[i]
+                #if transform:
+                    #torch.save(
+                    #    transform(self.subset[i][0]),
+                    #    f'/tmp/usb-hdd/{self.dataset_name}_sample_{i:05d}.pt'
+                    #)
+                    #self.cached_data.append(transform(self.subset[i][0]))
 
         def __getitem__(self, index: int) -> Tuple[Any, Any]:
             x, y = self.subset[index]
+            #  assert isinstance(x, Image.Image)
             if self.transform:
                 x = self.transform(x)
-            return x, y
+            #t = torch.load(
+            #    f'/tmp/usb-hdd/{self.dataset_name}_sample_{index:05d}.pt'
+            #)
+            #t = self.cached_data[index]
+            assert isinstance(x, torch.Tensor)
+            return x, self.subset[index][1]
 
         def __len__(self) -> int:
             return len(self.subset)
@@ -160,16 +185,18 @@ def get_data_loaders(data_path: str,
     val_split = 0.2
     train_size = int((1 - val_split) * len(dataset))
     val_size = len(dataset) - train_size
+
     train_dataset, val_dataset = random_split(
         dataset, [train_size, val_size],
         generator=torch.Generator().manual_seed(random_seed))
+
     train_dataset_for_eval = train_dataset
-    batch_size = 12
+    batch_size = 32
     shuffle = True
     # Apply the respective transformations to each subset
-    train_dataset = TransformedSubset(train_dataset, transform=helper.train_transforms)
-    train_dataset_for_eval = TransformedSubset(train_dataset_for_eval, transform=helper.test_transforms)
-    val_dataset = TransformedSubset(val_dataset, transform=helper.test_transforms)
+    train_dataset = TransformedSubset(train_dataset, 'train', transform=helper.train_transforms)
+    train_dataset_for_eval = TransformedSubset(train_dataset_for_eval, 'train-for-eval', transform=helper.test_transforms)
+    val_dataset = TransformedSubset(val_dataset, 'test', transform=helper.test_transforms)
 
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size, shuffle=shuffle)
@@ -194,7 +221,7 @@ def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
 
 def evalute_model_classification(
     model: nn.Module, num_classes: int, data_loader: DataLoader,
-    ds_name: str, sample_ratio: float
+    ds_name: str, step: int
 ) -> None:
     # initialize the number of correct predictions, total number of samples,
     # and true positives, false positives, and false negatives for each class
@@ -210,14 +237,13 @@ def evalute_model_classification(
     # sure that you will not call Tensor.backward(). It will reduce memory
     # consumption for computations that would otherwise have requires_grad=True.
     with torch.no_grad():
-        for batch_idx, (images, y_trues) in enumerate(data_loader):
-            if random.randint(0, 99) > sample_ratio * 100:
-                continue
-
+        for batch_idx, (images, y_trues) in enumerate(
+            itertools.islice(data_loader, random.randint(0, step-1), None, step)
+        ):
+            #logging.info(batch_idx)
             images, y_trues = images.to(device), y_trues.to(device)
             # forward pass
             y_preds = model(images)
-
             # compute the predicted labels
             _, predicted = torch.max(y_preds, 1)
 
@@ -234,6 +260,7 @@ def evalute_model_classification(
                 else:
                     false_positives[predicted[i]] += 1
                     false_negatives[y_trues[i]] += 1
+            #logging.info('Iter done')
 
     # compute the accuracy
     # accuracy = num_correct / total_samples
@@ -252,7 +279,7 @@ def evalute_model_classification(
                                      ) / (beta**2 * precision[i] + recall[i])
 
     logging.info(f'Metrics from dataset: {ds_name} '
-                 f'({sample_ratio * 100}% of samples evaluted)')
+                 f'(1 of every {step} samples evaluted)')
 
     metrics_dict = {}
     logging.info('Class\tPrecision\tRecall\t\tF-Score')
@@ -321,7 +348,6 @@ def save_transformed_samples(dataloader: DataLoader,
 
 def train(load_parameters: bool, model_index: int, lr: float = 0.001,
           epochs: int = 10) -> nn.Module:
-    start_ts = time.time()
 
     logging.info(f'Training using {device}')
 
@@ -369,7 +395,7 @@ def train(load_parameters: bool, model_index: int, lr: float = 0.001,
         weight_decay=3e-4
     )
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
-
+    start_ts = time.time()
     # Train the model
     for epoch in range(epochs):
         logging.info('\n========================================\n'
@@ -409,15 +435,15 @@ def train(load_parameters: bool, model_index: int, lr: float = 0.001,
                              f"loss: {loss.item():.5f}")
 
         scheduler.step()
-
+        logging.info('Evaluating model after this epoch')
         evalute_model_classification(v16mm, num_classes, train_loader,
-                                     f'training_eval-off_{model_index}', 0.05)
+                                     f'training_eval-off_{model_index}', 100)
         # switch to evaluation mode
         v16mm.eval()
         evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
-                                     f'training_eval-on_{model_index}', 0.05)
+                                     f'training_eval-on_{model_index}', 100)
         evalute_model_classification(v16mm, num_classes, val_loader,
-                                     f'validation_{model_index}', 0.25)
+                                     f'validation_{model_index}', 20)
         save_params(v16mm, model_index)
         save_ts_model(v16mm, model_index)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
