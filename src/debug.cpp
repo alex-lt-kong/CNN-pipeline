@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <iostream>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -179,15 +180,19 @@ int main(int argc, char **argv) {
   string config_path, image_path;
 
   parse_arguments(argc, argv, image_path);
+
   config_path = (parentPath / "config.json").string();
   ifstream f(config_path);
+
   json settings = json::parse(f);
+  string model_path = regex_replace(
+      settings["model"]["torch_script_serialization"].get<string>(),
+      regex("\\{idx\\}"), "0");
 
   torch::jit::script::Module v16mm;
   try {
-    spdlog::info("Desearilizing model from {}",
-                 settings["model"]["torch_script_serialization"]);
-    v16mm = torch::jit::load(settings["model"]["torch_script_serialization"]);
+    spdlog::info("Desearilizing model from {}", model_path);
+    v16mm = torch::jit::load(model_path);
     spdlog::info("Model deserialized");
   } catch (const c10::Error &e) {
     cerr << "error loading the model\n";

@@ -1,11 +1,9 @@
 from typing import List, Any
 from sklearn import metrics
-from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
 from typing import Dict, Any, Tuple, Optional
-
 
 import argparse
 import datetime as dt
@@ -35,8 +33,10 @@ config: Dict[str, Any]
 
 class VGG16MinusMinus(nn.Module):
     dropout = 0.66
+    num_classes = -1
 
     def __init__(self, num_classes: int = 10) -> None:
+        self.num_classes = num_classes
         super(VGG16MinusMinus, self).__init__()
         # self.layer1 = nn.Sequential(
         #     nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
@@ -96,15 +96,15 @@ class VGG16MinusMinus(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 32) * int(426 / 32) * 512, int(4096 / 10)),
+            nn.Linear(int(224 / 32) * int(426 / 32) * 512, int(4096 / 12)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 10), int(4096 / 10)),
+            nn.Linear(int(4096 / 12), int(4096 / 12)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 10), num_classes))
+            nn.Linear(int(4096 / 12), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.layer1(x)
@@ -159,22 +159,22 @@ def get_data_loaders(data_path: str,
                 if i % 1000 == 0:
                     logging.info(f'{i}/{len(self.subset)}')
                 # x, y = self.subset[i]
-                #if transform:
-                    #torch.save(
-                    #    transform(self.subset[i][0]),
-                    #    f'/tmp/usb-hdd/{self.dataset_name}_sample_{i:05d}.pt'
-                    #)
-                    #self.cached_data.append(transform(self.subset[i][0]))
+                # if transform:
+                    # torch.save(
+                    #     transform(self.subset[i][0]),
+                    #     f'/tmp/usb-hdd/{self.dataset_name}_sample_{i:05d}.pt'
+                    # )
+                    # self.cached_data.append(transform(self.subset[i][0]))
 
         def __getitem__(self, index: int) -> Tuple[Any, Any]:
             x, y = self.subset[index]
-            #  assert isinstance(x, Image.Image)
+            # assert isinstance(x, Image.Image)
             if self.transform:
                 x = self.transform(x)
-            #t = torch.load(
-            #    f'/tmp/usb-hdd/{self.dataset_name}_sample_{index:05d}.pt'
-            #)
-            #t = self.cached_data[index]
+            # t = torch.load(
+            #     f'/tmp/usb-hdd/{self.dataset_name}_sample_{index:05d}.pt'
+            # )
+            # t = self.cached_data[index]
             assert isinstance(x, torch.Tensor)
             return x, self.subset[index][1]
 
@@ -191,11 +191,15 @@ def get_data_loaders(data_path: str,
         generator=torch.Generator().manual_seed(random_seed))
 
     train_dataset_for_eval = train_dataset
-    batch_size = 32
+    batch_size = 24
     shuffle = True
     # Apply the respective transformations to each subset
-    train_dataset = TransformedSubset(train_dataset, 'train', transform=helper.train_transforms)
-    train_dataset_for_eval = TransformedSubset(train_dataset_for_eval, 'train-for-eval', transform=helper.test_transforms)
+    train_dataset = TransformedSubset(
+        train_dataset, 'train', transform=helper.train_transforms
+    )
+    train_dataset_for_eval = TransformedSubset(
+        train_dataset_for_eval, 'train-for-eval', transform=helper.test_transforms
+    )
     val_dataset = TransformedSubset(val_dataset, 'test', transform=helper.test_transforms)
 
     train_loader = DataLoader(train_dataset,
@@ -236,32 +240,32 @@ def evalute_model_classification(
     # Disabling gradient calculation is useful for inference, when you are
     # sure that you will not call Tensor.backward(). It will reduce memory
     # consumption for computations that would otherwise have requires_grad=True.
-    with torch.no_grad():
-        for batch_idx, (images, y_trues) in enumerate(
-            itertools.islice(data_loader, random.randint(0, step-1), None, step)
-        ):
-            #logging.info(batch_idx)
-            images, y_trues = images.to(device), y_trues.to(device)
-            # forward pass
-            y_preds = model(images)
-            # compute the predicted labels
-            _, predicted = torch.max(y_preds, 1)
+    torch.set_grad_enabled(False)
+    for batch_idx, (images, y_trues) in enumerate(
+        itertools.islice(data_loader, random.randint(0, step-1), None, step)
+    ):
+        # logging.info(batch_idx)
+        images, y_trues = images.to(device), y_trues.to(device)
+        # forward pass
+        output = model(images)
+        # compute the predicted labels
+        y_preds = torch.argmax(output, dim=1)
 
-            y_trues_total.extend(y_trues.tolist())
-            y_preds_total.extend(predicted.tolist())
-            # update the number of correct predictions, total number of
-            # samples, and true positives, false positives, and false
-            # negatives for each class
-            num_correct += (predicted == y_trues).sum().item()
-            total_samples += y_trues.size(0)
-            for i in range(y_trues.size(0)):
-                if predicted[i] == y_trues[i]:
-                    true_positives[y_trues[i]] += 1
-                else:
-                    false_positives[predicted[i]] += 1
-                    false_negatives[y_trues[i]] += 1
-            #logging.info('Iter done')
-
+        y_trues_total.extend(y_trues.tolist())
+        y_preds_total.extend(y_preds.tolist())
+        # update the number of correct predictions, total number of
+        # samples, and true positives, false positives, and false
+        # negatives for each class
+        num_correct += (y_preds == y_trues).sum().item()
+        total_samples += y_trues.size(0)
+        for i in range(y_trues.size(0)):
+            if y_preds[i] == y_trues[i]:
+                true_positives[y_trues[i]] += 1
+            else:
+                false_positives[y_preds[i]] += 1
+                false_negatives[y_trues[i]] += 1
+        # logging.info('Iter done')
+    torch.set_grad_enabled(True)
     # compute the accuracy
     # accuracy = num_correct / total_samples
     # logging.info('Accuracy: {:.2f}%'.format(accuracy * 100))
@@ -300,9 +304,9 @@ def evalute_model_classification(
     logging.info(f'Confusion matrix (true-by-pred):\n{cm}')
 
 
-def save_params(m: nn.Module, model_index: int) -> None:
+def save_params(m: nn.Module, model_id: str) -> None:
     model_params_path = config['model']['parameters'].replace(
-        r'{idx}', str(model_index)
+        r'{idx}', model_id
     )
     if os.path.exists(model_params_path):
         dst_path = model_params_path + '.bak'
@@ -311,11 +315,11 @@ def save_params(m: nn.Module, model_index: int) -> None:
     logging.info(f'Model weights saved to [{model_params_path}]')
 
 
-def save_ts_model(m: nn.Module, model_index: int) -> None:
+def save_ts_model(m: nn.Module, model_id: str) -> None:
     logging.info('Serializing model to Torch Script file')
     ts_serialization_path = config['model'][
         'torch_script_serialization'
-    ].replace(r'{idx}', str(model_index))
+    ].replace(r'{idx}', model_id)
     if os.path.exists(ts_serialization_path):
         dst_path = ts_serialization_path + '.bak'
         shutil.move(ts_serialization_path, dst_path)
@@ -346,7 +350,7 @@ def save_transformed_samples(dataloader: DataLoader,
         )
 
 
-def train(load_parameters: bool, model_index: int, lr: float = 0.001,
+def train(load_parameters: bool, model_id: str, lr: float = 0.001,
           epochs: int = 10) -> nn.Module:
 
     logging.info(f'Training using {device}')
@@ -358,7 +362,7 @@ def train(load_parameters: bool, model_index: int, lr: float = 0.001,
         logging.warning(
             'Loading existing model parameters to continue training')
         v16mm.load_state_dict(torch.load(
-            config['model']['parameters'].replace(r'{idx}', str(model_index))
+            config['model']['parameters'].replace(r'{idx}', model_id)
         ))
     logging.info(v16mm)
     total_params = sum(p.numel() for p in v16mm.parameters())
@@ -366,24 +370,16 @@ def train(load_parameters: bool, model_index: int, lr: float = 0.001,
 
     # Define the dataset and data loader for the training set
     train_loader, train_loader_for_eval, val_loader = get_data_loaders(
-        config["dataset"]["path"],
+        config['dataset']['training'],
         config['model']['random_seed']
     )
-    save_transformed_samples(
-        train_loader,
-        config['diagnostics']['preview']['training_samples'].replace(r'{idx}', str(model_index)),
-        50
-    )
-    save_transformed_samples(
-        train_loader_for_eval,
-        config['diagnostics']['preview']['training_samples_for_eval'].replace(r'{idx}', str(model_index)),
-        50
-    )
-    save_transformed_samples(
-        val_loader,
-        config['diagnostics']['preview']['validation_samples'].replace(r'{idx}', str(model_index)),
-        10
-    )
+    save_transformed_samples(train_loader, config['diagnostics']['preview'][
+            'training_samples'].replace(r'{idx}', model_id), 50)
+    save_transformed_samples(train_loader_for_eval, config['diagnostics'][
+        'preview']['training_samples_for_eval'].replace(
+        r'{idx}', model_id), 50)
+    save_transformed_samples(val_loader, config['diagnostics']['preview'][
+        'test_samples'].replace(r'{idx}', model_id), 10)
 
     # Define the loss function, optimizer and learning rate scheduler
     loss_fn = nn.CrossEntropyLoss()
@@ -437,15 +433,15 @@ def train(load_parameters: bool, model_index: int, lr: float = 0.001,
         scheduler.step()
         logging.info('Evaluating model after this epoch')
         evalute_model_classification(v16mm, num_classes, train_loader,
-                                     f'training_eval-off_{model_index}', 100)
+                                     f'training_eval-off_{model_id}', 64)
         # switch to evaluation mode
         v16mm.eval()
         evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
-                                     f'training_eval-on_{model_index}', 100)
+                                     f'training_eval-on_{model_id}', 64)
         evalute_model_classification(v16mm, num_classes, val_loader,
-                                     f'validation_{model_index}', 20)
-        save_params(v16mm, model_index)
-        save_ts_model(v16mm, model_index)
+                                     f'test_{model_id}', 16)
+        save_params(v16mm, model_id)
+        save_ts_model(v16mm, model_id)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
@@ -494,7 +490,7 @@ def main() -> None:
     ap.add_argument('--learning-rate', '-lr', dest='learning_rate',
                     help='Specify a learning rate')
     ap.add_argument('--epochs', '-e', dest='epochs')
-    ap.add_argument('--model-index', '-i', dest='model-index', required=True)
+    ap.add_argument('--model-id', '-i', dest='model-id', required=True)
     args = vars(ap.parse_args())
 
     try:
@@ -505,12 +501,9 @@ def main() -> None:
         epochs = int(args['epochs'])
     except Exception:
         epochs = 10
-    try:
-        model_index = int(args['model-index'])
-    except Exception:
-        model_index = 0
+
     set_seed(config['model']['random_seed'])
-    train(args['load_parameters'], model_index, lr, epochs)
+    train(args['load_parameters'], args['model-id'], lr, epochs)
     logging.info('Training completed')
 
 
