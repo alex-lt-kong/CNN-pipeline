@@ -1,3 +1,4 @@
+from typing import List, Optional
 from PIL import Image
 from torchvision.datasets import ImageFolder
 from sklearn import metrics
@@ -14,23 +15,30 @@ import torch
 
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--model-id', '-i', dest='model-id', required=True)
+ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
 args = vars(ap.parse_args())
-model_id = args['model-id']
+model_ids = str(args['model-ids']).split(',')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = 'cpu'
 print(device)
-v16mm = model.VGG16MinusMinus(2)
-v16mm.to(device)
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 # settings: Dict[str, Any]
 with open(os.path.join(curr_dir, '..', 'config.json')) as j:
     settings = json.load(j)
 
-v16mm.load_state_dict(torch.load(settings['model']['parameters'].replace(r'{idx}', model_id)))
-misclassified_dir = settings['diagnostics']['misclassified'].replace(r'{idx}', model_id)
+v16mms = []
+for i in range(len(model_ids)):
+    v16mms.append(model.VGG16MinusMinus(2))
+    v16mms[i].to(device)
+    model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])
+    print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')
+    v16mms[i].load_state_dict(torch.load(model_path))
+    v16mms[i].eval()
+
+misclassified_dir = settings['diagnostics']['misclassified']
+print(f'Evaluting samples from [{misclassified_dir}]')
 if os.path.exists(misclassified_dir):
     shutil.rmtree(misclassified_dir)
 dataset = ImageFolder(root=settings['dataset']['validation'],
@@ -41,15 +49,15 @@ misclassified_count = 0
 data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 # shuffle breaks the relationship of batch and file path.
 
-v16mm.eval()
+
 # Classify the image using the model
 torch.set_grad_enabled(False)
 # Loop through the images in batches
 num_correct = 0
 total_samples = 0
-true_positives = np.zeros(v16mm.num_classes)
-false_positives = np.zeros(v16mm.num_classes)
-false_negatives = np.zeros(v16mm.num_classes)
+true_positives = np.zeros(v16mms[0].num_classes)
+false_positives = np.zeros(v16mms[0].num_classes)
+false_negatives = np.zeros(v16mms[0].num_classes)
 
 y_trues_total = []
 y_preds_total = []
@@ -59,7 +67,16 @@ for batch_idx, (images, y_trues) in enumerate(data_loader):
 
     images, y_trues = images.to(device), y_trues.to(device)
     # Use your model to make predictions for the batch of images
-    output = v16mm(images)
+    outputs: List[torch.Tensor] = []
+    output: Optional[torch.Tensor] = None
+    for i in range(len(v16mms)):
+        outputs.append(v16mms[i](images))
+        if output is None:
+            output = outputs[i]
+        else:
+            output += outputs[i]
+
+    assert isinstance(output, torch.Tensor)
     y_preds = torch.argmax(output, dim=1)
     y_trues_total.extend(y_trues.tolist())
     y_preds_total.extend(y_preds.tolist())
@@ -94,17 +111,17 @@ for batch_idx, (images, y_trues) in enumerate(data_loader):
         Image.open(dataset.samples[batch_idx * batch_size + i][0]).save(output_path)
 torch.set_grad_enabled(True)
 
-precision = np.zeros(v16mm.num_classes)
-recall = np.zeros(v16mm.num_classes)
-fscore = np.zeros(v16mm.num_classes)
-for i in range(v16mm.num_classes):
+precision = np.zeros(v16mms[0].num_classes)
+recall = np.zeros(v16mms[0].num_classes)
+fscore = np.zeros(v16mms[0].num_classes)
+for i in range(v16mms[0].num_classes):
     precision[i] = true_positives[i] / (true_positives[i] + false_positives[i])
     recall[i] = true_positives[i] / (true_positives[i] + false_negatives[i])
     beta = 1  # set beta to 1 for f1-score
     fscore[i] = (1 + beta**2) * (precision[i] * recall[i]) / (beta**2 * precision[i] + recall[i])
 
 print('Class\tPrecision\tRecall\t\tF-Score')
-for i in range(v16mm.num_classes):
+for i in range(v16mms[0].num_classes):
     print('{}    \t{:.2f}%\t\t{:.2f}%\t\t{:.2f}%'.format(
         i, precision[i] * 100, recall[i] * 100, fscore[i] * 100))
 

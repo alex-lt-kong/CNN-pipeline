@@ -306,7 +306,7 @@ def evalute_model_classification(
 
 def save_params(m: nn.Module, model_id: str) -> None:
     model_params_path = config['model']['parameters'].replace(
-        r'{idx}', model_id
+        r'{id}', model_id
     )
     if os.path.exists(model_params_path):
         dst_path = model_params_path + '.bak'
@@ -319,7 +319,7 @@ def save_ts_model(m: nn.Module, model_id: str) -> None:
     logging.info('Serializing model to Torch Script file')
     ts_serialization_path = config['model'][
         'torch_script_serialization'
-    ].replace(r'{idx}', model_id)
+    ].replace(r'{id}', model_id)
     if os.path.exists(ts_serialization_path):
         dst_path = ts_serialization_path + '.bak'
         shutil.move(ts_serialization_path, dst_path)
@@ -362,24 +362,25 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
         logging.warning(
             'Loading existing model parameters to continue training')
         v16mm.load_state_dict(torch.load(
-            config['model']['parameters'].replace(r'{idx}', model_id)
+            config['model']['parameters'].replace(r'{id}', model_id)
         ))
     logging.info(v16mm)
     total_params = sum(p.numel() for p in v16mm.parameters())
     logging.info(f"Number of parameters: {total_params:,}")
 
+    training_samples_dir = config['dataset']['training']
+    logging.info(f'Loading samples from [{training_samples_dir}]')
     # Define the dataset and data loader for the training set
     train_loader, train_loader_for_eval, val_loader = get_data_loaders(
-        config['dataset']['training'],
-        config['model']['random_seed']
+        training_samples_dir, config['model']['random_seeds'][model_id]
     )
     save_transformed_samples(train_loader, config['diagnostics']['preview'][
-            'training_samples'].replace(r'{idx}', model_id), 50)
+            'training_samples'].replace(r'{id}', model_id), 50)
     save_transformed_samples(train_loader_for_eval, config['diagnostics'][
         'preview']['training_samples_for_eval'].replace(
-        r'{idx}', model_id), 50)
+        r'{id}', model_id), 50)
     save_transformed_samples(val_loader, config['diagnostics']['preview'][
-        'test_samples'].replace(r'{idx}', model_id), 10)
+        'test_samples'].replace(r'{id}', model_id), 10)
 
     # Define the loss function, optimizer and learning rate scheduler
     loss_fn = nn.CrossEntropyLoss()
@@ -502,7 +503,7 @@ def main() -> None:
     except Exception:
         epochs = 10
 
-    set_seed(config['model']['random_seed'])
+    set_seed(config['model']['random_seeds'][args['model-id']])
     train(args['load_parameters'], args['model-id'], lr, epochs)
     logging.info('Training completed')
 
