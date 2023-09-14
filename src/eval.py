@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from PIL import Image
 from torchvision.datasets import ImageFolder
 from sklearn import metrics
@@ -36,6 +36,8 @@ for i in range(len(model_ids)):
     print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')
     v16mms[i].load_state_dict(torch.load(model_path))
     v16mms[i].eval()
+    total_params = sum(p.numel() for p in v16mms[i].parameters())
+    print(f"Number of parameters: {total_params:,}")
 
 misclassified_dir = settings['diagnostics']['misclassified']
 print(f'Evaluting samples from [{misclassified_dir}]')
@@ -61,6 +63,7 @@ false_negatives = np.zeros(v16mms[0].num_classes)
 
 y_trues_total = []
 y_preds_total = []
+misclassified_samples: List[Tuple[int, int]] = []
 for batch_idx, (images, y_trues) in enumerate(data_loader):
 
     print(f'Evaluating {batch_idx+1}/{len(data_loader)} batch of samples...')
@@ -97,6 +100,7 @@ for batch_idx, (images, y_trues) in enumerate(data_loader):
             continue
 
         misclassified_count += 1
+        misclassified_samples.append((batch_idx, i))
         print(f"[{misclassified_count}-th misclassified sample] {i}-th sample's y-true is "
               f"{y_true} but y-hat is {pred_label}", end='')
         # If the predicted label is incorrect, save the misclassified image to the file system
@@ -109,7 +113,11 @@ for batch_idx, (images, y_trues) in enumerate(data_loader):
         )
         print(f', sample copied from {dataset.samples[batch_idx * batch_size + i][0]} to {output_path}')
         Image.open(dataset.samples[batch_idx * batch_size + i][0]).save(output_path)
+        print(f'Raw results from {len(outputs)} models are:')
+        for j in range(len(outputs)):
+            print(outputs[j][i])
 torch.set_grad_enabled(True)
+print(f'All misclassified samples are:\n{misclassified_samples}')
 
 precision = np.zeros(v16mms[0].num_classes)
 recall = np.zeros(v16mms[0].num_classes)
