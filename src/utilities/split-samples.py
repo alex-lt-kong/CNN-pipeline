@@ -1,10 +1,16 @@
+from typing import Optional
+
 import os
 import random
 import shutil
+import time
 
+def split_files(
+        input_dir: str,
+        output_dir_1: str, output_dir_2: str,
+        split_ratio: float, seed: int = 97381
+) -> None:
 
-def split_files(input_dir, output_dir_1, output_dir_2, split_ratio, seed=None) -> None:
-        
     if os.path.exists(output_dir_1):
         shutil.rmtree(output_dir_1)
     os.makedirs(output_dir_1)
@@ -12,21 +18,14 @@ def split_files(input_dir, output_dir_1, output_dir_2, split_ratio, seed=None) -
         shutil.rmtree(output_dir_2)
     os.makedirs(output_dir_2)
 
-    # Get a list of all files in the input directory
     files = os.listdir(input_dir)
-
-    # Set the random seed
     random.seed(seed)
 
-    # Calculate the number of files to copy to each output directory
     num_files = len(files)
     num_files_dir_1 = int(num_files * split_ratio)
-    # num_files_dir_2 = num_files - num_files_dir_1
-
-    # Randomly shuffle the list of files
     random.shuffle(files)
 
-    # Copy files to the output directories based on the split ratio
+
     for i, file in enumerate(files):
         src = os.path.join(input_dir, file)
         if i < num_files_dir_1:
@@ -42,7 +41,7 @@ def split_files(input_dir, output_dir_1, output_dir_2, split_ratio, seed=None) -
 
 
 split_ratio = 0.9
-random_seed = 123
+random_seed = int(time.time())
 
 input_directory = "/mnt/models/vgg16-based-pipeline/data/raw/0/"
 output_directory_1 = "/mnt/models/vgg16-based-pipeline/data/training/0/"

@@ -182,12 +182,12 @@ def get_data_loaders(data_path: str,
             return len(self.subset)
 
     dataset = ImageFolder(root=data_path, transform=None)
-    val_split = 0.2
-    train_size = int((1 - val_split) * len(dataset))
-    val_size = len(dataset) - train_size
+    test_split_ratio = 0.2
+    train_size = int((1 - test_split_ratio) * len(dataset))
+    test_size = len(dataset) - train_size
 
-    train_dataset, val_dataset = random_split(
-        dataset, [train_size, val_size],
+    train_dataset, test_dataset = random_split(
+        dataset, [train_size, test_size],
         generator=torch.Generator().manual_seed(random_seed))
 
     train_dataset_for_eval = train_dataset
@@ -200,15 +200,15 @@ def get_data_loaders(data_path: str,
     train_dataset_for_eval = TransformedSubset(
         train_dataset_for_eval, 'train-for-eval', transform=helper.test_transforms
     )
-    val_dataset = TransformedSubset(val_dataset, 'test', transform=helper.test_transforms)
+    test_dataset = TransformedSubset(test_dataset, 'test', transform=helper.test_transforms)
 
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size, shuffle=shuffle)
     train_loader_for_eval = DataLoader(train_dataset_for_eval,
                                        batch_size=batch_size, shuffle=shuffle)
-    val_loader = DataLoader(val_dataset,
-                            batch_size=batch_size, shuffle=shuffle)
-    return (train_loader, train_loader_for_eval, val_loader)
+    test_loader = DataLoader(test_dataset,
+                             batch_size=batch_size, shuffle=shuffle)
+    return (train_loader, train_loader_for_eval, test_loader)
 
 
 def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
@@ -375,12 +375,12 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
         training_samples_dir, config['model']['random_seeds'][model_id]
     )
     save_transformed_samples(train_loader, config['diagnostics']['preview'][
-            'training_samples'].replace(r'{id}', model_id), 50)
+            'training_samples'].replace(r'{id}', model_id), 30)
     save_transformed_samples(train_loader_for_eval, config['diagnostics'][
         'preview']['training_samples_for_eval'].replace(
-        r'{id}', model_id), 50)
+        r'{id}', model_id), 30)
     save_transformed_samples(val_loader, config['diagnostics']['preview'][
-        'test_samples'].replace(r'{id}', model_id), 10)
+        'test_samples'].replace(r'{id}', model_id), 5)
 
     # Define the loss function, optimizer and learning rate scheduler
     loss_fn = nn.CrossEntropyLoss()
@@ -434,13 +434,13 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
         scheduler.step()
         logging.info('Evaluating model after this epoch')
         evalute_model_classification(v16mm, num_classes, train_loader,
-                                     f'training_eval-off_{model_id}', 64)
+                                     f'training_eval-off_{model_id}', 50)
         # switch to evaluation mode
         v16mm.eval()
         evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
-                                     f'training_eval-on_{model_id}', 64)
+                                     f'training_eval-on_{model_id}', 50)
         evalute_model_classification(v16mm, num_classes, val_loader,
-                                     f'test_{model_id}', 16)
+                                     f'test_{model_id}', 10)
         save_params(v16mm, model_id)
         save_ts_model(v16mm, model_id)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
