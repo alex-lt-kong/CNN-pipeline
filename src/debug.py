@@ -12,6 +12,7 @@ import sys
 import time
 import torch
 
+NUM_CLASSES = 2
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -40,6 +41,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--image-dir', '-d', dest='image-dir', required=True,
                     help='Directory that is full of images!')
+    ap.add_argument('--model-ids', '-i', dest='model-ids', required=True,
+                    help='A comma-separate list of model IDs')
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s.%(msecs)03d | %(levelname)7s | %(message)s',
@@ -48,19 +51,31 @@ def main() -> None:
     )
     args = vars(ap.parse_args())
     image_path = str(args['image-dir'])
+    model_ids = str(args['model-ids']).split(',')
 
     with open(os.path.join(curr_dir, '..', 'config.json')) as j:
         settings = json.load(j)
-    v16mm = model.VGG16MinusMinus(2)
-    logging.info(f'Loading parameters from {settings["model"]["parameters"]}')
-    v16mm.load_state_dict(torch.load(settings['model']['parameters']))
+    # v16mm = model.VGG16MinusMinus(2)
+    # logging.info(f'Loading parameters from {settings["model"]["parameters"]}')
+    # v16mm.load_state_dict(torch.load(settings['model']['parameters']))
+
+    v16mms = []
+    for i in range(len(model_ids)):
+        v16mms.append(model.VGG16MinusMinus(NUM_CLASSES))
+        v16mms[i].to(device)
+        model_path = settings['model']['parameters'].replace(
+            r'{id}', model_ids[i]
+        )
+        logging.info(f'Loading parameters from [{model_path}] to {i}-th model')
+        v16mms[i].load_state_dict(torch.load(model_path))
+        v16mms[i].eval()
 
     logging.info('Parameters loaded')
 
     preview_ele_num = 5
     layer_count = 0
-    logging.info("Sample values from some layers:")
-    for name, param in v16mm.named_parameters():
+    logging.info("Sample values from some layers of the first model:")
+    for name, param in v16mms[0].named_parameters():
         layer_count += 1
         if layer_count % 5 != 0:
             continue
@@ -86,8 +101,9 @@ def main() -> None:
                     f'{name}({param.data.shape}): {param.data[0][0][0][0][:preview_ele_num]}'
                 )
 
-    v16mm.to(device)
-    v16mm.eval()
+    for i in range(len(v16mms)):
+        v16mms[i].to(device)
+        v16mms[i].eval()
     logging.info(f'Loading and transforming image from {image_path}')
     images_tensor = get_tensor_from_img_dir(image_path)
 
@@ -104,9 +120,22 @@ def main() -> None:
 
     images_tensor = images_tensor.to(device)
     logging.info('Running inference')
-    output = v16mm(images_tensor)
+
+    outputs: List[torch.Tensor] = []
+    output = torch.zeros(
+        [images_tensor.shape[0], v16mms[0].num_classes], dtype=torch.float32
+    )
+    output = output.to(device)
+    for i in range(len(v16mms)):
+        outputs.append(v16mms[i](images_tensor))
+        output += outputs[i]
+
     assert isinstance(output, torch.Tensor)
-    logging.info(f'Done, raw output:\n{output}')
+    logging.info('Done')
+    logging.info(f'Raw results from {len(outputs)} models are:')
+    for j in range(len(outputs)):
+        logging.info(f'\n{outputs[i]}')
+    logging.info(f'and arithmetic average of raw results is:\n{output}')
     y_pred = torch.argmax(output, dim=1)
     logging.info(f'y_pred: {y_pred}')
 

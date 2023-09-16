@@ -154,12 +154,19 @@ def prediction_thread() -> None:
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    v16mm = model.VGG16MinusMinus(2)
-    v16mm.to(device)
-    logging.info(f'Loading weights to model from: {settings["model"]["parameters"]}')
-    v16mm.load_state_dict(torch.load(settings['model']['parameters']))
-    total_params = sum(p.numel() for p in v16mm.parameters())
-    logging.info(f"Weights loaded, number of parameters: {total_params:,}")
+    model_ids = ['0', '1', '2']
+    v16mms = []
+    for i in range(len(model_ids)):
+        v16mms.append(model.VGG16MinusMinus(2))
+        v16mms[i].to(device)
+        model_path = settings['model']['parameters'].replace(
+            r'{id}', model_ids[i]
+        )
+        logging.info(f'Loading weights to model from: {model_path}')
+        v16mms[i].load_state_dict(torch.load(model_path))
+        total_params = sum(p.numel() for p in v16mms[i].parameters())
+        logging.info(f"Weights loaded, number of parameters: {total_params:,}")
+        v16mms[i].eval()
 
     DATASET_SIZE = 16
     assert DATASET_SIZE + image_context_start > 0
@@ -209,12 +216,21 @@ def prediction_thread() -> None:
         )
 
         # Classify the image using the model
-        v16mm.eval()
-        with torch.no_grad():
-            for batch in dataloader:
-                batch = batch.to(device)
-                output = v16mm(batch)
-                _, pred_tensor = torch.max(output.data, 1)
+        torch.set_grad_enabled(False)
+        outputs: List[torch.Tensor] = []
+        output = torch.zeros(
+            [DATASET_SIZE, v16mms[0].num_classes], dtype=torch.float32
+        )
+        output = output.to(device)
+        # Per current, batch_size is always equal to DATASET_SIZE
+        # so there will always be only one batch
+        for batch in dataloader:
+            batch = batch.to(device)
+            for i in range(len(v16mms)):
+                outputs.append(v16mms[i](batch))
+                output += outputs[i]
+            _, pred_tensor = torch.max(output.data, 1)
+        torch.set_grad_enabled(True)
         elapsed_time = time.time() - start_time
         for i in range(DATASET_SIZE):
             insert_prediction_to_db(cur, str(output[i]), int(pred_tensor[i]),
@@ -236,6 +252,10 @@ def prediction_thread() -> None:
                 f'queue of {len(image_queue)} frames), '
                 'preparing context frames')
             logging.warning(f'The entire output is: {pred_tensor}')
+            logging.warning(f'Raw results from {len(outputs)} models are:')
+            for j in range(len(outputs)):
+                logging.warning(f'\n{outputs[i]}')
+            logging.warning(f'and arithmetic average of raw results is:\n{output}')
             for i in range(image_context_end - image_context_start):
                 temp_img_path = f'/tmp/frame{i}.jpg'
                 with open(temp_img_path, "wb") as binary_file:

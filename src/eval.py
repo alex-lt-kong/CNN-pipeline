@@ -68,16 +68,14 @@ for batch_idx, (images, y_trues) in enumerate(data_loader):
 
     print(f'Evaluating {batch_idx+1}/{len(data_loader)} batch of samples...')
 
-    images, y_trues = images.to(device), y_trues.to(device)
     # Use your model to make predictions for the batch of images
     outputs: List[torch.Tensor] = []
-    output: Optional[torch.Tensor] = None
+    output = torch.zeros([len(y_trues), v16mms[0].num_classes], dtype=torch.float32)
+    images, y_trues = images.to(device), y_trues.to(device)
+    output = output.to(device)
     for i in range(len(v16mms)):
         outputs.append(v16mms[i](images))
-        if output is None:
-            output = outputs[i]
-        else:
-            output += outputs[i]
+        output += outputs[i]
 
     assert isinstance(output, torch.Tensor)
     y_preds = torch.argmax(output, dim=1)
@@ -116,6 +114,8 @@ for batch_idx, (images, y_trues) in enumerate(data_loader):
         print(f'Raw results from {len(outputs)} models are:')
         for j in range(len(outputs)):
             print(outputs[j][i])
+        print(f'and arithmetic average of raw results is:\n{output[i]}')
+
 torch.set_grad_enabled(True)
 print(f'All misclassified samples are:\n{misclassified_samples}')
 

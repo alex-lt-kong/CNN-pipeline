@@ -18,6 +18,8 @@
 #include <spdlog/spdlog.h>
 #include <torch/script.h> // One-stop header.
 
+#define NUM_CLASSES 2
+
 using namespace std;
 using json = nlohmann::json;
 const cv::Size target_img_size = cv::Size(426, 224); // size is in (w, h)
@@ -30,24 +32,39 @@ void print_usage(string binary_name) {
 
   cerr << "Options:\n"
        << "  --help, -h             Display this help and exit\n"
-       << "  --image-dir, -d        Directory that is full of images!" << endl;
+       << "  --image-dir, -d        Directory that is full of images!\n"
+       << "  --model-ids, -i        A comma-separate list of model IDs" << endl;
 }
 
-void parse_arguments(int argc, char **argv, string &image_path) {
+void parse_arguments(int argc, char **argv, string &image_path,
+                     vector<string> &model_ids) {
   static struct option long_options[] = {
       {"config", required_argument, 0, 'c'},
       {"image-dir", required_argument, 0, 'd'},
+      {"model-ids", required_argument, 0, 'i'},
       {"help", optional_argument, 0, 'h'},
       {0, 0, 0, 0}};
 
   int opt, option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "d:h", long_options, &option_index)) !=
-         -1) {
+  while ((opt = getopt_long(argc, argv, "d:i:h", long_options,
+                            &option_index)) != -1) {
     switch (opt) {
     case 'd':
       if (optarg != NULL) {
         image_path = string(optarg);
+      }
+      break;
+    case 'i':
+      if (optarg != NULL) {
+        // string t = string(optarg);
+        // std::vector<std::string> substrings;
+        std::stringstream ss(optarg);
+        std::string substring;
+        model_ids.clear();
+        while (std::getline(ss, substring, ',')) {
+          model_ids.push_back(substring);
+        }
       }
       break;
     default:
@@ -109,11 +126,6 @@ torch::Tensor get_tensor_from_img_path(const string &image_path) {
   // Convert the OpenCV image to a Torch tensor
   torch::Tensor image_tensor = torch::from_blob(
       image.data, {1, image.rows, image.cols, 3}, torch::kByte);
-
-  // permute() is used to "rearrange" dimensions. Before permute(),
-  // tensor_image.sizes() is [1, 240, 432, 3], but we want
-  // tensor_image.sizes() to be [1, 3, 240, 432]
-  // image_tensor = image_tensor.permute({0, 3, 1, 2});
 
   // image_tensor = image_tensor.to(torch::kFloat32);
   // Mimic torchvision.transforms.ToTensor() which shrinks the range from
@@ -178,32 +190,35 @@ int main(int argc, char **argv) {
   filesystem::path binaryPath = filesystem::canonical(argv[0]);
   filesystem::path parentPath = binaryPath.parent_path().parent_path();
   string config_path, image_path;
-
-  parse_arguments(argc, argv, image_path);
+  vector<string> model_ids;
+  parse_arguments(argc, argv, image_path, model_ids);
 
   config_path = (parentPath / "config.json").string();
   ifstream f(config_path);
 
   json settings = json::parse(f);
-  string model_path = regex_replace(
-      settings["model"]["torch_script_serialization"].get<string>(),
-      regex("\\{idx\\}"), "0");
+  vector<torch::jit::script::Module> v16mms;
+  for (size_t i = 0; i < model_ids.size(); ++i) {
+    string model_path = regex_replace(
+        settings["model"]["torch_script_serialization"].get<string>(),
+        regex("\\{id\\}"), model_ids[i]);
 
-  torch::jit::script::Module v16mm;
-  try {
-    spdlog::info("Desearilizing model from {}", model_path);
-    v16mm = torch::jit::load(model_path);
-    spdlog::info("Model deserialized");
-  } catch (const c10::Error &e) {
-    cerr << "error loading the model\n";
-    cerr << e.what() << endl;
-    return -1;
+    try {
+      spdlog::info("Desearilizing {}-th model from {}", i, model_path);
+      v16mms.emplace_back(torch::jit::load(model_path));
+      v16mms[i].to(torch::kCUDA);
+      v16mms[i].eval();
+    } catch (const c10::Error &e) {
+      cerr << "error loading the model\n";
+      cerr << e.what() << endl;
+      return -1;
+    }
   }
 
   const size_t preview_ele_num = 5;
   size_t layer_count = 0;
-  spdlog::info("Sample values from some layers:");
-  for (const auto &pair : v16mm.named_parameters()) {
+  spdlog::info("Sample values from some layers from the first model:");
+  for (const auto &pair : v16mms[0].named_parameters()) {
     ++layer_count;
     if (layer_count % 5 != 0) {
       continue;
@@ -230,9 +245,6 @@ int main(int argc, char **argv) {
     spdlog::info("{}({}): {}", name, oss.str(), tensorStr);
   }
 
-  v16mm.to(torch::kCUDA);
-  v16mm.eval();
-
   spdlog::info("Loading and transforming image from {}", image_path);
   torch::Tensor images_tensor = get_tensor_from_img_dir(image_path);
   ostringstream oss;
@@ -252,14 +264,28 @@ int main(int argc, char **argv) {
   spdlog::info("Running inference");
   vector<torch::jit::IValue> input;
   input.emplace_back(images_tensor.to(torch::kCUDA));
-  at::Tensor output = v16mm.forward(input).toTensor();
+  // images_tensor.sizes()[0] stores number of images
+  // 2 is the num_classes member variable as defined in VGG16MinusMinus@model.py
+  at::Tensor output = torch::zeros({images_tensor.sizes()[0], NUM_CLASSES});
+  output = output.to(torch::kCUDA);
+  vector<at::Tensor> outputs;
+  for (size_t i = 0; i < v16mms.size(); ++i) {
+    outputs.push_back(v16mms[i].forward(input).toTensor());
+    output += outputs[i];
+  }
   oss.str("");
   oss << output;
-  /*for (int i = 0; i < output.sizes()[0]; ++i) {
-    spdlog::info("Done, raw output: {}",
-                 tensor_to_string_like_pytorch(output[i], 0, 2));
-  }*/
-  spdlog::info("Done, raw output:\n{}", oss.str());
+
+  spdlog::info("Done");
+  spdlog::info("Raw results from {} models are:", v16mms.size());
+  for (size_t i = 0; i < outputs.size(); ++i) {
+    oss.str("");
+    oss << outputs[i];
+    spdlog::info("\n{}", oss.str());
+  }
+  oss.str("");
+  oss << output;
+  spdlog::info("and arithmetic average of raw results is:\n{}", oss.str());
   at::Tensor y_pred = torch::argmax(output, 1);
   oss.str("");
   oss << y_pred;
