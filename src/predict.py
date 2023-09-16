@@ -253,9 +253,15 @@ def prediction_thread() -> None:
                 'preparing context frames')
             logging.warning(f'The entire output is: {pred_tensor}')
             logging.warning(f'Raw results from {len(outputs)} models are:')
-            for j in range(len(outputs)):
-                logging.warning(f'\n{outputs[i]}')
-            logging.warning(f'and arithmetic average of raw results is:\n{output}')
+            for i in range(len(outputs)):
+                output_str = ''
+                for j in range(len(nonzero_preds)):
+                    output_str += f'{nonzero_preds[j]}]: ' + str(outputs[i][nonzero_preds[j]]) + '\n'
+                logging.warning(f'\n[{output_str}')
+            output_str = ''
+            for i in range(len(nonzero_preds)):
+                output_str += f'{nonzero_preds[i]}]: ' + str(output[nonzero_preds[i]]) + '\n'
+            logging.warning(f'and arithmetic average of raw results is:\n{output_str}')
             for i in range(image_context_end - image_context_start):
                 temp_img_path = f'/tmp/frame{i}.jpg'
                 with open(temp_img_path, "wb") as binary_file:
