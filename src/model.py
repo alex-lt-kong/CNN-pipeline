@@ -51,15 +51,16 @@ class VGG16MinusMinus(nn.Module):
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU())
-        self.layer4 = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
+        # self.layer4 = nn.Sequential(
+        #    nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+        #    nn.BatchNorm2d(128),
+        #    nn.ReLU(),
+        #    nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer5 = nn.Sequential(
             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256),
-            nn.ReLU())
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
         # self.layer6 = nn.Sequential(
         #    nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
         #    nn.BatchNorm2d(256),
@@ -86,31 +87,32 @@ class VGG16MinusMinus(nn.Module):
         #     nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
         #     nn.BatchNorm2d(512),
         #     nn.ReLU())
-        # self.layer12 = nn.Sequential(
-        #     nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-        #     nn.BatchNorm2d(512),
-        #     nn.ReLU())
+        self.layer12 = nn.Sequential(
+             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+             nn.BatchNorm2d(512),
+             nn.ReLU(),
+             nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer13 = nn.Sequential(
             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 32) * int(426 / 32) * 512, int(4096 / 12)),
+            nn.Linear(int(224 / 64) * int(426 / 64) * 512, int(4096 / 16)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 12), int(4096 / 12)),
+            nn.Linear(int(4096 / 16), int(4096 / 16)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 12), num_classes))
+            nn.Linear(int(4096 / 16), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        x = self.layer4(x)
+        # x = self.layer4(x)
         x = self.layer5(x)
         # x = self.layer6(x)
         x = self.layer7(x)
@@ -118,7 +120,7 @@ class VGG16MinusMinus(nn.Module):
         # x = self.layer9(x)
         x = self.layer10(x)
         # x = self.layer11(x)
-        # x = self.layer12(x)
+        x = self.layer12(x)
         x = self.layer13(x)
         x = x.reshape(x.size(0), -1)
         x = self.fc(x)
@@ -364,9 +366,21 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
         v16mm.load_state_dict(torch.load(
             config['model']['parameters'].replace(r'{id}', model_id)
         ))
-    logging.info(v16mm)
-    total_params = sum(p.numel() for p in v16mm.parameters())
-    logging.info(f"Number of parameters: {total_params:,}")
+
+    logging.info(' Name       |     Params | Structure')
+    total_parameters = 0
+    for name, module in v16mm.named_modules():
+        if isinstance(module, nn.Sequential):
+            # Sequential() is like a wrapper module, we will print layers twice
+            # if we don't skip it.
+            continue
+        if len(name) == 0:
+            # Will print the entire model as a layer, let's skip it
+            continue
+        layer_parameters = sum(p.numel() for p in module.parameters() if p.requires_grad)
+        total_parameters += layer_parameters
+        logging.info(f'{name.ljust(10)} | {layer_parameters: >11,} | {module}')
+    logging.info(f'{"Total".ljust(10)} | {total_parameters: >11,} | NA')
 
     training_samples_dir = config['dataset']['training']
     logging.info(f'Loading samples from [{training_samples_dir}]')

@@ -119,19 +119,19 @@ def main() -> None:
         logging.info(images_tensor[0][i][h][w: w + preview_ele_num])
 
     images_tensor = images_tensor.to(device)
-    logging.info('Running inference')
 
     outputs: List[torch.Tensor] = []
     output = torch.zeros(
         [images_tensor.shape[0], v16mms[0].num_classes], dtype=torch.float32
     )
     output = output.to(device)
+    logging.info('Running inference')
     for i in range(len(v16mms)):
         outputs.append(v16mms[i](images_tensor))
         output += outputs[i]
+    logging.info('Done')
 
     assert isinstance(output, torch.Tensor)
-    logging.info('Done')
     logging.info(f'Raw results from {len(outputs)} models are:')
     for j in range(len(outputs)):
         logging.info(f'\n{outputs[i]}')

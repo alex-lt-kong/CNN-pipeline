@@ -4,7 +4,7 @@ A deep learning pipeline based on the good old [VGG16 model](https://www.kaggle.
 
 ## Prepare environment
 
-### Install `libtorch`
+### `libtorch`
 * While PyTorch is used in training, `libtorch` is used to productionize the
 model in C++ to enhance performance.
 
@@ -17,11 +17,32 @@ model in C++ to enhance performance.
   * Add the share objects path to `LD_LIBRARY_PATH`:
   `export LD_LIBRARY_PATH=/usr/local/lib/torch/:$LD_LIBRARY_PATH`
 
-### Install `OpenCV` and `FFmpeg`
+### `OpenCV` and `FFmpeg`
 
 * `OpenCV` (and `FFmpeg` as its Video IO backend) is used to decode/manipulate images before sending to them to `libtorch`,
 
 * Refer to instructions [here](https://github.com/alex-lt-kong/the-nitty-gritty/tree/main/c-cpp/cpp/06_poc/05_cudacodec-vs-ffmpeg)
+
+
+### `Swagger`
+
+* Build Oatpp:
+```Bash
+git clone https://github.com/oatpp/oatpp.git
+mkdir build
+cd build
+make -j4
+sudo make install
+```
+
+* Build oatpp-swagger:
+```Bash
+git clone https://github.com/oatpp/oatpp-swagger.git
+mkdir build
+cd build
+make -j4
+sudo make install
+```
 
 ### Install other libraries
 

@@ -12,9 +12,11 @@ def split_files(
 ) -> None:
 
     if os.path.exists(output_dir_1):
+        print(f'[{output_dir_1}] exists, it will be removed')
         shutil.rmtree(output_dir_1)
     os.makedirs(output_dir_1)
     if os.path.exists(output_dir_2):
+        print(f'[{output_dir_2}] exists, it will be removed')
         shutil.rmtree(output_dir_2)
     os.makedirs(output_dir_2)
 
@@ -41,7 +43,8 @@ def split_files(
 
 
 split_ratio = 0.9
-random_seed = int(time.time())
+#random_seed = int(time.time())
+random_seed = 16888
 
 input_directory = "/mnt/models/vgg16-based-pipeline/data/raw/0/"
 output_directory_1 = "/mnt/models/vgg16-based-pipeline/data/training/0/"

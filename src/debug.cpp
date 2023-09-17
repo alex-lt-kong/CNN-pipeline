@@ -261,22 +261,22 @@ int main(int argc, char **argv) {
     spdlog::info("{}", tensor_to_string_like_pytorch(images_tensor[0][i][h], w,
                                                      preview_ele_num));
   }
-  spdlog::info("Running inference");
-  vector<torch::jit::IValue> input;
-  input.emplace_back(images_tensor.to(torch::kCUDA));
+  vector<torch::jit::IValue> input(1);
+  input[0] = images_tensor.to(torch::kCUDA);
   // images_tensor.sizes()[0] stores number of images
   // 2 is the num_classes member variable as defined in VGG16MinusMinus@model.py
   at::Tensor output = torch::zeros({images_tensor.sizes()[0], NUM_CLASSES});
   output = output.to(torch::kCUDA);
-  vector<at::Tensor> outputs;
+  vector<at::Tensor> outputs(v16mms.size());
+  spdlog::info("Running inference");
   for (size_t i = 0; i < v16mms.size(); ++i) {
-    outputs.push_back(v16mms[i].forward(input).toTensor());
+    outputs[i] = v16mms[i].forward(input).toTensor();
     output += outputs[i];
   }
+  spdlog::info("Done");
   oss.str("");
   oss << output;
 
-  spdlog::info("Done");
   spdlog::info("Raw results from {} models are:", v16mms.size());
   for (size_t i = 0; i < outputs.size(); ++i) {
     oss.str("");
