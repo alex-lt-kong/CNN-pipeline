@@ -1,14 +1,26 @@
 {
   "dataset": {
-    "path": "/tmp/vgg16-based-pipeline/data/",
-    "validation_split_seed": 233
+    "training": "/tmp/data/training/",
+    "validation": "/tmp/data/validation/"
   },
   "model": {
-    "parameters": "/tmp/vgg16-based-pipeline/model.pth",
-    "torch_script_serialization": "/tmp/vgg16-based-pipeline/model.pt"
+    "random_seeds": {
+      "0": 9527,
+      "1": 1610776764,
+      "2": 915308291,
+      "3": 1621443610,
+      "4": 2023055420
+    },
+    "parameters": "/tmp/data/model_{id}.pth",
+    "torch_script_serialization": "/tmp/data/model_{id}.pt"
   },
   "diagnostics": {
-    "misclassified": "/tmp/vgg16-based-pipeline/diagnostics/misclassified"
+    "misclassified": "/tmp/diagnostics/misclassified/",
+    "preview": {
+      "training_samples": "/tmp/diagnostics/training_samples_{id}",
+      "training_samples_for_eval": "/tmp/diagnostics/training_samples_for_eval_{id}",
+      "test_samples": "/tmp/diagnostics/test_samples_{id}"
+    }
   },
   "prediction": {
     "on_detected": [

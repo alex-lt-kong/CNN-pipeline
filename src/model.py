@@ -48,8 +48,8 @@ class VGG16MinusMinus(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer3 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU())
         # self.layer4 = nn.Sequential(
         #    nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
@@ -57,8 +57,8 @@ class VGG16MinusMinus(nn.Module):
         #    nn.ReLU(),
         #    nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer5 = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         # self.layer6 = nn.Sequential(
@@ -66,8 +66,8 @@ class VGG16MinusMinus(nn.Module):
         #    nn.BatchNorm2d(256),
         #    nn.ReLU())
         self.layer7 = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         # self.layer8 = nn.Sequential(
@@ -79,8 +79,8 @@ class VGG16MinusMinus(nn.Module):
         #    nn.BatchNorm2d(512),
         #    nn.ReLU())
         self.layer10 = nn.Sequential(
-            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         # self.layer11 = nn.Sequential(
@@ -88,25 +88,25 @@ class VGG16MinusMinus(nn.Module):
         #     nn.BatchNorm2d(512),
         #     nn.ReLU())
         self.layer12 = nn.Sequential(
-             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-             nn.BatchNorm2d(512),
+             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+             nn.BatchNorm2d(256),
              nn.ReLU(),
              nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer13 = nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 64) * int(426 / 64) * 512, int(4096 / 18)),
+            nn.Linear(int(224 / 64) * int(426 / 64) * 512, int(4096 / 22)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 18), int(4096 / 18)),
+            nn.Linear(int(4096 / 22), int(4096 / 22)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 18), num_classes))
+            nn.Linear(int(4096 / 22), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.layer1(x)
