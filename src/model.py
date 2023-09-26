@@ -43,13 +43,13 @@ class VGG16MinusMinus(nn.Module):
         #     nn.BatchNorm2d(64),
         #     nn.ReLU())
         self.layer2 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer3 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32),
             nn.ReLU())
         # self.layer4 = nn.Sequential(
         #    nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
@@ -57,8 +57,8 @@ class VGG16MinusMinus(nn.Module):
         #    nn.ReLU(),
         #    nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer5 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(32, 48, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(48),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         # self.layer6 = nn.Sequential(
@@ -66,8 +66,8 @@ class VGG16MinusMinus(nn.Module):
         #    nn.BatchNorm2d(256),
         #    nn.ReLU())
         self.layer7 = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(48, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         # self.layer8 = nn.Sequential(
@@ -79,8 +79,8 @@ class VGG16MinusMinus(nn.Module):
         #    nn.BatchNorm2d(512),
         #    nn.ReLU())
         self.layer10 = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         # self.layer11 = nn.Sequential(
@@ -88,7 +88,7 @@ class VGG16MinusMinus(nn.Module):
         #     nn.BatchNorm2d(512),
         #     nn.ReLU())
         self.layer12 = nn.Sequential(
-             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
              nn.BatchNorm2d(256),
              nn.ReLU(),
              nn.MaxPool2d(kernel_size=2, stride=2))
@@ -98,15 +98,15 @@ class VGG16MinusMinus(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 64) * int(426 / 64) * 512, int(4096 / 22)),
+            nn.Linear(int(224 / 64) * int(426 / 64) * 512, int(4096 / 24)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 22), int(4096 / 22)),
+            nn.Linear(int(4096 / 24), int(4096 / 24)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 22), num_classes))
+            nn.Linear(int(4096 / 24), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.layer1(x)
@@ -157,21 +157,19 @@ def get_data_loaders(data_path: str,
             self.subset = subset
             self.dataset_name = dataset_name
             self.transform = transform
-            for i in range(len(self.subset)):
-                if i % 1000 == 0:
-                    logging.info(f'{i}/{len(self.subset)}')
-                # x, y = self.subset[i]
-                # if transform:
-                    # torch.save(
-                    #     transform(self.subset[i][0]),
-                    #     f'/tmp/usb-hdd/{self.dataset_name}_sample_{i:05d}.pt'
-                    # )
-                    # self.cached_data.append(transform(self.subset[i][0]))
+            # x, y = self.subset[i]
+            # if transform:
+                # torch.save(
+                #     transform(self.subset[i][0]),
+                #     f'/tmp/usb-hdd/{self.dataset_name}_sample_{i:05d}.pt'
+                # )
+                # self.cached_data.append(transform(self.subset[i][0]))
 
         def __getitem__(self, index: int) -> Tuple[Any, Any]:
             x, y = self.subset[index]
             # assert isinstance(x, Image.Image)
             if self.transform:
+                time.sleep(0.005)
                 x = self.transform(x)
             # t = torch.load(
             #     f'/tmp/usb-hdd/{self.dataset_name}_sample_{index:05d}.pt'
@@ -193,7 +191,7 @@ def get_data_loaders(data_path: str,
         generator=torch.Generator().manual_seed(random_seed))
 
     train_dataset_for_eval = train_dataset
-    batch_size = 24
+    batch_size = 64
     shuffle = True
     # Apply the respective transformations to each subset
     train_dataset = TransformedSubset(
@@ -246,6 +244,7 @@ def evalute_model_classification(
     for batch_idx, (images, y_trues) in enumerate(
         itertools.islice(data_loader, random.randint(0, step-1), None, step)
     ):
+        time.sleep(1)
         # logging.info(batch_idx)
         images, y_trues = images.to(device), y_trues.to(device)
         # forward pass
@@ -261,6 +260,7 @@ def evalute_model_classification(
         num_correct += (y_preds == y_trues).sum().item()
         total_samples += y_trues.size(0)
         for i in range(y_trues.size(0)):
+            time.sleep(0.1)
             if y_preds[i] == y_trues[i]:
                 true_positives[y_trues[i]] += 1
             else:
@@ -367,7 +367,7 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
             config['model']['parameters'].replace(r'{id}', model_id)
         ))
 
-    logging.info(' Name       |     Params | Structure')
+    logging.info('Name       |     Params | Structure')
     total_parameters = 0
     for name, module in v16mm.named_modules():
         if isinstance(module, nn.Sequential):
@@ -409,6 +409,7 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
     start_ts = time.time()
     # Train the model
     for epoch in range(epochs):
+        time.sleep(5)
         logging.info('\n========================================\n'
                      f'Epoch {epoch + 1} / {epochs} started, '
                      f'lr: {scheduler.get_last_lr()}'
@@ -449,12 +450,18 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
         logging.info('Evaluating model after this epoch')
         evalute_model_classification(v16mm, num_classes, train_loader,
                                      f'training_eval-off_{model_id}', 50)
+
+        time.sleep(5)
         # switch to evaluation mode
         v16mm.eval()
         evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
                                      f'training_eval-on_{model_id}', 50)
+
+        time.sleep(5)
         evalute_model_classification(v16mm, num_classes, val_loader,
                                      f'test_{model_id}', 10)
+
+        time.sleep(5)
         save_params(v16mm, model_id)
         save_ts_model(v16mm, model_id)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)

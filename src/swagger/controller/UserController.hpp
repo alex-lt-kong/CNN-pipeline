@@ -2,12 +2,13 @@
 #ifndef UserController_hpp
 #define UserController_hpp
 
-#include "../dto/UserDto.hpp"
-//#include "db/UserDb.hpp"
-#include "../dto/PageDto.hpp"
+//#include "../dto/PageDto.hpp"
+#include "../dto/RespDto.hpp"
 #include "../dto/StatusDto.hpp"
+#include "../dto/UserDto.hpp"
 
 #include "oatpp/core/macro/component.hpp"
+#include "oatpp/core/utils/ConversionUtils.hpp"
 #include "oatpp/web/protocol/http/Http.hpp"
 //#include "service/UserService.hpp"
 
@@ -63,6 +64,31 @@ public:
     }
     // return createDtoResponse(Status::CODE_200,
     // m_userService.getUserById(userId));
+  }
+
+  ENDPOINT_INFO(setPredictionInterval) {
+    info->summary = "Set prediction interval";
+
+    info->addResponse<Object<RespDto>>(Status::CODE_200, "application/json");
+    info->addResponse<Object<RespDto>>(Status::CODE_400, "application/json");
+
+    info->pathParams["predictionInterval"].description =
+        "Interval in ms for the prediction loop to sleep after each iteration";
+  }
+  ENDPOINT("POST", "model/{predictionInterval}", setPredictionInterval,
+           PATH(UInt32, predictionInterval)) {
+    auto resp = RespDto::createShared();
+    if (predictionInterval <= 0) {
+      resp->success = false;
+      resp->responseText = "predictionInterval must be positive";
+      return createDtoResponse(Status::CODE_400, resp);
+    } else {
+      resp->success = true;
+      resp->responseText =
+          "predictionInterval set to " +
+          oatpp::utils::conversion::uint32ToStr(predictionInterval);
+      return createDtoResponse(Status::CODE_200, resp);
+    }
   }
 };
 
