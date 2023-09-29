@@ -26,6 +26,8 @@ model in C++ to enhance performance.
 
 ### `Swagger`
 
+* Swagger is used to interact with the prediction daemon on the fly.
+
 * Build Oatpp:
 ```Bash
 git clone https://github.com/oatpp/oatpp.git
