@@ -149,7 +149,7 @@ def prediction_thread() -> None:
     global prediction_interval
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     settings: Dict[str, Any]
-    with open(os.path.join(curr_dir, '..', 'config.json')) as j:
+    with open(os.path.join(curr_dir, '..', '..', 'config.json')) as j:
         settings = json.load(j)
 
     conn = sqlite3.connect(db_path)

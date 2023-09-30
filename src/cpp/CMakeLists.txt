@@ -1,5 +1,7 @@
 add_subdirectory(rest/)
 
+find_package(OpenCV REQUIRED)
+
 include_directories(rest/)
 include_directories(/usr/local/include/opencv4/)
 include_directories(/usr/local/include/torch/)

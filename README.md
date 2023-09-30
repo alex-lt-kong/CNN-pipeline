@@ -15,8 +15,8 @@ model in C++ to enhance performance.
 [here](https://pytorch.org/get-started/locally/) then unzip it.
   * For the sake of easy management, copy `./include/*` to
   `/usr/local/include/torch/` and copy `./lib/*` to `/usr/local/lib/torch/`
-  * Add the share objects path to `LD_LIBRARY_PATH`:
-  `export LD_LIBRARY_PATH=/usr/local/lib/torch/:$LD_LIBRARY_PATH`
+  /** Add the share objects path to `LD_LIBRARY_PATH`:
+  `export LD_LIBRARY_PATH=/usr/local/lib/torch/:$LD_LIBRARY_PATH`*/
 
 ### `OpenCV` and `FFmpeg`
 
@@ -32,8 +32,8 @@ model in C++ to enhance performance.
 * Build Oatpp:
 ```Bash
 git clone https://github.com/oatpp/oatpp.git
-mkdir build
-cd build
+cd oatpp && mkdir build && cd build
+cmake ../
 make -j4
 sudo make install
 ```
@@ -41,8 +41,8 @@ sudo make install
 * Build oatpp-swagger:
 ```Bash
 git clone https://github.com/oatpp/oatpp-swagger.git
-mkdir build
-cd build
+cd oatpp-swagger && mkdir build && cd build
+cmake ../
 make -j4
 sudo make install
 ```

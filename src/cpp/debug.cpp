@@ -31,13 +31,15 @@ void print_usage(string binary_name) {
   cerr << "Usage: " << binary_name << " [OPTION]\n\n";
 
   cerr << "Options:\n"
-       << "  --help, -h             Display this help and exit\n"
-       << "  --image-dir, -d        Directory that is full of images!\n"
-       << "  --model-ids, -i        A comma-separate list of model IDs" << endl;
+       << "  --help,        -h        Display this help and exit\n"
+       << "  --config-path, -c        JSON configuration file path\n"
+       << "  --image-dir,   -d        Directory that is full of images!\n"
+       << "  --model-ids,   -i        A comma-separate list of model IDs"
+       << endl;
 }
 
 void parse_arguments(int argc, char **argv, string &image_path,
-                     vector<string> &model_ids) {
+                     string &config_path, vector<string> &model_ids) {
   static struct option long_options[] = {
       {"config", required_argument, 0, 'c'},
       {"image-dir", required_argument, 0, 'd'},
@@ -47,12 +49,17 @@ void parse_arguments(int argc, char **argv, string &image_path,
 
   int opt, option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "d:i:h", long_options,
+  while ((opt = getopt_long(argc, argv, "c:d:i:h", long_options,
                             &option_index)) != -1) {
     switch (opt) {
     case 'd':
       if (optarg != NULL) {
         image_path = string(optarg);
+      }
+      break;
+    case 'c':
+      if (optarg != NULL) {
+        config_path = string(optarg);
       }
       break;
     case 'i':
@@ -191,9 +198,9 @@ int main(int argc, char **argv) {
   filesystem::path parentPath = binaryPath.parent_path().parent_path();
   string config_path, image_path;
   vector<string> model_ids;
-  parse_arguments(argc, argv, image_path, model_ids);
+  parse_arguments(argc, argv, image_path, config_path, model_ids);
 
-  config_path = (parentPath / "config.json").string();
+  // config_path = (parentPath / "config.json").string();
   ifstream f(config_path);
 
   json settings = json::parse(f);
