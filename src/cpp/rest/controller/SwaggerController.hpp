@@ -18,21 +18,18 @@
 
 #include OATPP_CODEGEN_BEGIN(ApiController) //<- Begin Codegen
 
-/**
- * User REST controller.
- */
-class UserController : public oatpp::web::server::api::ApiController {
+class SwaggerController : public oatpp::web::server::api::ApiController {
 public:
-  UserController(OATPP_COMPONENT(std::shared_ptr<ObjectMapper>, objectMapper))
+  SwaggerController(OATPP_COMPONENT(std::shared_ptr<ObjectMapper>,
+                                    objectMapper))
       : oatpp::web::server::api::ApiController(objectMapper) {}
-  // private:
-  //   UserService m_userService; // Create user service.
+
 public:
-  static std::shared_ptr<UserController> createShared(OATPP_COMPONENT(
+  static std::shared_ptr<SwaggerController> createShared(OATPP_COMPONENT(
       std::shared_ptr<ObjectMapper>,
       objectMapper) // Inject objectMapper component here as default parameter
   ) {
-    return std::make_shared<UserController>(objectMapper);
+    return std::make_shared<SwaggerController>(objectMapper);
   }
 
   ENDPOINT_INFO(getUserById) {

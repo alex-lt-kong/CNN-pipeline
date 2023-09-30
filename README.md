@@ -1,6 +1,7 @@
 # VGG16-based pipeline
 
-A deep learning pipeline based on the good old [VGG16 model](https://www.kaggle.com/code/blurredmachine/vggnet-16-architecture-a-complete-guide).
+A deep learning pipeline based on (but much smaller than) the good old
+[VGGNET-16 model](https://www.kaggle.com/code/blurredmachine/vggnet-16-architecture-a-complete-guide).
 
 ## Prepare environment
 

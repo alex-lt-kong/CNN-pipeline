@@ -2,7 +2,7 @@
 #include "AppComponent.hpp"
 
 #include "controller/StaticController.hpp"
-#include "controller/UserController.hpp"
+#include "controller/SwaggerController.hpp"
 
 #include "oatpp-swagger/Controller.hpp"
 
@@ -20,7 +20,7 @@ void run() {
   oatpp::web::server::api::Endpoints docEndpoints;
 
   docEndpoints.append(
-      router->addController(UserController::createShared())->getEndpoints());
+      router->addController(SwaggerController::createShared())->getEndpoints());
 
   router->addController(oatpp::swagger::Controller::createShared(docEndpoints));
   router->addController(StaticController::createShared());
