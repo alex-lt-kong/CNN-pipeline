@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 3.1)
-project(rest)
-
-set(CMAKE_CXX_STANDARD 11)
-
 add_library(rest-lib
         controller/StaticController.hpp
         controller/SwaggerController.hpp
@@ -43,14 +38,6 @@ target_link_libraries(rest-lib
 add_definitions(
         ## define path to swagger-ui static resources folder
         -DOATPP_SWAGGER_RES_PATH="${oatpp-swagger_INCLUDE_DIRS}/../bin/oatpp-swagger/res"
-
-        ## SQLite database file
-        -DDATABASE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/db.sqlite"
-        ## SQLite database test file
-        -DTESTDATABASE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/test-db.sqlite"
-
-        ## Path to database migration scripts
-        -DDATABASE_MIGRATIONS="${CMAKE_CURRENT_SOURCE_DIR}/sql"
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES Linux)

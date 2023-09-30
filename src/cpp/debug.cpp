@@ -1,8 +1,3 @@
-#include "opencv2/core/cvstd.hpp"
-#include "opencv2/imgproc.hpp"
-#include <sstream>
-#define FMT_HEADER_ONLY
-#include "torch/csrc/api/include/torch/types.h"
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -10,11 +5,16 @@
 #include <iostream>
 #include <memory>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 
+#include "opencv2/core/cvstd.hpp"
+#include "opencv2/imgproc.hpp"
+#include "torch/csrc/api/include/torch/types.h"
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
+#define FMT_HEADER_ONLY
 #include <spdlog/spdlog.h>
 #include <torch/script.h> // One-stop header.
 

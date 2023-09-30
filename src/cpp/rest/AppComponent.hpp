@@ -1,19 +1,15 @@
-
 #ifndef AppComponent_hpp
 #define AppComponent_hpp
 
-#include "SwaggerComponent.hpp"
-//#include "DatabaseComponent.hpp"
+#include <iostream>
 
 #include "ErrorHandler.hpp"
-
+#include "SwaggerComponent.hpp"
+#include "oatpp/core/macro/component.hpp"
 #include "oatpp/network/tcp/server/ConnectionProvider.hpp"
+#include "oatpp/parser/json/mapping/ObjectMapper.hpp"
 #include "oatpp/web/server/HttpConnectionHandler.hpp"
 #include "oatpp/web/server/HttpRouter.hpp"
-
-#include "oatpp/parser/json/mapping/ObjectMapper.hpp"
-
-#include "oatpp/core/macro/component.hpp"
 
 /**
  *  Class which creates and holds Application components and registers
@@ -21,12 +17,17 @@
  * from top to bottom
  */
 class AppComponent {
+private:
+  oatpp::String host;
+  v_uint16 port;
+
 public:
+  AppComponent(oatpp::String host, v_uint16 port, oatpp::String advertisedHost)
+      : host(host), port(port), swaggerComponent(advertisedHost) {}
   /**
    *  Swagger component
    */
   SwaggerComponent swaggerComponent;
-
   /**
    * Create ObjectMapper component to serialize/deserialize DTOs in Controller's
    * API
@@ -46,9 +47,9 @@ public:
   OATPP_CREATE_COMPONENT(
       std::shared_ptr<oatpp::network::ServerConnectionProvider>,
       serverConnectionProvider)
-  ([] {
+  ([this] {
     return oatpp::network::tcp::server::ConnectionProvider::createShared(
-        {"0.0.0.0", 8000, oatpp::network::Address::IP_4});
+        {host, port, oatpp::network::Address::IP_4});
   }());
 
   /**

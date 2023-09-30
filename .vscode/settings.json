@@ -6,5 +6,14 @@
   "[python]": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "ms-python.python"
-  }
+  },
+  "clangd.arguments": [
+    "--background-index",
+    "-j=4",
+    "--query-driver=/usr/bin/clang++",
+    "--clang-tidy",
+    "--clang-tidy-checks=performance-*,bugprone-*",
+    "--all-scopes-completion",
+    "--completion-style=detailed"
+  ],
 }

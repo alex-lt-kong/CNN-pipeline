@@ -38,7 +38,9 @@ void StartOatppServer() {
   server_should_continue.store(true);
 
   oatppThread = std::thread([] {
-    AppComponent components; // Create scope Environment components
+    AppComponent components(
+        "0.0.0.0", 8000,
+        "http://gpu-prod.sz.lan:8000"); // Create scope Environment components
 
     /* Get router component */
     OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>, router);

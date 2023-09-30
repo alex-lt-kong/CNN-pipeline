@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.12)
 
 project(vgg16-based-pipeline)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 set(CXXFLAGS "-O2 -Wall -pedantic -Wextra -Wno-unused-parameter")

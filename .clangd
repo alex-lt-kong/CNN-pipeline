@@ -4,10 +4,9 @@ InlayHints:
   DeducedTypes: No
   Designators: No
 
-CompileFlags:
-  Add: 
-    - '-I/usr/local/include/torch'
-    - '-I/usr/local/include/opencv4/'
-    - '-I/usr/local/include/oatpp-1.3.0/oatpp-swagger/'
-    - '-I/usr/local/include/oatpp-1.3.0/oatpp/'
-    - '-std=c++17'
+#CompileFlags:
+#  Add: 
+#    - '-I/usr/local/include/torch'
+#    - '-I/usr/local/include/oatpp-1.3.0/oatpp-swagger/'
+#    - '-I/usr/local/include/oatpp-1.3.0/oatpp/'
+#    - '-std=c++17'
