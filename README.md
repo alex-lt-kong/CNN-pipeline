@@ -49,7 +49,6 @@ sudo make install
 
 ### Install other libraries
 
-```
-apt install nlohmann-json3-dev
-apt install libspdlog-dev
-```
+* `spdlog` for logging: `apt install libspdlog-dev`
+* `nlohmann-json3` for JSON support: `apt install nlohmann-json3-dev`
+* `ZeroMQ` for message queue: `apt install libzmq3-dev`

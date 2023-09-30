@@ -26,6 +26,7 @@ target_link_libraries(rest-lib
         # Oat++
         PUBLIC oatpp::oatpp
         PUBLIC oatpp::oatpp-swagger
+        spdlog
 )
 
 # If CMake can't find SQLite3:
