@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "opencv2/core/cvstd.hpp"
-#include "opencv2/imgproc.hpp"
 #include "torch/csrc/api/include/torch/types.h"
 #include <getopt.h>
 #include <nlohmann/json.hpp>
+#include <opencv2/core/cvstd.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #define FMT_HEADER_ONLY
 #include <spdlog/spdlog.h>
@@ -20,13 +20,9 @@
 
 #include "model_utils.h"
 
-#define NUM_CLASSES 2
-
 using namespace std;
 using json = nlohmann::json;
 const cv::Size target_img_size = cv::Size(426, 224); // size is in (w, h)
-const float target_img_means[] = {0.485, 0.456, 0.406};
-const float target_img_stds[] = {0.229, 0.224, 0.225};
 
 void print_usage(string binary_name) {
 
@@ -87,70 +83,6 @@ void parse_arguments(int argc, char **argv, string &image_path,
   }
 }
 
-string tensor_to_string_like_pytorch(const torch::Tensor &t, const long index,
-                                     const long ele_count) {
-  ostringstream oss;
-  oss << "tensor([";
-  bool small_non_zero_numbers = false;
-  for (long i = index; i < index + ele_count && i < t.sizes()[0]; ++i) {
-    if (t[i].abs().item<float>() < 0.0001 && t[i].abs().item<float>() != 0) {
-      small_non_zero_numbers = true;
-      break;
-    }
-  }
-  if (small_non_zero_numbers) {
-    oss << std::scientific << std::setprecision(4);
-  } else {
-    oss << std::fixed << std::setprecision(4);
-  }
-
-  for (long i = index; i < index + ele_count && i < t.sizes()[0]; ++i) {
-    oss << t[i].item();
-    if (i < index + ele_count - 1 && i < t.sizes()[0] - 1) {
-      oss << ", ";
-    }
-  }
-  oss << "])";
-  /*
-    Depending on if there are some very small numbers, there are two possible
-    formats:
-    tensor([ 1.2899,  1.2043,  1.0673, -0.2513, -0.9705])
-    tensor([-1.1809e-04, -1.7340e-03, -1.0064e-01, -2.2699e-09,  1.3654e-04])
-  */
-  return oss.str();
-}
-
-torch::Tensor get_tensor_from_img_path(const string &image_path) {
-
-  // image = Image.open(image_path).convert("RGB")
-  cv::Mat image = cv::imread(image_path);
-  // cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-
-  // cv::INTER_LINEAR is the OpenCV equivalent of
-  // torchvision.transforms.InterpolationMode.BILINEAR
-  // However, it is important to note that the resize() results from OpenCV
-  // and PIL are not identical
-  cv::resize(image, image, target_img_size, 0, 0, cv::INTER_LINEAR_EXACT);
-
-  // Convert the OpenCV image to a Torch tensor
-  torch::Tensor image_tensor = torch::from_blob(
-      image.data, {1, image.rows, image.cols, 3}, torch::kByte);
-
-  // image_tensor = image_tensor.to(torch::kFloat32);
-  // Mimic torchvision.transforms.ToTensor() which shrinks the range from
-  // [0, 255] to [0, 1]
-  // image_tensor /= 255.0;
-
-  // Mimic
-  // torchvision.transforms.Normalize(mean=target_img_means,
-  // std=target_img_stds)
-  for (size_t i = 0; i < 3; ++i) {
-    image_tensor[0][i] =
-        image_tensor[0][i].sub(target_img_means[i]).div(target_img_stds[i]);
-  }
-  return image_tensor;
-}
-
 torch::Tensor get_tensor_from_img_dir(const string &image_dir) {
   std::vector<cv::String> imagePaths;
   cv::glob(image_dir, imagePaths);
@@ -160,36 +92,7 @@ torch::Tensor get_tensor_from_img_dir(const string &image_dir) {
 
   for (const auto &imagePath : imagePaths) {
     cv::Mat image = cv::imread(imagePath);
-    cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-
-    // cv::INTER_LINEAR is the OpenCV equivalent of
-    // torchvision.transforms.InterpolationMode.BILINEAR
-    // However, it is important to note that the resize() results from OpenCV
-    // and PIL are not identical
-    cv::resize(image, image, target_img_size, 0, 0, cv::INTER_LINEAR);
-
-    // Convert the OpenCV image to a Torch tensor
-    torch::Tensor image_tensor =
-        torch::from_blob(image.data, {image.rows, image.cols, 3}, torch::kByte);
-
-    // permute() is used to "rearrange" dimensions. Before permute(),
-    // tensor_image.sizes() is [240, 432, 3], but we want
-    // tensor_image.sizes() to be [3, 240, 432]
-    image_tensor = image_tensor.permute({2, 0, 1});
-
-    image_tensor = image_tensor.to(torch::kFloat32);
-    // Mimic torchvision.transforms.ToTensor() which shrinks the range from
-    // [0, 255] to [0, 1]
-    image_tensor /= 255.0;
-
-    // Mimic
-    // torchvision.transforms.Normalize(mean=target_img_means,
-    // std=target_img_stds)
-    for (size_t i = 0; i < 3; ++i) {
-      image_tensor[i] =
-          image_tensor[i].sub(target_img_means[i]).div(target_img_stds[i]);
-    }
-    tensor_vec.push_back(image_tensor);
+    tensor_vec.push_back(cv_mat_to_tensor(image, target_img_size));
   }
   return torch::stack(tensor_vec);
 }
@@ -209,22 +112,6 @@ int main(int argc, char **argv) {
 
   vector<torch::jit::script::Module> v16mms = load_models(
       settings["model"]["torch_script_serialization"].get<string>(), model_ids);
-  /*for (size_t i = 0; i < model_ids.size(); ++i) {
-    string model_path = regex_replace(
-        settings["model"]["torch_script_serialization"].get<string>(),
-        regex("\\{id\\}"), model_ids[i]);
-
-    try {
-      spdlog::info("Desearilizing {}-th model from {}", i, model_path);
-      v16mms.emplace_back(torch::jit::load(model_path));
-      v16mms[i].to(torch::kCUDA);
-      v16mms[i].eval();
-    } catch (const c10::Error &e) {
-      cerr << "error loading the model\n";
-      cerr << e.what() << endl;
-      return -1;
-    }
-  }*/
 
   const size_t preview_ele_num = 5;
   size_t layer_count = 0;
@@ -276,7 +163,8 @@ int main(int argc, char **argv) {
   input[0] = images_tensor.to(torch::kCUDA);
   // images_tensor.sizes()[0] stores number of images
   // 2 is the num_classes member variable as defined in VGG16MinusMinus@model.py
-  at::Tensor output = torch::zeros({images_tensor.sizes()[0], NUM_CLASSES});
+  at::Tensor output =
+      torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
   output = output.to(torch::kCUDA);
   vector<at::Tensor> outputs(v16mms.size());
   spdlog::info("Running inference");
