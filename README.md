@@ -54,6 +54,6 @@ sudo make install
 
 * `spdlog` for logging: `apt install libspdlog-dev`
 * `nlohmann-json3` for JSON support: `apt install nlohmann-json3-dev`
-* `ZeroMQ` for message queue: `apt install libzmq3-dev`
+* `cppzmq` for ZeroMQ support: `apt install libzmq3-dev`
 * `clangd` for code intellisense: `apt install clangd`
   * `libstdc++-12` for clangd to work properly: `apt install libstdc++-12-dev`

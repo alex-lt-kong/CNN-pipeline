@@ -9,8 +9,11 @@ include_directories(/usr/local/include/torch/)
 
 link_directories(/usr/local/lib/torch/)
 
+add_library(utils utils.cpp)
+
+
 add_executable(predict predict.cpp)
-target_link_libraries(predict rest spdlog)
+target_link_libraries(predict rest spdlog zmq)
 
 
 add_executable(debug debug.cpp)
