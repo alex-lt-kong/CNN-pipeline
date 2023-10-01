@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
-#include <getopt.h>
 #include <iostream>
 #include <memory>
 #include <regex>
@@ -12,6 +11,7 @@
 #include "opencv2/core/cvstd.hpp"
 #include "opencv2/imgproc.hpp"
 #include "torch/csrc/api/include/torch/types.h"
+#include <getopt.h>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 #define FMT_HEADER_ONLY
@@ -79,7 +79,7 @@ void parse_arguments(int argc, char **argv, string &image_path,
       exit(EXIT_FAILURE);
     }
   }
-  if (image_path.empty()) {
+  if (image_path.empty() || config_path.empty()) {
     print_usage(argv[0]);
     exit(EXIT_FAILURE);
   }

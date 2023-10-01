@@ -25,7 +25,7 @@ std::thread oatppThread;
  * or have one process-global AppComponent. Further you have to make sure you
  * don't have multiple ServerConnectionProvider listening to the same port.
  */
-void StartOatppServer() {
+void StartOatppServer(std::string host, int port, std::string advertised_host) {
   std::lock_guard<std::mutex> lock(server_op_mutex);
 
   /* Check if server is already running, if so, do nothing. */
@@ -37,10 +37,8 @@ void StartOatppServer() {
   /* Tell the server it should run */
   server_should_continue.store(true);
 
-  oatppThread = std::thread([] {
-    AppComponent components(
-        "0.0.0.0", 8000,
-        "http://gpu-prod.sz.lan:8000"); // Create scope Environment components
+  oatppThread = std::thread([=] {
+    AppComponent components(host, port, advertised_host);
 
     /* Get router component */
     OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>, router);
@@ -94,9 +92,10 @@ void StartOatppServer() {
   });
 }
 
-void initialize_rest_api() {
+void initialize_rest_api(std::string host, int port,
+                         std::string advertised_host) {
   oatpp::base::Environment::init();
-  StartOatppServer();
+  StartOatppServer(host, port, advertised_host);
 }
 void finalize_rest_api() {
   spdlog::info("Rest service exiting");

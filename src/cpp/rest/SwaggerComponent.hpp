@@ -1,7 +1,6 @@
 
 #ifndef SwaggerComponent_hpp
 #define SwaggerComponent_hpp
-
 #include "oatpp-swagger/Model.hpp"
 #include "oatpp-swagger/Resources.hpp"
 #include "oatpp/core/macro/component.hpp"
@@ -25,8 +24,9 @@ public:
   ([this] {
     oatpp::swagger::DocumentInfo::Builder builder;
 
-    builder.setTitle("User entity service")
-        .setDescription("CRUD API Example project with swagger docs")
+    builder.setTitle("Swagger of " PROJECT_NAME)
+        .setDescription("Configuring predict daemon of " PROJECT_NAME
+                        " on the fly")
         .setVersion("1.0")
         .setContactName("Alex Kong")
         .setContactUrl("https://github.com/alex-lt-kong/")

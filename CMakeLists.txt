@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(vgg16-based-pipeline)
+project(VGGNET-based-CNN-pipeline)
 
+# Always generate compile_commands.json for clangd, etc.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_STANDARD 17)
