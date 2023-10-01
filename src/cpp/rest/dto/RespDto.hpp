@@ -1,6 +1,8 @@
 #ifndef ResponseDto_hpp
 #define ResponseDto_hpp
 
+#include <nlohmann/json.hpp>
+
 #include "oatpp/core/Types.hpp"
 #include "oatpp/core/macro/codegen.hpp"
 

@@ -43,6 +43,8 @@ def main() -> None:
                     help='Directory that is full of images!')
     ap.add_argument('--model-ids', '-i', dest='model-ids', required=True,
                     help='A comma-separate list of model IDs')
+    ap.add_argument('--config-path', '-c', dest='config-path', required=True,
+                    help='JSON configuration file path')
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s.%(msecs)03d | %(levelname)7s | %(message)s',
@@ -52,8 +54,9 @@ def main() -> None:
     args = vars(ap.parse_args())
     image_path = str(args['image-dir'])
     model_ids = str(args['model-ids']).split(',')
+    config_path = str(args['config-path'])
 
-    with open(os.path.join(curr_dir, '..', 'config.json')) as j:
+    with open(config_path) as j:
         settings = json.load(j)
     # v16mm = model.VGG16MinusMinus(2)
     # logging.info(f'Loading parameters from {settings["model"]["parameters"]}')

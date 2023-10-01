@@ -2,6 +2,10 @@
 #ifndef UserController_hpp
 #define UserController_hpp
 
+#include <regex>
+
+#define FMT_HEADER_ONLY
+#include <spdlog/spdlog.h>
 //#include "../dto/PageDto.hpp"
 #include "../dto/RespDto.hpp"
 #include "../dto/StatusDto.hpp"
@@ -10,8 +14,8 @@
 #include "oatpp/core/macro/component.hpp"
 #include "oatpp/core/utils/ConversionUtils.hpp"
 #include "oatpp/web/protocol/http/Http.hpp"
-//#include "service/UserService.hpp"
 
+#include "../../utils.h"
 #include "oatpp/core/macro/codegen.hpp"
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
 #include "oatpp/web/server/api/ApiController.hpp"
@@ -72,20 +76,38 @@ public:
     info->pathParams["predictionInterval"].description =
         "Interval in ms for the prediction loop to sleep after each iteration";
   }
-  ENDPOINT("POST", "model/{predictionInterval}", setPredictionInterval,
-           PATH(UInt32, predictionInterval)) {
+  ENDPOINT("POST", "setPredictionInterval/{predictionIntervalMs}",
+           setPredictionInterval, PATH(UInt32, predictionIntervalMs)) {
     auto resp = RespDto::createShared();
-    if (predictionInterval <= 0) {
+    if (predictionIntervalMs <= 0) {
       resp->success = false;
       resp->responseText = "predictionInterval must be positive";
       return createDtoResponse(Status::CODE_400, resp);
     } else {
+
+      std::string msg =
+          "predictionInterval changed from " +
+          to_string(prediction_interval_ms) + " to " +
+          oatpp::utils::conversion::uint32ToStr(predictionIntervalMs);
+      prediction_interval_ms = predictionIntervalMs;
+      spdlog::info(msg);
       resp->success = true;
-      resp->responseText =
-          "predictionInterval set to " +
-          oatpp::utils::conversion::uint32ToStr(predictionInterval);
+      resp->responseText = msg;
       return createDtoResponse(Status::CODE_200, resp);
     }
+  }
+
+  ENDPOINT_INFO(getCurrentSettings) {
+    info->summary = "get the configurations of this prediction daemon instance";
+
+    info->addResponse<Object<RespDto>>(Status::CODE_200, "application/json");
+    info->addResponse<Object<RespDto>>(Status::CODE_400, "application/json");
+  }
+  ENDPOINT("GET", "getCurrentSettings/", getCurrentSettings) {
+    auto resp = RespDto::createShared();
+    resp->success = true;
+    resp->responseText = settings.dump();
+    return createDtoResponse(Status::CODE_200, resp);
   }
 };
 

@@ -1,8 +1,9 @@
+#include <deque>
 #include <filesystem>
 #include <fmt/core.h>
 #include <fstream>
 #include <iostream>
-#include <signal.h>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 
@@ -13,47 +14,18 @@
 #include <zmq.hpp>
 
 #include "rest/App.h"
+#include "utils.h"
 
 using namespace std;
 using json = nlohmann::json;
 
-volatile sig_atomic_t e_flag = 0;
-
-static void signal_handler(int signum) {
-  char msg[] = "Signal [  ] caught\n";
-  msg[8] = '0' + (char)(signum / 10);
-  msg[9] = '0' + (char)(signum % 10);
-  write(STDIN_FILENO, msg, strlen(msg));
-  e_flag = 1;
-}
-
-void install_signal_handler() {
-  // This design canNOT handle more than 99 signal types
-  if (_NSIG > 99) {
-    fprintf(stderr, "signal_handler() can't handle more than 99 signals\n");
-    abort();
-  }
-  struct sigaction act;
-  // Initialize the signal set to empty, similar to memset(0)
-  if (sigemptyset(&act.sa_mask) == -1) {
-    perror("sigemptyset()");
-    abort();
-  }
-  act.sa_handler = signal_handler;
-  /* SA_RESETHAND means we want our signal_handler() to intercept the signal
-  once. If a signal is sent twice, the default signal handler will be used
-  again. `man sigaction` describes more possible sa_flags. */
-  act.sa_flags = SA_RESETHAND;
-  // act.sa_flags = 0;
-  if (sigaction(SIGINT, &act, 0) + sigaction(SIGABRT, &act, 0) +
-          sigaction(SIGQUIT, &act, 0) + sigaction(SIGTERM, &act, 0) +
-          sigaction(SIGPIPE, &act, 0) + sigaction(SIGCHLD, &act, 0) +
-          sigaction(SIGTRAP, &act, 0) <
-      0) {
-    perror("sigaction()");
-    abort();
-  }
-}
+volatile sig_atomic_t ev_flag = 0;
+std::atomic<uint32_t> prediction_interval_ms = 600;
+json settings;
+mutex image_queue_mtx;
+deque<vector<char>> image_queue;
+const size_t image_queue_min_len = 64;
+const size_t image_queue_max_len = image_queue_min_len * 2;
 
 void print_usage(string binary_name) {
 
@@ -90,51 +62,54 @@ void parse_arguments(int argc, char **argv, string &config_path) {
   }
 }
 
-void zeromq_thread(string uri) { // Create a ZMQ context
+void zeromq_thread() {
+  spdlog::info("zeromq_thread started");
+
   zmq::context_t context(1);
-
-  // Create a ZMQ socket for subscribing
   zmq::socket_t subscriber(context, ZMQ_SUB);
-
-  // Connect to the publisher
-  spdlog::info("Connecting to {}", uri);
-  subscriber.connect(uri);
-  spdlog::info("Connected to {}", uri);
+  subscriber.connect(settings["prediction"]["zeromq_address"].get<string>());
+  spdlog::info("Connected to {}",
+               settings["prediction"]["zeromq_address"].get<string>());
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
-  spdlog::info("Subscribed to topic ''");
-  while (!e_flag) {
+  while (!ev_flag) {
     zmq::message_t message;
     subscriber.recv(&message);
-    spdlog::info("Received message, size: {}", message.size());
-    std::ofstream outputFile("/tmp/received.data",
-                             std::ios::out | std::ios::binary);
-    if (!outputFile) {
-      throw runtime_error("Failed to open output file.");
+    auto t = vector<char>(message.size());
+    memcpy(t.data(), message.data(), t.size());
+    {
+      lock_guard<mutex> lock(image_queue_mtx);
+      image_queue.push_back(t);
+      if (image_queue.size() > image_queue_max_len) {
+        image_queue.pop_front();
+      }
+      spdlog::info("image_queue.size(): {}", image_queue.size());
     }
-    outputFile.write(static_cast<const char *>(message.data()), message.size());
   }
   subscriber.close();
   spdlog::info("ZeroMQ connection closed gracefully");
+}
+
+void prediction_thread() {
+  while (!ev_flag) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 }
 
 int main(int argc, char **argv) {
   install_signal_handler();
   string config_path;
   parse_arguments(argc, argv, config_path);
-  spdlog::set_pattern("%Y-%m-%d %T.%e | %7l | %v");
+  spdlog::set_pattern("%Y-%m-%d %T.%e | %7l | %5t | %v");
   spdlog::info("Predict daemon started");
   spdlog::info("Loading configurations from {}:", config_path);
   ifstream f(config_path);
-  json settings = json::parse(f);
+  settings = json::parse(f);
   spdlog::info("{}", settings.dump(2));
   initialize_rest_api(
       settings["prediction"]["swagger"]["host"].get<string>(),
       settings["prediction"]["swagger"]["port"].get<int>(),
       settings["prediction"]["swagger"]["advertised_host"].get<string>());
-  std::thread thread_object(zeromq_thread, "tcp://127.0.0.1:4241");
-  // zeromq_thread("tcp://127.0.0.1:4241");
-  // std::cin.ignore();
-  // e_flag = 1;
+  std::thread thread_object(zeromq_thread);
   thread_object.join();
   finalize_rest_api();
   spdlog::info("Predict daemon exiting");

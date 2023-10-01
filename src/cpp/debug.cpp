@@ -18,6 +18,8 @@
 #include <spdlog/spdlog.h>
 #include <torch/script.h> // One-stop header.
 
+#include "model_utils.h"
+
 #define NUM_CLASSES 2
 
 using namespace std;
@@ -204,8 +206,10 @@ int main(int argc, char **argv) {
   ifstream f(config_path);
 
   json settings = json::parse(f);
-  vector<torch::jit::script::Module> v16mms;
-  for (size_t i = 0; i < model_ids.size(); ++i) {
+
+  vector<torch::jit::script::Module> v16mms = load_models(
+      settings["model"]["torch_script_serialization"].get<string>(), model_ids);
+  /*for (size_t i = 0; i < model_ids.size(); ++i) {
     string model_path = regex_replace(
         settings["model"]["torch_script_serialization"].get<string>(),
         regex("\\{id\\}"), model_ids[i]);
@@ -220,7 +224,7 @@ int main(int argc, char **argv) {
       cerr << e.what() << endl;
       return -1;
     }
-  }
+  }*/
 
   const size_t preview_ele_num = 5;
   size_t layer_count = 0;

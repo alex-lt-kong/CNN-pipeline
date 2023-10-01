@@ -1,17 +1,25 @@
+#include <regex>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-extern volatile sig_atomic_t e_flag;
+#define FMT_HEADER_ONLY
+#include <spdlog/spdlog.h>
+
+#include "utils.h"
+
+using namespace std;
+
+extern volatile sig_atomic_t ev_flag;
 
 static void signal_handler(int signum) {
   char msg[] = "Signal [  ] caught\n";
   msg[8] = '0' + (char)(signum / 10);
   msg[9] = '0' + (char)(signum % 10);
   write(STDIN_FILENO, msg, strlen(msg));
-  e_flag = 1;
+  ev_flag = 1;
 }
 
 void install_signal_handler() {
