@@ -55,5 +55,6 @@ sudo make install
 * `spdlog` for logging: `apt install libspdlog-dev`
 * `nlohmann-json3` for JSON support: `apt install nlohmann-json3-dev`
 * `cppzmq` for ZeroMQ support: `apt install libzmq3-dev`
+* `Magick++` for GIF support: `apt install libmagickcore-dev libmagick++-dev libmagick++-6-headers`
 * `clangd` for code intellisense: `apt install clangd`
   * `libstdc++-12` for clangd to work properly: `apt install libstdc++-12-dev`

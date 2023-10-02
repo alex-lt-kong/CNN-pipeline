@@ -45,5 +45,5 @@ if(CMAKE_SYSTEM_NAME MATCHES Linux)
     target_link_libraries(rest-lib INTERFACE Threads::Threads ${CMAKE_DL_LIBS})
 endif()
 
-add_library(rest App.cpp)
+add_library(rest oatpp_entry.cpp)
 target_link_libraries(rest rest-lib)

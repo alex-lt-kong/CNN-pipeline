@@ -1,25 +1,28 @@
-#include "ATen/ops/nonzero.h"
+#define FMT_HEADER_ONLY
+
 #include <deque>
 #include <filesystem>
-#include <fmt/core.h>
 #include <fstream>
 #include <iostream>
 #include <mutex>
-#include <opencv2/imgcodecs.hpp>
 #include <stdexcept>
 #include <string>
 
+#include "ATen/ops/nonzero.h"
+#include <Magick++.h>
+#include <fmt/core.h>
 #include <getopt.h>
+#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <opencv2/core/cvstd.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#define FMT_HEADER_ONLY
-#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
 
 #include "model_utils.h"
-#include "rest/App.h"
+#include "rest/oatpp_entry.h"
 #include "utils.h"
 
 using namespace std;
@@ -30,8 +33,13 @@ std::atomic<uint32_t> prediction_interval_ms = 60000;
 json settings;
 mutex image_queue_mtx;
 deque<vector<char>> image_queue;
+const size_t gif_frame_count = 10;
 const size_t inference_batch_size = 16;
-const size_t image_queue_max_len = inference_batch_size * 4;
+const size_t pre_detection_size = 4;
+const size_t image_queue_min_len =
+    pre_detection_size + inference_batch_size + gif_frame_count;
+const size_t image_queue_max_len =
+    (inference_batch_size + pre_detection_size) * 4;
 
 void print_usage(string binary_name) {
 
@@ -69,18 +77,22 @@ void parse_arguments(int argc, char **argv, string &config_path) {
 }
 
 void zeromq_ev_loop() {
-  spdlog::info("zeromq_thread started");
+  spdlog::info("zeromq_ev_loop() started");
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
   subscriber.connect(settings["prediction"]["zeromq_address"].get<string>());
-  spdlog::info("Connected to {}",
+  spdlog::info("ZeroMQ client connected to {}",
                settings["prediction"]["zeromq_address"].get<string>());
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   while (!ev_flag) {
     zmq::message_t message;
     subscriber.recv(&message);
     auto t = vector<char>(message.size());
+    if (message.size() == 0) {
+      spdlog::warn("ZeroMQ received empty message");
+      continue;
+    }
     memcpy(t.data(), message.data(), t.size());
     {
       lock_guard<mutex> lock(image_queue_mtx);
@@ -95,40 +107,59 @@ void zeromq_ev_loop() {
   spdlog::info("zeromq_ev_loop() exited gracefully");
 }
 
-void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output) {
-  ostringstream oss_raw_result, oss_avg_result, oss_y_pred;
+void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
+                         const vector<vector<char>> &received_jpgs) {
+  ostringstream oss_raw_result, oss_avg_result;
 
-  // spdlog::info("Raw results from {} models are:", models.size());
   for (size_t i = 0; i < outputs.size(); ++i) {
     oss_raw_result << outputs[i];
-    // spdlog::info("\n{}", oss.str());
   }
   oss_avg_result << output;
-  // spdlog::info("and arithmetic average of raw results is:\n{}", oss.str());
   at::Tensor y_pred = torch::argmax(output, 1);
 
-  auto nonzero_preds = torch::nonzero(y_pred);
-  if (nonzero_preds.sizes()[0] == 0) {
+  auto nonzero_y_preds_idx = torch::nonzero(y_pred);
+  if (nonzero_y_preds_idx.sizes()[0] == 0) {
     return;
   }
-  spdlog::info("y_pred: {}",
+  spdlog::warn("Target detected at {}-th frame in a batch of {} frames",
+               nonzero_y_preds_idx[0].item<int>(), inference_batch_size, 0);
+  spdlog::info("y_pred:              {}",
                tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
-  spdlog::info("nonzero_preds: {}",
-               tensor_to_string_like_pytorch(nonzero_preds, 0,
-                                             nonzero_preds.sizes()[0]));
+  spdlog::info("nonzero_y_preds_idx: {}",
+               tensor_to_string_like_pytorch(nonzero_y_preds_idx, 0,
+                                             nonzero_y_preds_idx.sizes()[0]));
+  spdlog::info("Raw results are:\n{}", oss_raw_result.str());
+  spdlog::info("and arithmetic average of raw results is:\n{}",
+               oss_avg_result.str());
+  spdlog::info("Preparing GIF file");
+  vector<Magick::Image> frames;
+  const auto base_idx = nonzero_y_preds_idx[0].item<int>() - pre_detection_size;
+  for (int i = 0; i < inference_batch_size; ++i) {
+    if (received_jpgs[base_idx + i].size() == 0) {
+      spdlog::warn("received_jpgs[{}].size() == 0", base_idx + i);
+      continue;
+    }
+    frames.emplace_back(Magick::Blob(received_jpgs[base_idx + i].data(),
+                                     received_jpgs[base_idx + i].size()));
+    frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
+    frames.back().resize(
+        Magick::Geometry(target_img_size.width, target_img_size.height));
+  }
+  string gif_path = "/tmp/detected-cpp.gif";
+  spdlog::info("writing GIF file to {}", gif_path);
+  Magick::writeImages(frames.begin(), frames.end(), gif_path);
 }
 
 pair<vector<at::Tensor>, at::Tensor>
-infer_images(const size_t inference_batch_size,
-             vector<torch::jit::script::Module> &models,
+infer_images(vector<torch::jit::script::Module> &models,
              const vector<vector<char>> &received_jpgs) {
   vector<torch::Tensor> images_tensors_vec(inference_batch_size);
   torch::Tensor images_tensor;
   vector<torch::jit::IValue> input(1);
   for (int i = 0; i < inference_batch_size; ++i) {
     // images_mats[i] = cv::imdecode(received_jpgs[i], cv::IMREAD_COLOR);
-    images_tensors_vec[i] =
-        cv_mat_to_tensor(cv::imdecode(received_jpgs[i], cv::IMREAD_COLOR));
+    images_tensors_vec[i] = cv_mat_to_tensor(
+        cv::imdecode(received_jpgs[pre_detection_size + i], cv::IMREAD_COLOR));
   }
   images_tensor = torch::stack(images_tensors_vec);
 
@@ -147,10 +178,12 @@ infer_images(const size_t inference_batch_size,
 }
 
 void prediction_ev_loop() {
+  spdlog::info("prediction_ev_loop() started");
   auto models =
       load_models(settings["model"]["torch_script_serialization"].get<string>(),
                   {"0", "1", "2"});
-  vector<vector<char>> received_jpgs(inference_batch_size);
+  Magick::InitializeMagick(nullptr);
+  vector<vector<char>> received_jpgs(image_queue_min_len);
   vector<cv::Mat> images_mats(inference_batch_size);
 
   const size_t interruptible_sleep_ms = 2000;
@@ -167,19 +200,21 @@ void prediction_ev_loop() {
 
     {
       lock_guard<mutex> lock(image_queue_mtx);
-      if (image_queue.size() < inference_batch_size) {
+      if (image_queue.size() < image_queue_min_len) {
         spdlog::warn("image_queue.size() == {} < inference_batch_size({}), "
                      "waiting for more images before inference can run",
                      image_queue.size(), inference_batch_size);
         continue;
       }
-      for (int i = 0; i < inference_batch_size; ++i) {
+      for (int i = 0; i < image_queue_min_len; ++i) {
         received_jpgs[i] = image_queue.front();
-        image_queue.pop_front();
+        if (i < inference_batch_size) {
+          image_queue.pop_front();
+        }
       }
     }
-    auto rv = infer_images(inference_batch_size, models, received_jpgs);
-    handle_pred_results(rv.first, rv.second);
+    auto rv = infer_images(models, received_jpgs);
+    handle_pred_results(rv.first, rv.second, received_jpgs);
   }
   spdlog::info("prediction_ev_loop() exited gracefully");
 }
