@@ -33,12 +33,12 @@ std::atomic<uint32_t> prediction_interval_ms = 60000;
 json settings;
 mutex image_queue_mtx;
 deque<vector<char>> image_queue;
-const size_t gif_frame_count = 10;
-const size_t inference_batch_size = 16;
-const size_t pre_detection_size = 4;
-const size_t image_queue_min_len =
+const ssize_t gif_frame_count = 10;
+const ssize_t inference_batch_size = 16;
+const ssize_t pre_detection_size = 4;
+const ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
-const size_t image_queue_max_len =
+const ssize_t image_queue_max_len =
     (inference_batch_size + pre_detection_size) * 4;
 
 void print_usage(string binary_name) {
@@ -51,9 +51,10 @@ void print_usage(string binary_name) {
 }
 
 void parse_arguments(int argc, char **argv, string &config_path) {
-  static struct option long_options[] = {{"config", required_argument, 0, 'c'},
-                                         {"help", optional_argument, 0, 'h'},
-                                         {0, 0, 0, 0}};
+  static struct option long_options[] = {
+      {"config-path", required_argument, 0, 'c'},
+      {"help", optional_argument, 0, 'h'},
+      {0, 0, 0, 0}};
 
   int opt, option_index = 0;
 
@@ -133,8 +134,9 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
                oss_avg_result.str());
   spdlog::info("Preparing GIF file");
   vector<Magick::Image> frames;
-  const auto base_idx = nonzero_y_preds_idx[0].item<int>() - pre_detection_size;
-  for (int i = 0; i < inference_batch_size; ++i) {
+  const auto base_idx = nonzero_y_preds_idx[0].item<int>() + pre_detection_size;
+  for (int i = pre_detection_size * -1;
+       i < gif_frame_count - pre_detection_size; ++i) {
     if (received_jpgs[base_idx + i].size() == 0) {
       spdlog::warn("received_jpgs[{}].size() == 0", base_idx + i);
       continue;
@@ -145,7 +147,15 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
     frames.back().resize(
         Magick::Geometry(target_img_size.width, target_img_size.height));
   }
-  string gif_path = "/tmp/detected-cpp.gif";
+
+  auto now = std::chrono::system_clock::now();
+  auto nowUtc = std::chrono::time_point_cast<std::chrono::seconds>(now);
+  std::time_t nowTimeT = std::chrono::system_clock::to_time_t(nowUtc);
+  std::tm *nowTmUtc = std::gmtime(&nowTimeT);
+  std::ostringstream oss;
+  oss << std::put_time(nowTmUtc, "%Y%m%dT%H%M%S");
+
+  string gif_path = string("/tmp/detected-cpp-") + oss.str() + ".gif";
   spdlog::info("writing GIF file to {}", gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);
 }
@@ -179,6 +189,8 @@ infer_images(vector<torch::jit::script::Module> &models,
 
 void prediction_ev_loop() {
   spdlog::info("prediction_ev_loop() started");
+  assert(pre_detection_size < gif_frame_count);
+  assert(gif_frame_count <= inference_batch_size);
   auto models =
       load_models(settings["model"]["torch_script_serialization"].get<string>(),
                   {"0", "1", "2"});
