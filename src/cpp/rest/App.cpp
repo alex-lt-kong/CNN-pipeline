@@ -108,16 +108,10 @@ void finalize_rest_api() {
   if (oatppThread.joinable()) {
     oatppThread.join();
   }
-
-  /* Print how many objects were created during app
-   * running, and what have left-probably leaked */
-  /* Disable object counting for release builds using '-D
-   * OATPP_DISABLE_ENV_OBJECT_COUNTERS' flag for better performance */
-  std::cout << "\nEnvironment:\n";
-  std::cout << "objectsCount = " << oatpp::base::Environment::getObjectsCount()
-            << "\n";
-  std::cout << "objectsCreated = "
-            << oatpp::base::Environment::getObjectsCreated() << "\n\n";
-
+  if (oatpp::base::Environment::getObjectsCount() > 0) {
+    spdlog::warn("oatpp::base::Environment::getObjectsCount() > 0 ({}), they "
+                 "may have been leaked!",
+                 oatpp::base::Environment::getObjectsCount());
+  }
   oatpp::base::Environment::destroy();
 }

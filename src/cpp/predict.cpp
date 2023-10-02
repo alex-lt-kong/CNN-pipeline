@@ -1,3 +1,4 @@
+#include "ATen/ops/nonzero.h"
 #include <deque>
 #include <filesystem>
 #include <fmt/core.h>
@@ -29,8 +30,8 @@ std::atomic<uint32_t> prediction_interval_ms = 60000;
 json settings;
 mutex image_queue_mtx;
 deque<vector<char>> image_queue;
-const size_t image_queue_min_len = 8;
-const size_t image_queue_max_len = image_queue_min_len * 2;
+const size_t inference_batch_size = 16;
+const size_t image_queue_max_len = inference_batch_size * 4;
 
 void print_usage(string binary_name) {
 
@@ -84,64 +85,103 @@ void zeromq_ev_loop() {
     {
       lock_guard<mutex> lock(image_queue_mtx);
       image_queue.push_back(t);
-      if (image_queue.size() > image_queue_max_len) {
+      while (image_queue.size() > image_queue_max_len) {
         image_queue.pop_front();
       }
-      spdlog::info("image_queue.size(): {}", image_queue.size());
     }
   }
   subscriber.close();
-  spdlog::info("ZeroMQ connection closed gracefully");
+  spdlog::info("ZeroMQ connection closed");
+  spdlog::info("zeromq_ev_loop() exited gracefully");
+}
+
+void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output) {
+  ostringstream oss_raw_result, oss_avg_result, oss_y_pred;
+
+  // spdlog::info("Raw results from {} models are:", models.size());
+  for (size_t i = 0; i < outputs.size(); ++i) {
+    oss_raw_result << outputs[i];
+    // spdlog::info("\n{}", oss.str());
+  }
+  oss_avg_result << output;
+  // spdlog::info("and arithmetic average of raw results is:\n{}", oss.str());
+  at::Tensor y_pred = torch::argmax(output, 1);
+
+  auto nonzero_preds = torch::nonzero(y_pred);
+  if (nonzero_preds.sizes()[0] == 0) {
+    return;
+  }
+  spdlog::info("y_pred: {}",
+               tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
+  spdlog::info("nonzero_preds: {}",
+               tensor_to_string_like_pytorch(nonzero_preds, 0,
+                                             nonzero_preds.sizes()[0]));
+}
+
+pair<vector<at::Tensor>, at::Tensor>
+infer_images(const size_t inference_batch_size,
+             vector<torch::jit::script::Module> &models,
+             const vector<vector<char>> &received_jpgs) {
+  vector<torch::Tensor> images_tensors_vec(inference_batch_size);
+  torch::Tensor images_tensor;
+  vector<torch::jit::IValue> input(1);
+  for (int i = 0; i < inference_batch_size; ++i) {
+    // images_mats[i] = cv::imdecode(received_jpgs[i], cv::IMREAD_COLOR);
+    images_tensors_vec[i] =
+        cv_mat_to_tensor(cv::imdecode(received_jpgs[i], cv::IMREAD_COLOR));
+  }
+  images_tensor = torch::stack(images_tensors_vec);
+
+  input[0] = images_tensor.to(torch::kCUDA);
+
+  // images_tensor.sizes()[0] stores number of images
+  at::Tensor output =
+      torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
+  output = output.to(torch::kCUDA);
+  vector<at::Tensor> outputs(models.size());
+  for (size_t i = 0; i < models.size(); ++i) {
+    outputs[i] = models[i].forward(input).toTensor();
+    output += outputs[i];
+  }
+  return make_pair(outputs, output);
 }
 
 void prediction_ev_loop() {
   auto models =
       load_models(settings["model"]["torch_script_serialization"].get<string>(),
                   {"0", "1", "2"});
+  vector<vector<char>> received_jpgs(inference_batch_size);
+  vector<cv::Mat> images_mats(inference_batch_size);
+
+  const size_t interruptible_sleep_ms = 2000;
   while (!ev_flag) {
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(prediction_interval_ms));
-    vector<char> img_vec;
+    if (prediction_interval_ms <= 2000) {
+      this_thread::sleep_for(chrono::milliseconds(prediction_interval_ms));
+    } else {
+      size_t slept_ms = 0;
+      while (slept_ms < prediction_interval_ms && !ev_flag) {
+        slept_ms += interruptible_sleep_ms;
+        this_thread::sleep_for(chrono::milliseconds(interruptible_sleep_ms));
+      }
+    }
+
     {
       lock_guard<mutex> lock(image_queue_mtx);
-      if (image_queue.size() < image_queue_min_len) {
+      if (image_queue.size() < inference_batch_size) {
+        spdlog::warn("image_queue.size() == {} < inference_batch_size({}), "
+                     "waiting for more images before inference can run",
+                     image_queue.size(), inference_batch_size);
         continue;
       }
-      img_vec = image_queue.front();
+      for (int i = 0; i < inference_batch_size; ++i) {
+        received_jpgs[i] = image_queue.front();
+        image_queue.pop_front();
+      }
     }
-    cv::Mat decodedImage = cv::imdecode(img_vec, cv::IMREAD_COLOR);
-
-    vector<torch::Tensor> tensor_vec;
-    tensor_vec.push_back(cv_mat_to_tensor(decodedImage, cv::Size(426, 224)));
-    torch::Tensor images_tensor = torch::stack(tensor_vec);
-    vector<torch::jit::IValue> input(1);
-    input[0] = images_tensor.to(torch::kCUDA);
-    at::Tensor output =
-        torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
-    output = output.to(torch::kCUDA);
-    vector<at::Tensor> outputs(models.size());
-    for (size_t i = 0; i < models.size(); ++i) {
-      outputs[i] = models[i].forward(input).toTensor();
-      output += outputs[i];
-    }
-    ostringstream oss;
-    oss << output;
-
-    spdlog::info("Raw results from {} models are:", models.size());
-    for (size_t i = 0; i < outputs.size(); ++i) {
-      oss.str("");
-      oss << outputs[i];
-      spdlog::info("\n{}", oss.str());
-    }
-    oss.str("");
-    oss << output;
-    spdlog::info("and arithmetic average of raw results is:\n{}", oss.str());
-    at::Tensor y_pred = torch::argmax(output, 1);
-    oss.str("");
-    oss << y_pred;
-    spdlog::info("y_pred: {}",
-                 tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
+    auto rv = infer_images(inference_batch_size, models, received_jpgs);
+    handle_pred_results(rv.first, rv.second);
   }
+  spdlog::info("prediction_ev_loop() exited gracefully");
 }
 
 int main(int argc, char **argv) {
@@ -158,10 +198,16 @@ int main(int argc, char **argv) {
       settings["prediction"]["swagger"]["host"].get<string>(),
       settings["prediction"]["swagger"]["port"].get<int>(),
       settings["prediction"]["swagger"]["advertised_host"].get<string>());
+  prediction_interval_ms =
+      settings["prediction"]["initial_prediction_interval_ms"].get<int>();
   thread thread_zeromq(zeromq_ev_loop);
   thread thread_prediction(prediction_ev_loop);
-  thread_zeromq.join();
-  thread_prediction.join();
+  if (thread_zeromq.joinable()) {
+    thread_zeromq.join();
+  }
+  if (thread_prediction.joinable()) {
+    thread_prediction.join();
+  }
   finalize_rest_api();
   spdlog::info("Predict daemon exiting");
   return 0;

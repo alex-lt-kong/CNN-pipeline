@@ -29,7 +29,7 @@ load_models(const string &torch_script_serialization,
   return models;
 }
 
-torch::Tensor cv_mat_to_tensor(cv::Mat image, const cv::Size &target_img_size) {
+torch::Tensor cv_mat_to_tensor(cv::Mat image) {
   cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 
   // cv::INTER_LINEAR is the OpenCV equivalent of

@@ -22,7 +22,6 @@
 
 using namespace std;
 using json = nlohmann::json;
-const cv::Size target_img_size = cv::Size(426, 224); // size is in (w, h)
 
 void print_usage(string binary_name) {
 
@@ -92,7 +91,7 @@ torch::Tensor get_tensor_from_img_dir(const string &image_dir) {
 
   for (const auto &imagePath : imagePaths) {
     cv::Mat image = cv::imread(imagePath);
-    tensor_vec.push_back(cv_mat_to_tensor(image, target_img_size));
+    tensor_vec.push_back(cv_mat_to_tensor(image));
   }
   return torch::stack(tensor_vec);
 }
