@@ -31,15 +31,14 @@ using json = nlohmann::json;
 volatile sig_atomic_t ev_flag = 0;
 std::atomic<uint32_t> prediction_interval_ms = 60000;
 json settings;
-mutex image_queue_mtx;
+mutex image_queue_mtx, ext_program_mtx;
 deque<vector<char>> image_queue;
-const ssize_t gif_frame_count = 10;
-const ssize_t inference_batch_size = 16;
+const ssize_t gif_frame_count = 16;
+const ssize_t inference_batch_size = 32;
 const ssize_t pre_detection_size = 4;
 const ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
-const ssize_t image_queue_max_len =
-    (inference_batch_size + pre_detection_size) * 4;
+const ssize_t image_queue_max_len = image_queue_min_len * 4;
 
 void print_usage(string binary_name) {
 
@@ -109,7 +108,7 @@ void zeromq_ev_loop() {
 }
 
 void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
-                         const vector<vector<char>> &received_jpgs) {
+                         const vector<vector<char>> &jpegs) {
   ostringstream oss_raw_result, oss_avg_result;
 
   for (size_t i = 0; i < outputs.size(); ++i) {
@@ -132,44 +131,50 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
   spdlog::info("Raw results are:\n{}", oss_raw_result.str());
   spdlog::info("and arithmetic average of raw results is:\n{}",
                oss_avg_result.str());
-  spdlog::info("Preparing GIF file");
+  spdlog::info("Preparing GIF data");
   vector<Magick::Image> frames;
   const auto base_idx = nonzero_y_preds_idx[0].item<int>() + pre_detection_size;
   for (int i = pre_detection_size * -1;
        i < gif_frame_count - pre_detection_size; ++i) {
-    if (received_jpgs[base_idx + i].size() == 0) {
+    if (jpegs[base_idx + i].size() == 0) {
       spdlog::warn("received_jpgs[{}].size() == 0", base_idx + i);
       continue;
     }
-    frames.emplace_back(Magick::Blob(received_jpgs[base_idx + i].data(),
-                                     received_jpgs[base_idx + i].size()));
+    frames.emplace_back(
+        Magick::Blob(jpegs[base_idx + i].data(), jpegs[base_idx + i].size()));
     frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
-    frames.back().resize(
-        Magick::Geometry(target_img_size.width, target_img_size.height));
+    frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.2),
+                                          (int)(target_img_size.height / 1.2)));
   }
-
-  auto now = std::chrono::system_clock::now();
-  auto nowUtc = std::chrono::time_point_cast<std::chrono::seconds>(now);
-  std::time_t nowTimeT = std::chrono::system_clock::to_time_t(nowUtc);
-  std::tm *nowTmUtc = std::gmtime(&nowTimeT);
-  std::ostringstream oss;
-  oss << std::put_time(nowTmUtc, "%Y%m%dT%H%M%S");
-
-  string gif_path = string("/tmp/detected-cpp-") + oss.str() + ".gif";
-  spdlog::info("writing GIF file to {}", gif_path);
+  string gif_path = "/tmp/detected-cpp.gif";
+  spdlog::info("Saving GIF file to {}", gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);
+
+  auto f = [](string cmd) {
+    if (ext_program_mtx.try_lock()) {
+      spdlog::info("Calling external program: {}", cmd);
+      system(cmd.c_str());
+      ext_program_mtx.unlock();
+    } else {
+      spdlog::warn("ext_program_mtx is locked already, meaning that another {} "
+                   "instance is already running",
+                   cmd);
+    }
+  };
+  thread th_exec(f, settings["prediction"]["on_detected_cpp"].get<string>());
+  th_exec.detach();
 }
 
 pair<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
-             const vector<vector<char>> &received_jpgs) {
+             const vector<vector<char>> &jpegs) {
   vector<torch::Tensor> images_tensors_vec(inference_batch_size);
   torch::Tensor images_tensor;
   vector<torch::jit::IValue> input(1);
   for (int i = 0; i < inference_batch_size; ++i) {
     // images_mats[i] = cv::imdecode(received_jpgs[i], cv::IMREAD_COLOR);
     images_tensors_vec[i] = cv_mat_to_tensor(
-        cv::imdecode(received_jpgs[pre_detection_size + i], cv::IMREAD_COLOR));
+        cv::imdecode(jpegs[pre_detection_size + i], cv::IMREAD_COLOR));
   }
   images_tensor = torch::stack(images_tensors_vec);
 
@@ -213,9 +218,9 @@ void prediction_ev_loop() {
     {
       lock_guard<mutex> lock(image_queue_mtx);
       if (image_queue.size() < image_queue_min_len) {
-        spdlog::warn("image_queue.size() == {} < inference_batch_size({}), "
+        spdlog::warn("image_queue.size() == {} < image_queue_min_len({}), "
                      "waiting for more images before inference can run",
-                     image_queue.size(), inference_batch_size);
+                     image_queue.size(), image_queue_min_len);
         continue;
       }
       for (int i = 0; i < image_queue_min_len; ++i) {

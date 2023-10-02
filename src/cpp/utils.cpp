@@ -42,8 +42,7 @@ void install_signal_handler() {
   // act.sa_flags = 0;
   if (sigaction(SIGINT, &act, 0) + sigaction(SIGABRT, &act, 0) +
           sigaction(SIGQUIT, &act, 0) + sigaction(SIGTERM, &act, 0) +
-          sigaction(SIGPIPE, &act, 0) + sigaction(SIGCHLD, &act, 0) +
-          sigaction(SIGTRAP, &act, 0) <
+          sigaction(SIGPIPE, &act, 0) + sigaction(SIGTRAP, &act, 0) <
       0) {
     perror("sigaction()");
     abort();
