@@ -1,3 +1,5 @@
+#define FMT_HEADER_ONLY
+
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -8,14 +10,13 @@
 #include <string>
 #include <vector>
 
-#include "torch/csrc/api/include/torch/types.h"
 #include <getopt.h>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/cvstd.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#define FMT_HEADER_ONLY
 #include <spdlog/spdlog.h>
+#include <torch/csrc/api/include/torch/types.h>
 #include <torch/script.h> // One-stop header.
 
 #include "model_utils.h"

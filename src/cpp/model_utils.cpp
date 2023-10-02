@@ -1,6 +1,7 @@
+#define FMT_HEADER_ONLY
+
 #include <regex>
 
-#define FMT_HEADER_ONLY
 #include <spdlog/spdlog.h>
 #include <sstream>
 
@@ -12,7 +13,7 @@ const float target_img_stds[] = {0.229, 0.224, 0.225};
 
 vector<torch::jit::script::Module>
 load_models(const string &torch_script_serialization,
-            vector<string> model_ids) {
+            const vector<string> &model_ids) {
   vector<torch::jit::script::Module> models;
   for (size_t i = 0; i < model_ids.size(); ++i) {
     string model_path = regex_replace(torch_script_serialization,

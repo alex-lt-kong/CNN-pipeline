@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "ATen/ops/nonzero.h"
+#include <ATen/ops/nonzero.h>
 #include <Magick++.h>
 #include <fmt/core.h>
 #include <getopt.h>
@@ -30,6 +30,7 @@ using json = nlohmann::json;
 
 volatile sig_atomic_t ev_flag = 0;
 std::atomic<uint32_t> prediction_interval_ms = 60000;
+const vector<string> modelIds = {"0", "1", "2"};
 json settings;
 mutex image_queue_mtx, ext_program_mtx;
 deque<vector<char>> image_queue;
@@ -196,16 +197,15 @@ void prediction_ev_loop() {
   spdlog::info("prediction_ev_loop() started");
   assert(pre_detection_size < gif_frame_count);
   assert(gif_frame_count <= inference_batch_size);
-  auto models =
-      load_models(settings["model"]["torch_script_serialization"].get<string>(),
-                  {"0", "1", "2"});
+  auto models = load_models(
+      settings["model"]["torch_script_serialization"].get<string>(), modelIds);
   Magick::InitializeMagick(nullptr);
   vector<vector<char>> received_jpgs(image_queue_min_len);
   vector<cv::Mat> images_mats(inference_batch_size);
 
-  const size_t interruptible_sleep_ms = 2000;
+  const size_t interruptible_sleep_ms = 1000;
   while (!ev_flag) {
-    if (prediction_interval_ms <= 2000) {
+    if (prediction_interval_ms <= interruptible_sleep_ms) {
       this_thread::sleep_for(chrono::milliseconds(prediction_interval_ms));
     } else {
       size_t slept_ms = 0;

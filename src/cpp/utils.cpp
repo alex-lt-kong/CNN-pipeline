@@ -1,3 +1,5 @@
+#define FMT_HEADER_ONLY
+
 #include <regex>
 #include <signal.h>
 #include <stdio.h>
@@ -5,7 +7,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#define FMT_HEADER_ONLY
 #include <spdlog/spdlog.h>
 
 #include "utils.h"

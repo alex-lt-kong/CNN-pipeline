@@ -7,6 +7,7 @@
 #define FMT_HEADER_ONLY
 #include <spdlog/spdlog.h>
 //#include "../dto/PageDto.hpp"
+#include "../dto/InternalStateDto.hpp"
 #include "../dto/RespDto.hpp"
 #include "../dto/StatusDto.hpp"
 #include "../dto/UserDto.hpp"
@@ -108,6 +109,26 @@ public:
     resp->success = true;
     resp->responseText = settings.dump();
     return createDtoResponse(Status::CODE_200, resp);
+  }
+
+  ENDPOINT_INFO(getInternalState) {
+    info->summary = "get the internal state of the prediction daemon";
+
+    info->addResponse<Object<InternalStateDto>>(Status::CODE_200,
+                                                "application/json");
+  }
+  ENDPOINT("GET", "getInternalState/", getInternalState) {
+    auto dto = InternalStateDto::createShared();
+    dto->predictionIntervalMs = prediction_interval_ms;
+    dto->modelIds = List<String>::createShared();
+    for (const auto &ele : modelIds) {
+      dto->modelIds->emplace_back(ele);
+    }
+    {
+      std::lock_guard<std::mutex> lock(image_queue_mtx);
+      dto->image_queue_size = image_queue.size();
+    }
+    return createDtoResponse(Status::CODE_200, dto);
   }
 };
 
