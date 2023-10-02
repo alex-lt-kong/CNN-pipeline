@@ -212,7 +212,7 @@ def get_data_loaders(data_path: str,
 
 def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
 
-    csv_path = os.path.join(curr_dir, '..', 'diagnostics', filename)
+    csv_path = os.path.join(curr_dir, '..',  '..', 'diagnostics', filename)
     if os.path.isfile(csv_path):
         df = pd.read_csv(csv_path)
     else:
@@ -466,8 +466,8 @@ def train(load_parameters: bool, model_id: str, lr: float = 0.001,
 
 
 def generate_curves(filename: str, mv_window: int = 1) -> None:
-    csv_path = os.path.join(curr_dir, '..', 'diagnostics', f'{filename}.csv')
-    img_path = os.path.join(curr_dir, '..', 'diagnostics',
+    csv_path = os.path.join(curr_dir, '..', '..', 'diagnostics', f'{filename}.csv')
+    img_path = os.path.join(curr_dir, '..', '..', 'diagnostics',
                             f'{filename}_mv{mv_window}.png')
     if os.path.isfile(csv_path) is not True:
         raise FileNotFoundError(f'{csv_path} not found')
