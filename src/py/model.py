@@ -98,15 +98,15 @@ class VGG16MinusMinus(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 64) * int(426 / 64) * 256, int(4096 / 36)),
+            nn.Linear(int(224 / 64) * int(426 / 64) * 256, int(4096 / 38)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 36), int(4096 / 36)),
+            nn.Linear(int(4096 / 38), int(4096 / 38)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 36), num_classes))
+            nn.Linear(int(4096 / 38), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.layer1(x)
@@ -490,7 +490,7 @@ def generate_curves(filename: str, mv_window: int = 1) -> None:
 def main() -> None:
 
     global config
-    with open(os.path.join(curr_dir, '..', 'config.json')) as j:
+    with open(os.path.join(curr_dir, '..', '..', 'config.json')) as j:
         config = json.load(j)
     logging.basicConfig(
         level=logging.INFO,
