@@ -1,7 +1,8 @@
 
-#ifndef UserController_hpp
-#define UserController_hpp
+#ifndef SwaggerController_hpp
+#define SwaggerController_hpp
 
+#include <math.h>
 #include <regex>
 
 #define FMT_HEADER_ONLY
@@ -120,13 +121,34 @@ public:
   ENDPOINT("GET", "getInternalState/", getInternalState) {
     auto dto = InternalStateDto::createShared();
     dto->predictionIntervalMs = prediction_interval_ms;
-    dto->modelIds = List<String>::createShared();
-    for (const auto &ele : modelIds) {
-      dto->modelIds->emplace_back(ele);
+    std::stringstream ss;
+    for (int i = 0; i < modelIds.size(); ++i) {
+      ss << modelIds[i];
+      if (i < modelIds.size() - 1) {
+        ss << ", ";
+      }
     }
+    dto->modelIds = ss.str();
     {
       std::lock_guard<std::mutex> lock(image_queue_mtx);
       dto->image_queue_size = image_queue.size();
+    }
+    auto percentiles = std::vector<double>{10, 50, 90, 95, 99, 99.99};
+    dto->inference_duration_distribution =
+        oatpp::data::mapping::type::PairList<String, Float64>::createShared();
+    {
+      std::lock_guard<std::mutex> lock(swagger_mtx);
+      pt.refreshStats();
+      dto->inference_duration_distribution->push_back(
+          std::pair<String, Float64>("sampleCount", pt.sampleCount()));
+
+      for (auto const &ele : percentiles) {
+        ss.str("");
+        ss << std::fixed << std::setprecision(2) << ele << "th";
+        dto->inference_duration_distribution->push_back(
+            std::pair<String, Float64>(
+                ss.str(), (int)round(pt.getPercentile(ele) * 100) / 100.0));
+      }
     }
     return createDtoResponse(Status::CODE_200, dto);
   }
@@ -134,4 +156,4 @@ public:
 
 #include OATPP_CODEGEN_END(ApiController) //<- End Codegen
 
-#endif /* UserController_hpp */
+#endif /* SwaggerController_hpp */

@@ -1,3 +1,4 @@
+#include <chrono>
 #define FMT_HEADER_ONLY
 
 #include <deque>
@@ -32,14 +33,15 @@ volatile sig_atomic_t ev_flag = 0;
 std::atomic<uint32_t> prediction_interval_ms = 60000;
 const vector<string> modelIds = {"0", "1", "2"};
 json settings;
-mutex image_queue_mtx, ext_program_mtx;
+mutex image_queue_mtx, ext_program_mtx, swagger_mtx;
 deque<vector<char>> image_queue;
-const ssize_t gif_frame_count = 16;
+const ssize_t gif_frame_count = 24;
 const ssize_t inference_batch_size = 32;
 const ssize_t pre_detection_size = 4;
 const ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
 const ssize_t image_queue_max_len = image_queue_min_len * 4;
+PercentileTracker<float> pt = PercentileTracker<float>(10000);
 
 void print_usage(string binary_name) {
 
@@ -144,8 +146,8 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
     frames.emplace_back(
         Magick::Blob(jpegs[base_idx + i].data(), jpegs[base_idx + i].size()));
     frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
-    frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.2),
-                                          (int)(target_img_size.height / 1.2)));
+    frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.4),
+                                          (int)(target_img_size.height / 1.4)));
   }
   string gif_path = "/tmp/detected-cpp.gif";
   spdlog::info("Saving GIF file to {}", gif_path);
@@ -186,9 +188,17 @@ infer_images(vector<torch::jit::script::Module> &models,
       torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
   output = output.to(torch::kCUDA);
   vector<at::Tensor> outputs(models.size());
+  auto start = chrono::high_resolution_clock::now();
   for (size_t i = 0; i < models.size(); ++i) {
     outputs[i] = models[i].forward(input).toTensor();
     output += outputs[i];
+  }
+  auto end = chrono::high_resolution_clock::now();
+  {
+    lock_guard<mutex> lock(swagger_mtx);
+    pt.addNumber((float)chrono::duration_cast<chrono::milliseconds>(end - start)
+                     .count() /
+                 inference_batch_size);
   }
   return make_pair(outputs, output);
 }

@@ -7,12 +7,41 @@
 
 #include <nlohmann/json.hpp>
 
+template <class T> class PercentileTracker {
+public:
+  PercentileTracker(size_t sample_size) : sample_size(sample_size) {}
+
+  void addNumber(T num) {
+    data.push_back(num);
+    if (data.size() > sample_size) {
+      data.pop_front();
+    }
+  }
+
+  void refreshStats() { std::sort(data.begin(), data.end()); }
+
+  double getPercentile(double percent) {
+    if (data.empty())
+      return -1;
+
+    int index = percent / 100.0 * data.size() - 1;
+    return data[index];
+  }
+
+  auto sampleCount() { return data.size(); }
+
+private:
+  std::deque<T> data;
+  size_t sample_size;
+};
+
 extern volatile sig_atomic_t ev_flag;
 extern nlohmann::json settings;
 extern std::atomic<uint32_t> prediction_interval_ms;
 extern const std::vector<std::string> modelIds;
-extern std::mutex image_queue_mtx, ext_program_mtx;
+extern std::mutex image_queue_mtx, ext_program_mtx, swagger_mtx;
 extern std::deque<std::vector<char>> image_queue;
+extern PercentileTracker<float> pt;
 
 static void signal_handler(int signum);
 
