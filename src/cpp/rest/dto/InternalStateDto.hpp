@@ -17,9 +17,9 @@ class InternalStateDto : public oatpp::DTO {
   DTO_FIELD(String, modelIds, "modelIds");
   DTO_FIELD(UInt32, image_queue_size, "imageQueueSize");
   DTO_FIELD_INFO(inference_duration_stats) {
-    info->description = "Percentiles of time (in us) needed to infer one image";
+    info->description = "Percentiles of time (in ms) needed to infer one image";
   }
-  DTO_FIELD(List<Fields<UInt32>>, inference_duration_stats,
+  DTO_FIELD(List<Fields<Float32>>, inference_duration_stats,
             "inferenceDurationStats");
 };
 

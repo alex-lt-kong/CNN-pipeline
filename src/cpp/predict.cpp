@@ -42,7 +42,7 @@ const ssize_t pre_detection_size = 4;
 const ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
 const ssize_t image_queue_max_len = image_queue_min_len * 4;
-std::unordered_map<uint32_t, PercentileTracker<uint32_t>> pt_dict;
+std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
 
 void print_usage(string binary_name) {
 
@@ -224,8 +224,8 @@ infer_images(vector<torch::jit::script::Module> &models,
   auto end = chrono::high_resolution_clock::now();
   {
     lock_guard<mutex> lock(swagger_mtx);
-    auto [it, success] = pt_dict.try_emplace(
-        prediction_interval_ms, PercentileTracker<uint32_t>(10000));
+    auto [it, success] = pt_dict.try_emplace(prediction_interval_ms,
+                                             PercentileTracker<float>(10000));
     pt_dict.at(prediction_interval_ms)
         .addNumber(
             (float)chrono::duration_cast<chrono::microseconds>(end - start)
