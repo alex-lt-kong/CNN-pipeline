@@ -223,8 +223,8 @@ infer_images(vector<torch::jit::script::Module> &models,
   auto end = chrono::high_resolution_clock::now();
   {
     lock_guard<mutex> lock(swagger_mtx);
-    auto [it, success] = pt_dict.try_emplace(prediction_interval_ms,
-                                             PercentileTracker<UInt32>(10000));
+    auto [it, success] = pt_dict.try_emplace(
+        prediction_interval_ms, PercentileTracker<uint32_t>(10000));
     pt_dict.at(prediction_interval_ms)
         .addNumber(
             (float)chrono::duration_cast<chrono::microseconds>(end - start)
