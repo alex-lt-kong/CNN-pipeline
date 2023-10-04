@@ -135,7 +135,7 @@ public:
     }
     auto percentiles = std::vector<double>{10, 50, 66, 90, 95, 99, 99.99};
     dto->inference_duration_stats = oatpp::data::mapping::type::List<
-        oatpp::data::mapping::type::PairList<String, Float32>>::createShared();
+        oatpp::data::mapping::type::PairList<String, Int32>>::createShared();
     {
       std::lock_guard<std::mutex> lock(swagger_mtx);
       for (const auto &pair : pt_dict) {
@@ -144,18 +144,18 @@ public:
         pt.refreshStats();
         dto->inference_duration_stats->push_back(
             oatpp::data::mapping::type::PairList<String,
-                                                 Float32>::createShared());
+                                                 Int32>::createShared());
         auto last_pt = dto->inference_duration_stats->back();
         last_pt->push_back(
-            std::pair<String, Float32>("inferenceCount", pt.sampleCount()));
+            std::pair<String, Int32>("inferenceCount", pt.sampleCount()));
         last_pt->push_back(
-            std::pair<String, Float32>("inferenceIntervalMs", interval));
+            std::pair<String, Int32>("inferenceIntervalMs", interval));
 
         for (auto const &ele : percentiles) {
           ss.str("");
           ss << std::fixed << std::setprecision(2) << ele << "th";
-          last_pt->push_back(std::pair<String, Float32>(
-              ss.str(), (int)round(pt.getPercentile(ele) * 100) / 100.0));
+          last_pt->push_back(
+              std::pair<String, Int32>(ss.str(), round(pt.getPercentile(ele))));
         }
       }
       return createDtoResponse(Status::CODE_200, dto);

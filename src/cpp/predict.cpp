@@ -228,7 +228,7 @@ infer_images(vector<torch::jit::script::Module> &models,
                                              PercentileTracker<float>(10000));
     pt_dict.at(prediction_interval_ms)
         .addNumber(
-            (float)chrono::duration_cast<chrono::microseconds>(end - start)
+            (float)chrono::duration_cast<chrono::milliseconds>(end - start)
                 .count() /
             inference_batch_size);
   }
