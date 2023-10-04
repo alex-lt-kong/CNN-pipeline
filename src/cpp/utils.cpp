@@ -1,7 +1,12 @@
 #define FMT_HEADER_ONLY
 
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
 #include <regex>
 #include <signal.h>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,4 +53,21 @@ void install_signal_handler() {
     perror("sigaction()");
     abort();
   }
+}
+
+string getCurrentDateTimeString() {
+  auto now = chrono::system_clock::now();
+  auto in_time_t = chrono::system_clock::to_time_t(now);
+
+  stringstream ss;
+  ss << put_time(localtime(&in_time_t), "%Y%m%d-%H%M%S%");
+  // Get the milliseconds
+  auto milliseconds =
+      chrono::duration_cast<chrono::milliseconds>(now.time_since_epoch())
+          .count() %
+      1000;
+
+  // Append the milliseconds to the datetime string
+  ss << '.' << setw(3) << setfill('0') << milliseconds;
+  return ss.str();
 }

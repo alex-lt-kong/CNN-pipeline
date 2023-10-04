@@ -41,10 +41,12 @@ extern std::atomic<uint32_t> prediction_interval_ms;
 extern const std::vector<std::string> modelIds;
 extern std::mutex image_queue_mtx, ext_program_mtx, swagger_mtx;
 extern std::deque<std::vector<char>> image_queue;
-extern PercentileTracker<float> pt;
+extern std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
 
 static void signal_handler(int signum);
 
 void install_signal_handler();
+
+std::string getCurrentDateTimeString();
 
 #endif /* UTILS_H */

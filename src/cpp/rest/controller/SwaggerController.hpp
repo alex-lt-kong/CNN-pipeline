@@ -133,24 +133,33 @@ public:
       std::lock_guard<std::mutex> lock(image_queue_mtx);
       dto->image_queue_size = image_queue.size();
     }
-    auto percentiles = std::vector<double>{10, 50, 90, 95, 99, 99.99};
-    dto->inference_duration_distribution =
-        oatpp::data::mapping::type::PairList<String, Float64>::createShared();
+    auto percentiles = std::vector<double>{10, 50, 66, 90, 95, 99, 99.99};
+    dto->inference_duration_stats = oatpp::data::mapping::type::List<
+        oatpp::data::mapping::type::PairList<String, Float64>>::createShared();
     {
       std::lock_guard<std::mutex> lock(swagger_mtx);
-      pt.refreshStats();
-      dto->inference_duration_distribution->push_back(
-          std::pair<String, Float64>("sampleCount", pt.sampleCount()));
+      for (const auto &pair : pt_dict) {
+        auto interval = pair.first;
+        auto pt = pair.second;
+        pt.refreshStats();
+        dto->inference_duration_stats->push_back(
+            oatpp::data::mapping::type::PairList<String,
+                                                 Float64>::createShared());
+        auto last_pt = dto->inference_duration_stats->back();
+        last_pt->push_back(
+            std::pair<String, Float64>("inferenceCount", pt.sampleCount()));
+        last_pt->push_back(
+            std::pair<String, Float64>("inferenceIntervalMs", interval));
 
-      for (auto const &ele : percentiles) {
-        ss.str("");
-        ss << std::fixed << std::setprecision(2) << ele << "th";
-        dto->inference_duration_distribution->push_back(
-            std::pair<String, Float64>(
-                ss.str(), (int)round(pt.getPercentile(ele) * 100) / 100.0));
+        for (auto const &ele : percentiles) {
+          ss.str("");
+          ss << std::fixed << std::setprecision(2) << ele << "th";
+          last_pt->push_back(std::pair<String, Float64>(
+              ss.str(), (int)round(pt.getPercentile(ele) * 100) / 100.0));
+        }
       }
+      return createDtoResponse(Status::CODE_200, dto);
     }
-    return createDtoResponse(Status::CODE_200, dto);
   }
 };
 

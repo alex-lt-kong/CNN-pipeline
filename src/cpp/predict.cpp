@@ -1,4 +1,5 @@
 #include <chrono>
+#include <unordered_map>
 #define FMT_HEADER_ONLY
 
 #include <deque>
@@ -35,13 +36,13 @@ const vector<string> modelIds = {"0", "1", "2"};
 json settings;
 mutex image_queue_mtx, ext_program_mtx, swagger_mtx;
 deque<vector<char>> image_queue;
-const ssize_t gif_frame_count = 24;
-const ssize_t inference_batch_size = 32;
+const ssize_t gif_frame_count = 32;
+const ssize_t inference_batch_size = 36;
 const ssize_t pre_detection_size = 4;
 const ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
 const ssize_t image_queue_max_len = image_queue_min_len * 4;
-PercentileTracker<float> pt = PercentileTracker<float>(10000);
+std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
 
 void print_usage(string binary_name) {
 
@@ -87,10 +88,23 @@ void zeromq_ev_loop() {
   subscriber.connect(settings["prediction"]["zeromq_address"].get<string>());
   spdlog::info("ZeroMQ client connected to {}",
                settings["prediction"]["zeromq_address"].get<string>());
+  int timeout = 5000;
+  subscriber.setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   while (!ev_flag) {
     zmq::message_t message;
-    subscriber.recv(&message);
+    try {
+      subscriber.recv(&message);
+    } catch (const zmq::error_t &e) {
+      if (e.num() == EAGAIN) {
+        spdlog::warn("subscriber.recv() timed out, will retry");
+        continue;
+      } else {
+        spdlog::error("subscriber.recv() throws unknown exception: {}",
+                      e.what());
+        continue;
+      }
+    }
     auto t = vector<char>(message.size());
     if (message.size() == 0) {
       spdlog::warn("ZeroMQ received empty message");
@@ -108,6 +122,22 @@ void zeromq_ev_loop() {
   subscriber.close();
   spdlog::info("ZeroMQ connection closed");
   spdlog::info("zeromq_ev_loop() exited gracefully");
+}
+
+void execute_external_program() {
+  auto f = [](string cmd) {
+    if (ext_program_mtx.try_lock()) {
+      spdlog::info("Calling external program: {}", cmd);
+      system(cmd.c_str());
+      ext_program_mtx.unlock();
+    } else {
+      spdlog::warn("ext_program_mtx is locked already, meaning that another {} "
+                   "instance is already running",
+                   cmd);
+    }
+  };
+  thread th_exec(f, settings["prediction"]["on_detected_cpp"].get<string>());
+  th_exec.detach();
 }
 
 void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
@@ -134,38 +164,35 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
   spdlog::info("Raw results are:\n{}", oss_raw_result.str());
   spdlog::info("and arithmetic average of raw results is:\n{}",
                oss_avg_result.str());
-  spdlog::info("Preparing GIF data");
+  spdlog::info("Preparing JPG and GIF data");
   vector<Magick::Image> frames;
   const auto base_idx = nonzero_y_preds_idx[0].item<int>() + pre_detection_size;
   for (int i = pre_detection_size * -1;
        i < gif_frame_count - pre_detection_size; ++i) {
-    if (jpegs[base_idx + i].size() == 0) {
-      spdlog::warn("received_jpgs[{}].size() == 0", base_idx + i);
+    int real_idx = base_idx + i;
+    if (jpegs[real_idx].size() == 0) {
+      spdlog::warn("received_jpgs[{}].size() == 0", real_idx);
       continue;
     }
     frames.emplace_back(
-        Magick::Blob(jpegs[base_idx + i].data(), jpegs[base_idx + i].size()));
+        Magick::Blob(jpegs[real_idx].data(), jpegs[real_idx].size()));
     frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
     frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.4),
                                           (int)(target_img_size.height / 1.4)));
+    filesystem::path jpg_path = "/tmp";
+    jpg_path = jpg_path / ("predict_" + getCurrentDateTimeString() + ".jpg");
+    ofstream outFile(jpg_path, ios::binary);
+    if (!outFile) {
+      spdlog::error("Failed to open the file: {}", jpg_path.native());
+    } else {
+      outFile.write(jpegs[real_idx].data(), jpegs[real_idx].size());
+      outFile.close();
+    }
   }
   string gif_path = "/tmp/detected-cpp.gif";
   spdlog::info("Saving GIF file to {}", gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);
-
-  auto f = [](string cmd) {
-    if (ext_program_mtx.try_lock()) {
-      spdlog::info("Calling external program: {}", cmd);
-      system(cmd.c_str());
-      ext_program_mtx.unlock();
-    } else {
-      spdlog::warn("ext_program_mtx is locked already, meaning that another {} "
-                   "instance is already running",
-                   cmd);
-    }
-  };
-  thread th_exec(f, settings["prediction"]["on_detected_cpp"].get<string>());
-  th_exec.detach();
+  execute_external_program();
 }
 
 pair<vector<at::Tensor>, at::Tensor>
@@ -196,9 +223,13 @@ infer_images(vector<torch::jit::script::Module> &models,
   auto end = chrono::high_resolution_clock::now();
   {
     lock_guard<mutex> lock(swagger_mtx);
-    pt.addNumber((float)chrono::duration_cast<chrono::milliseconds>(end - start)
-                     .count() /
-                 inference_batch_size);
+    auto [it, success] = pt_dict.try_emplace(prediction_interval_ms,
+                                             PercentileTracker<float>(10000));
+    pt_dict.at(prediction_interval_ms)
+        .addNumber(
+            (float)chrono::duration_cast<chrono::microseconds>(end - start)
+                .count() /
+            inference_batch_size);
   }
   return make_pair(outputs, output);
 }
