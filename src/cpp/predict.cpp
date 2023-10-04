@@ -198,6 +198,7 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
 pair<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
              const vector<vector<char>> &jpegs) {
+  auto start = chrono::high_resolution_clock::now();
   vector<torch::Tensor> images_tensors_vec(inference_batch_size);
   torch::Tensor images_tensor;
   vector<torch::jit::IValue> input(1);
@@ -215,7 +216,7 @@ infer_images(vector<torch::jit::script::Module> &models,
       torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
   output = output.to(torch::kCUDA);
   vector<at::Tensor> outputs(models.size());
-  auto start = chrono::high_resolution_clock::now();
+
   for (size_t i = 0; i < models.size(); ++i) {
     outputs[i] = models[i].forward(input).toTensor();
     output += outputs[i];
