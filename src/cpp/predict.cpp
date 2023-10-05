@@ -36,12 +36,12 @@ const vector<string> modelIds = {"0", "1", "2"};
 json settings;
 mutex image_queue_mtx, ext_program_mtx, swagger_mtx;
 deque<vector<char>> image_queue;
-const ssize_t gif_frame_count = 48;
-const ssize_t inference_batch_size = 64;
-const ssize_t pre_detection_size = 4;
-const ssize_t image_queue_min_len =
+constexpr ssize_t gif_frame_count = 36;
+constexpr ssize_t inference_batch_size = 24;
+constexpr ssize_t pre_detection_size = 4;
+constexpr ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
-const ssize_t image_queue_max_len = image_queue_min_len * 4;
+constexpr ssize_t image_queue_max_len = image_queue_min_len * 4;
 std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
 
 void print_usage(string binary_name) {
@@ -85,9 +85,10 @@ void zeromq_ev_loop() {
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
-  subscriber.connect(settings["inference"]["zeromq_address"].get<string>());
-  spdlog::info("ZeroMQ client connected to {}",
-               settings["inference"]["zeromq_address"].get<string>());
+  string zmq_address = settings.value("/inference/zeromq_address"_json_pointer,
+                                      "tcp://127.0.0.1:4240");
+  subscriber.connect(zmq_address);
+  spdlog::info("ZeroMQ client connected to {}", zmq_address);
   int timeout = 5000;
   subscriber.setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
@@ -100,8 +101,7 @@ void zeromq_ev_loop() {
         spdlog::warn("subscriber.recv() timed out, will retry");
         continue;
       } else {
-        spdlog::error("subscriber.recv() throws unknown exception: {}",
-                      e.what());
+        spdlog::error("subscriber.recv() throws exception: {}", e.what());
         continue;
       }
     }
@@ -124,7 +124,7 @@ void zeromq_ev_loop() {
   spdlog::info("zeromq_ev_loop() exited gracefully");
 }
 
-void execute_external_program() {
+void execute_external_program_async() {
   auto f = [](string cmd) {
     if (ext_program_mtx.try_lock()) {
       spdlog::info("Calling external program: {}", cmd);
@@ -165,37 +165,50 @@ bool handle_inference_results(vector<at::Tensor> &outputs, at::Tensor &output,
   spdlog::info("Raw results are:\n{}", oss_raw_result.str());
   spdlog::info("and arithmetic average of raw results is:\n{}",
                oss_avg_result.str());
-  spdlog::info("Preparing JPG and GIF data");
+  spdlog::info("Build GIF animation");
   vector<Magick::Image> frames;
-  const auto base_idx = nonzero_y_preds_idx[0].item<int>() + pre_detection_size;
-  for (int i = pre_detection_size * -1;
-       i < gif_frame_count - pre_detection_size; ++i) {
-    int real_idx = base_idx + i;
-    if (jpegs[real_idx].size() == 0) {
-      spdlog::warn("received_jpgs[{}].size() == 0", real_idx);
-      continue;
-    }
+  spdlog::info("jpegs[{}: {}] of {} images will be used to build the GIF "
+               "animation",
+               nonzero_y_preds_idx[0].item<int>(),
+               nonzero_y_preds_idx[0].item<int>() + gif_frame_count,
+               jpegs.size());
+  // nonzero_y_preds_idx[0] stores the first non-zero item index in y_pred.
+  // Note that y_pred[0] is NOT the result of jpegs[0], but
+  // jpegs[pre_detection_size]
+  for (int i = 0; i < gif_frame_count; ++i) {
+    // One needs to think for a while to understand the offset between jpegs_idx
+    // and y_pred's index--their gap is exactly inference_batch_size, which is
+    // implied in the line:
+    // cv::imdecode(jpegs[pre_detection_size + i], cv::IMREAD_COLOR));
+    auto jpegs_idx = nonzero_y_preds_idx[0].item<int>() + i;
+    assert(jpegs_idx < jpegs.size());
     frames.emplace_back(
-        Magick::Blob(jpegs[real_idx].data(), jpegs[real_idx].size()));
+        Magick::Blob(jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size()));
     frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
     frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.4),
                                           (int)(target_img_size.height / 1.4)));
-    filesystem::path jpg_path =
-        settings["inference"]["on_detected"]["jpegs_directory"].get<string>();
-    jpg_path = jpg_path / (getCurrentDateTimeString() + ".jpg");
+  }
+  string gif_path = settings.value(
+      "/inference/on_detected/gif_path"_json_pointer, "/tmp/detected.gif");
+  spdlog::info("Saving GIF file to [{}]", gif_path);
+  Magick::writeImages(frames.begin(), frames.end(), gif_path);
+  execute_external_program_async();
+  filesystem::path jpg_dir = settings.value(
+      "/inference/on_detected/jpegs_directory"_json_pointer, "/");
+  spdlog::info("Saving positive images as JPEG files to [{}]",
+               jpg_dir.native());
+  for (int i = 0; i < nonzero_y_preds_idx.sizes()[0]; ++i) {
+    auto jpegs_idx = nonzero_y_preds_idx[i].item<int>() + pre_detection_size;
+    assert(jpegs_idx < jpegs.size());
+    filesystem::path jpg_path = jpg_dir / (getCurrentDateTimeString() + ".jpg");
     ofstream outFile(jpg_path, ios::binary);
     if (!outFile) {
       spdlog::error("Failed to open the file [{}]", jpg_path.native());
     } else {
-      outFile.write(jpegs[real_idx].data(), jpegs[real_idx].size());
+      outFile.write(jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size());
       outFile.close();
     }
   }
-  string gif_path =
-      settings["inference"]["on_detected"]["gif_path"].get<string>();
-  spdlog::info("Saving GIF file to [{}]", gif_path);
-  Magick::writeImages(frames.begin(), frames.end(), gif_path);
-  execute_external_program();
   return true;
 }
 
@@ -254,8 +267,10 @@ void interruptible_sleep(const size_t sleep_ms) {
 
 void inference_ev_loop() {
   spdlog::info("inference_ev_loop() started");
+  // Otherwise we won't have any images of detected object in the GIF
   assert(pre_detection_size < gif_frame_count);
-  assert(gif_frame_count <= inference_batch_size);
+  assert(gif_frame_count > 0);
+  assert(inference_batch_size > 0);
   auto models = load_models(
       settings["model"]["torch_script_serialization"].get<string>(), modelIds);
   Magick::InitializeMagick(nullptr);
