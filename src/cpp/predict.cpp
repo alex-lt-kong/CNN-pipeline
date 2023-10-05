@@ -282,7 +282,8 @@ void inference_ev_loop() {
     auto rv = infer_images(models, received_jpgs);
     if (handle_inference_results(rv.first, rv.second, received_jpgs)) {
       const size_t cooldown_ms =
-          settings["inference"]["on_detected"]["cooldown_sec"].get<size_t>() *
+          settings.value("/inference/on_detected/cooldown_sec"_json_pointer,
+                         120) *
           1000;
       spdlog::info("inference_ev_loop() will sleep for {}ms after detection",
                    cooldown_ms);
@@ -303,11 +304,12 @@ int main(int argc, char **argv) {
   settings = json::parse(f);
   spdlog::info("{}", settings.dump(2));
   initialize_rest_api(
-      settings["inference"]["swagger"]["host"].get<string>(),
-      settings["inference"]["swagger"]["port"].get<int>(),
-      settings["inference"]["swagger"]["advertised_host"].get<string>());
+      settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
+      settings.value("/inference/swagger/port"_json_pointer, 8000),
+      settings.value("/inference/swagger/advertised_host"_json_pointer,
+                     "http://127.0.0.1:8000"), );
   inference_interval_ms =
-      settings["inference"]["initial_inference_interval_ms"].get<int>();
+      settings.value("/inference/initial_interval_ms"_json_pointer, 60000);
   thread thread_zeromq(zeromq_ev_loop);
   thread thread_inference(inference_ev_loop);
   if (thread_zeromq.joinable()) {
