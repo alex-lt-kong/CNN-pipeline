@@ -136,7 +136,9 @@ void execute_external_program() {
                    cmd);
     }
   };
-  thread th_exec(f, settings["prediction"]["on_detected_cpp"].get<string>());
+  thread th_exec(f,
+                 settings["prediction"]["on_detected"]["external_program_cpp"]
+                     .get<string>());
   th_exec.detach();
 }
 
@@ -179,18 +181,20 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
     frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
     frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.4),
                                           (int)(target_img_size.height / 1.4)));
-    filesystem::path jpg_path = "/tmp";
-    jpg_path = jpg_path / ("predict_" + getCurrentDateTimeString() + ".jpg");
+    filesystem::path jpg_path =
+        settings["prediction"]["on_detected"]["jpegs_directory"].get<string>();
+    jpg_path = jpg_path / (getCurrentDateTimeString() + ".jpg");
     ofstream outFile(jpg_path, ios::binary);
     if (!outFile) {
-      spdlog::error("Failed to open the file: {}", jpg_path.native());
+      spdlog::error("Failed to open the file [{}]", jpg_path.native());
     } else {
       outFile.write(jpegs[real_idx].data(), jpegs[real_idx].size());
       outFile.close();
     }
   }
-  string gif_path = "/tmp/detected-cpp.gif";
-  spdlog::info("Saving GIF file to {}", gif_path);
+  string gif_path =
+      settings["prediction"]["on_detected"]["gif_path"].get<string>();
+  spdlog::info("Saving GIF file to [{}]", gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);
   execute_external_program();
 }

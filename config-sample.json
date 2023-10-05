@@ -24,8 +24,15 @@
   },
   "prediction": {
     "on_detected": [
-      "echo",
-      "detected"
-    ]
+      "/home/user/bin/on-detected.py"
+    ],
+    "on_detected_cpp": "/home/user/bin/on-detected-cpp.py",
+    "initial_prediction_interval_ms": 60000,
+    "zeromq_address": "tcp://127.0.0.1:4241",
+    "swagger": {
+      "host": "127.0.0.1",
+      "port": 8000,
+      "advertised_host": "http://localhost:8000/"
+    }
   }
 }

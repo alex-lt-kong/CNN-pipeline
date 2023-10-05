@@ -280,7 +280,7 @@ def prediction_thread() -> None:
                 f'Calling program [{settings["prediction"]["on_detected"]}]...'
             )
             result = subprocess.run(
-                settings['prediction']['on_detected'],
+                settings['prediction']['on_detected']['external_program_py'],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             logging.info(f'stdout: {result.stdout}')
