@@ -27,7 +27,7 @@ import time
 
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
-device = helper.get_cuda_device()
+device: torch.device
 config: Dict[str, Any]
 
 
@@ -352,8 +352,6 @@ def save_transformed_samples(dataloader: DataLoader,
 def train(load_parameters: bool, model_id: str, lr: float = 0.001,
           epochs: int = 10) -> nn.Module:
 
-    logging.info(f'Training using {device}')
-
     num_classes = 2
     v16mm = VGG16MinusMinus(num_classes)
     v16mm.to(device)
@@ -489,7 +487,7 @@ def generate_curves(filename: str, mv_window: int = 1) -> None:
 
 def main() -> None:
 
-    global config
+    global config, device
     with open(os.path.join(curr_dir, '..', '..', 'config.json')) as j:
         config = json.load(j)
     logging.basicConfig(
@@ -506,7 +504,15 @@ def main() -> None:
                     help='Specify a learning rate')
     ap.add_argument('--epochs', '-e', dest='epochs')
     ap.add_argument('--model-id', '-i', dest='model-id', required=True)
+    ap.add_argument('--cuda-device-id', '-d', dest='cuda-device-id',
+                    default='0', required=True)
     args = vars(ap.parse_args())
+
+    device = helper.get_cuda_device(int(args['cuda-device-id']))
+    properties = torch.cuda.get_device_properties(device)
+    logging.info(f"GPU Model: {properties.name}")
+    logging.info(f"GPU Memory: {properties.total_memory / 1024**3:.2f} GB")
+    logging.info(f"GPU CUDA semantics: {device}")
 
     try:
         lr = float(args['learning_rate'])

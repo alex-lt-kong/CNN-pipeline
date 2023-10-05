@@ -46,12 +46,12 @@ split_ratio = 0.9
 #random_seed = int(time.time())
 random_seed = 16888
 
-input_directory = "/mnt/models/vgg16-based-pipeline/data/raw/0/"
-output_directory_1 = "/mnt/models/vgg16-based-pipeline/data/training/0/"
-output_directory_2 = "/mnt/models/vgg16-based-pipeline/data/validation/0/"
+input_directory = "/mnt/models/VGGNET-based-CNN-pipeline/data/raw/0/"
+output_directory_1 = "/mnt/models/VGGNET-based-CNN-pipeline/data/training/0/"
+output_directory_2 = "/mnt/models/VGGNET-based-CNN-pipeline/data/validation/0/"
 split_files(input_directory, output_directory_1, output_directory_2, split_ratio, random_seed)
 
-input_directory = "/mnt/models/vgg16-based-pipeline/data/raw/1/"
-output_directory_1 = "/mnt/models/vgg16-based-pipeline/data/training/1/"
-output_directory_2 = "/mnt/models/vgg16-based-pipeline/data/validation/1/"
+input_directory = "/mnt/models/VGGNET-based-CNN-pipeline/data/raw/1/"
+output_directory_1 = "/mnt/models/VGGNET-based-CNN-pipeline/data/training/1/"
+output_directory_2 = "/mnt/models/VGGNET-based-CNN-pipeline/data/validation/1/"
 split_files(input_directory, output_directory_1, output_directory_2, split_ratio, random_seed)
