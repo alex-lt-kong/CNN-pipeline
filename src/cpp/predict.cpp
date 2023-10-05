@@ -287,7 +287,7 @@ void inference_ev_loop() {
           1000;
       spdlog::info("inference_ev_loop() will sleep for {}ms after detection",
                    cooldown_ms);
-      interruptible_sleep();
+      interruptible_sleep(cooldown_ms);
     }
   }
   spdlog::info("inference_ev_loop() exited gracefully");
