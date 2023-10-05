@@ -1,6 +1,7 @@
 from PIL import Image
 from typing import Tuple
 
+import argparse
 import os
 
 
@@ -24,8 +25,15 @@ def resize_images(src_dir: str, dst_dir: str, dst_size: Tuple[int, int]) -> None
             print(f'Resized [{filename}] and saved to [{output_path}]')
 
 
-src_dir = '/mnt/models/vgg16-based-pipeline/data/input/1_src/'
-dst_dir = '/mnt/models/vgg16-based-pipeline/data/input/1/'
-size = (426, 224)  # size in in (w, h)
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--source-dir', '-s', dest='source-dir', required=True)
+    ap.add_argument('--dest-dir', '-d', dest='dest-dir', required=True)
+    args = vars(ap.parse_args())
+    size = (426, 224)  # size in in (w, h)
 
-resize_images(src_dir, dst_dir, size)
+    resize_images(args['source-dir'], args['dest-dir'], size)
+
+
+if __name__ == '__main__':
+    main()
