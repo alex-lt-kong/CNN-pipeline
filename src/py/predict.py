@@ -277,10 +277,10 @@ def prediction_thread() -> None:
                 image_queue.pop(0)
             image_queue_mutex.release()
             logging.info(
-                f'Calling program [{settings["prediction"]["on_detected"]}]...'
+                f'Calling program [{settings["inference"]["on_detected"]}]...'
             )
             result = subprocess.run(
-                settings['prediction']['on_detected']['external_program_py'],
+                settings['inference']['on_detected']['external_program_py'],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             logging.info(f'stdout: {result.stdout}')

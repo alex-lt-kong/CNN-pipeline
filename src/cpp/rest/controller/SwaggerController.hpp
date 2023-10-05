@@ -89,9 +89,9 @@ public:
 
       std::string msg =
           "predictionInterval changed from " +
-          to_string(prediction_interval_ms) + " to " +
+          to_string(inference_interval_ms) + " to " +
           oatpp::utils::conversion::uint32ToStr(predictionIntervalMs);
-      prediction_interval_ms = predictionIntervalMs;
+      inference_interval_ms = predictionIntervalMs;
       spdlog::info(msg);
       resp->success = true;
       resp->responseText = msg;
@@ -120,7 +120,7 @@ public:
   }
   ENDPOINT("GET", "getInternalState/", getInternalState) {
     auto dto = InternalStateDto::createShared();
-    dto->predictionIntervalMs = prediction_interval_ms;
+    dto->predictionIntervalMs = inference_interval_ms;
     std::stringstream ss;
     for (int i = 0; i < modelIds.size(); ++i) {
       ss << modelIds[i];

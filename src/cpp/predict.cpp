@@ -31,13 +31,13 @@ using namespace std;
 using json = nlohmann::json;
 
 volatile sig_atomic_t ev_flag = 0;
-std::atomic<uint32_t> prediction_interval_ms = 60000;
+std::atomic<uint32_t> inference_interval_ms = 60000;
 const vector<string> modelIds = {"0", "1", "2"};
 json settings;
 mutex image_queue_mtx, ext_program_mtx, swagger_mtx;
 deque<vector<char>> image_queue;
-const ssize_t gif_frame_count = 32;
-const ssize_t inference_batch_size = 36;
+const ssize_t gif_frame_count = 48;
+const ssize_t inference_batch_size = 64;
 const ssize_t pre_detection_size = 4;
 const ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
@@ -85,9 +85,9 @@ void zeromq_ev_loop() {
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
-  subscriber.connect(settings["prediction"]["zeromq_address"].get<string>());
+  subscriber.connect(settings["inference"]["zeromq_address"].get<string>());
   spdlog::info("ZeroMQ client connected to {}",
-               settings["prediction"]["zeromq_address"].get<string>());
+               settings["inference"]["zeromq_address"].get<string>());
   int timeout = 5000;
   subscriber.setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
@@ -136,14 +136,13 @@ void execute_external_program() {
                    cmd);
     }
   };
-  thread th_exec(f,
-                 settings["prediction"]["on_detected"]["external_program_cpp"]
-                     .get<string>());
+  thread th_exec(f, settings["inference"]["on_detected"]["external_program_cpp"]
+                        .get<string>());
   th_exec.detach();
 }
 
-void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
-                         const vector<vector<char>> &jpegs) {
+bool handle_inference_results(vector<at::Tensor> &outputs, at::Tensor &output,
+                              const vector<vector<char>> &jpegs) {
   ostringstream oss_raw_result, oss_avg_result;
 
   for (size_t i = 0; i < outputs.size(); ++i) {
@@ -154,7 +153,7 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
 
   auto nonzero_y_preds_idx = torch::nonzero(y_pred);
   if (nonzero_y_preds_idx.sizes()[0] == 0) {
-    return;
+    return false;
   }
   spdlog::warn("Target detected at {}-th frame in a batch of {} frames",
                nonzero_y_preds_idx[0].item<int>(), inference_batch_size, 0);
@@ -182,7 +181,7 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
     frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.4),
                                           (int)(target_img_size.height / 1.4)));
     filesystem::path jpg_path =
-        settings["prediction"]["on_detected"]["jpegs_directory"].get<string>();
+        settings["inference"]["on_detected"]["jpegs_directory"].get<string>();
     jpg_path = jpg_path / (getCurrentDateTimeString() + ".jpg");
     ofstream outFile(jpg_path, ios::binary);
     if (!outFile) {
@@ -193,10 +192,11 @@ void handle_pred_results(vector<at::Tensor> &outputs, at::Tensor &output,
     }
   }
   string gif_path =
-      settings["prediction"]["on_detected"]["gif_path"].get<string>();
+      settings["inference"]["on_detected"]["gif_path"].get<string>();
   spdlog::info("Saving GIF file to [{}]", gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);
   execute_external_program();
+  return true;
 }
 
 pair<vector<at::Tensor>, at::Tensor>
@@ -228,9 +228,9 @@ infer_images(vector<torch::jit::script::Module> &models,
   auto end = chrono::high_resolution_clock::now();
   {
     lock_guard<mutex> lock(swagger_mtx);
-    auto [it, success] = pt_dict.try_emplace(prediction_interval_ms,
+    auto [it, success] = pt_dict.try_emplace(inference_interval_ms,
                                              PercentileTracker<float>(10000));
-    pt_dict.at(prediction_interval_ms)
+    pt_dict.at(inference_interval_ms)
         .addNumber(
             (float)chrono::duration_cast<chrono::milliseconds>(end - start)
                 .count() /
@@ -239,8 +239,21 @@ infer_images(vector<torch::jit::script::Module> &models,
   return make_pair(outputs, output);
 }
 
-void prediction_ev_loop() {
-  spdlog::info("prediction_ev_loop() started");
+void interruptible_sleep(const size_t sleep_ms) {
+  const size_t interruptible_sleep_ms = 1000;
+  if (sleep_ms <= interruptible_sleep_ms) {
+    this_thread::sleep_for(chrono::milliseconds(sleep_ms));
+  } else {
+    size_t slept_ms = 0;
+    while (slept_ms < sleep_ms && !ev_flag) {
+      slept_ms += interruptible_sleep_ms;
+      this_thread::sleep_for(chrono::milliseconds(interruptible_sleep_ms));
+    }
+  }
+}
+
+void inference_ev_loop() {
+  spdlog::info("inference_ev_loop() started");
   assert(pre_detection_size < gif_frame_count);
   assert(gif_frame_count <= inference_batch_size);
   auto models = load_models(
@@ -249,18 +262,8 @@ void prediction_ev_loop() {
   vector<vector<char>> received_jpgs(image_queue_min_len);
   vector<cv::Mat> images_mats(inference_batch_size);
 
-  const size_t interruptible_sleep_ms = 1000;
   while (!ev_flag) {
-    if (prediction_interval_ms <= interruptible_sleep_ms) {
-      this_thread::sleep_for(chrono::milliseconds(prediction_interval_ms));
-    } else {
-      size_t slept_ms = 0;
-      while (slept_ms < prediction_interval_ms && !ev_flag) {
-        slept_ms += interruptible_sleep_ms;
-        this_thread::sleep_for(chrono::milliseconds(interruptible_sleep_ms));
-      }
-    }
-
+    interruptible_sleep(inference_interval_ms);
     {
       lock_guard<mutex> lock(image_queue_mtx);
       if (image_queue.size() < image_queue_min_len) {
@@ -277,9 +280,16 @@ void prediction_ev_loop() {
       }
     }
     auto rv = infer_images(models, received_jpgs);
-    handle_pred_results(rv.first, rv.second, received_jpgs);
+    if (handle_inference_results(rv.first, rv.second, received_jpgs)) {
+      const size_t cooldown_ms =
+          settings["inference"]["on_detected"]["cooldown_sec"].get<size_t>() *
+          1000;
+      spdlog::info("inference_ev_loop() will sleep for {}ms after detection",
+                   cooldown_ms);
+      interruptible_sleep();
+    }
   }
-  spdlog::info("prediction_ev_loop() exited gracefully");
+  spdlog::info("inference_ev_loop() exited gracefully");
 }
 
 int main(int argc, char **argv) {
@@ -293,18 +303,18 @@ int main(int argc, char **argv) {
   settings = json::parse(f);
   spdlog::info("{}", settings.dump(2));
   initialize_rest_api(
-      settings["prediction"]["swagger"]["host"].get<string>(),
-      settings["prediction"]["swagger"]["port"].get<int>(),
-      settings["prediction"]["swagger"]["advertised_host"].get<string>());
-  prediction_interval_ms =
-      settings["prediction"]["initial_prediction_interval_ms"].get<int>();
+      settings["inference"]["swagger"]["host"].get<string>(),
+      settings["inference"]["swagger"]["port"].get<int>(),
+      settings["inference"]["swagger"]["advertised_host"].get<string>());
+  inference_interval_ms =
+      settings["inference"]["initial_inference_interval_ms"].get<int>();
   thread thread_zeromq(zeromq_ev_loop);
-  thread thread_prediction(prediction_ev_loop);
+  thread thread_inference(inference_ev_loop);
   if (thread_zeromq.joinable()) {
     thread_zeromq.join();
   }
-  if (thread_prediction.joinable()) {
-    thread_prediction.join();
+  if (thread_inference.joinable()) {
+    thread_inference.join();
   }
   finalize_rest_api();
   spdlog::info("Predict daemon exiting");
