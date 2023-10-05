@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
       settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
       settings.value("/inference/swagger/port"_json_pointer, 8000),
       settings.value("/inference/swagger/advertised_host"_json_pointer,
-                     "http://127.0.0.1:8000"), );
+                     "http://127.0.0.1:8000");
   inference_interval_ms =
       settings.value("/inference/initial_interval_ms"_json_pointer, 60000);
   thread thread_zeromq(zeromq_ev_loop);
