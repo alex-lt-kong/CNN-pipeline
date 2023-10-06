@@ -288,10 +288,10 @@ void inference_ev_loop() {
         continue;
       }
       for (int i = 0; i < image_queue_min_len; ++i) {
-        received_jpgs[i] = image_queue.front();
-        if (i < inference_batch_size) {
-          image_queue.pop_front();
-        }
+        received_jpgs[i] = image_queue[i];
+      }
+      for (int i = 0; i < inference_batch_size; ++i) {
+        image_queue.pop_front();
       }
     }
     auto rv = infer_images(models, received_jpgs);
