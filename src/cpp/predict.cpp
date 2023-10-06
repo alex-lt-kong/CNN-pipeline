@@ -176,25 +176,32 @@ bool handle_inference_results(vector<at::Tensor> &outputs, at::Tensor &output,
                nonzero_y_preds_idx[0].item<int>(),
                nonzero_y_preds_idx[0].item<int>() + gif_frame_count,
                jpegs.size());
-  // nonzero_y_preds_idx[0] stores the first non-zero item index in y_pred.
-  // Note that y_pred[0] is NOT the result of jpegs[0], but
-  // jpegs[pre_detection_size]
+  auto gif_width =
+      settings.value("/inference/on_detected/gif_size/width"_json_pointer,
+                     target_img_size.width);
+  auto gif_height =
+      settings.value("/inference/on_detected/gif_size/height"_json_pointer,
+                     target_img_size.height);
+  // nonzero_y_preds_idx[0] stores the first non-zero item
+  // index in y_pred. Note that y_pred[0] is NOT the result
+  // of jpegs[0], but jpegs[pre_detection_size]
   for (int i = 0; i < gif_frame_count; ++i) {
-    // One needs to think for a while to understand the offset between jpegs_idx
-    // and y_pred's index--their gap is exactly inference_batch_size, which is
-    // implied in the line:
-    // cv::imdecode(jpegs[pre_detection_size + i], cv::IMREAD_COLOR));
+    // One needs to think for a while to understand the
+    // offset between jpegs_idx and y_pred's index--their gap
+    // is exactly inference_batch_size, which is implied in
+    // the line: cv::imdecode(jpegs[pre_detection_size + i],
+    // cv::IMREAD_COLOR));
     auto jpegs_idx = nonzero_y_preds_idx[0].item<int>() + i;
     assert(jpegs_idx < jpegs.size());
     frames.emplace_back(
         Magick::Blob(jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size()));
     frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
-    frames.back().resize(Magick::Geometry((int)(target_img_size.width / 1.4),
-                                          (int)(target_img_size.height / 1.4)));
+    frames.back().resize(Magick::Geometry(gif_width, gif_height));
   }
   string gif_path = settings.value(
       "/inference/on_detected/gif_path"_json_pointer, "/tmp/detected.gif");
-  spdlog::info("Saving GIF file to [{}]", gif_path);
+  spdlog::info("Saving GIF file (size: {}x{}) to [{}]", gif_width, gif_height,
+               gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);
   execute_external_program_async();
   filesystem::path jpg_dir = settings.value(
