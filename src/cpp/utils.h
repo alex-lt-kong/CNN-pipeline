@@ -6,6 +6,7 @@
 #include <signal.h>
 
 #include <nlohmann/json.hpp>
+#include <torch/script.h> // One-stop header.
 
 template <class T> class PercentileTracker {
 public:
@@ -38,10 +39,12 @@ private:
 extern volatile sig_atomic_t ev_flag;
 extern nlohmann::json settings;
 extern std::atomic<uint32_t> inference_interval_ms;
-extern std::vector<std::string> modelIds;
-extern std::mutex image_queue_mtx, ext_program_mtx, swagger_mtx, models_mtx;
+extern std::vector<std::string> model_ids;
+extern std::mutex image_queue_mtx, ext_program_mtx, swagger_mtx, models_mtx,
+    model_ids_mtx;
 extern std::deque<std::vector<char>> image_queue;
 extern std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
+extern std::vector<torch::jit::script::Module> models;
 
 static void signal_handler(int signum);
 

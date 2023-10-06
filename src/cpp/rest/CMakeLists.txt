@@ -9,6 +9,7 @@ add_library(rest-lib
         ErrorHandler.hpp)
 
 ## include directories
+include_directories(/usr/local/include/torch/)
 
 target_include_directories(rest-lib PUBLIC swagger)
 
@@ -16,12 +17,15 @@ target_include_directories(rest-lib PUBLIC swagger)
 ## link libs
 find_package(oatpp          1.3.0 REQUIRED)
 find_package(oatpp-swagger  1.3.0 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 target_link_libraries(rest-lib
         # Oat++
         PUBLIC oatpp::oatpp
         PUBLIC oatpp::oatpp-swagger
         spdlog
+        opencv_highgui  opencv_core opencv_imgproc opencv_imgcodecs
+        torch_cpu c10
 )
 
 # If CMake can't find SQLite3:

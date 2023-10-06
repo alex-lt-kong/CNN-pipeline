@@ -24,6 +24,8 @@
 using namespace std;
 using json = nlohmann::json;
 
+string torch_script_serialization;
+
 void print_usage(string binary_name) {
 
   cerr << "Usage: " << binary_name << " [OPTION]\n\n";
@@ -109,9 +111,9 @@ int main(int argc, char **argv) {
   ifstream f(config_path);
 
   json settings = json::parse(f);
-
-  vector<torch::jit::script::Module> v16mms = load_models(
-      settings["model"]["torch_script_serialization"].get<string>(), model_ids);
+  torch_script_serialization = settings.value(
+      "/model/torch_script_serialization"_json_pointer, string(""));
+  vector<torch::jit::script::Module> v16mms = load_models(model_ids);
 
   const size_t preview_ele_num = 5;
   size_t layer_count = 0;

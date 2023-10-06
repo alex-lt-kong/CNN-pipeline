@@ -1,7 +1,7 @@
-#include <chrono>
-#include <unordered_map>
+
 #define FMT_HEADER_ONLY
 
+#include <chrono>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -9,6 +9,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 #include <ATen/ops/nonzero.h>
 #include <Magick++.h>
@@ -32,9 +33,9 @@ using json = nlohmann::json;
 
 volatile sig_atomic_t ev_flag = 0;
 std::atomic<uint32_t> inference_interval_ms = 60000;
-vector<string> modelIds;
+vector<string> model_ids;
 json settings;
-mutex image_queue_mtx, ext_program_mtx, swagger_mtx, models_mtx;
+mutex image_queue_mtx, ext_program_mtx, swagger_mtx, models_mtx, model_ids_mtx;
 deque<vector<char>> image_queue;
 constexpr ssize_t gif_frame_count = 36;
 constexpr ssize_t inference_batch_size = 24;
@@ -43,6 +44,8 @@ constexpr ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
 constexpr ssize_t image_queue_max_len = image_queue_min_len * 4;
 string cuda_device_string = "cuda:0";
+string torch_script_serialization;
+vector<torch::jit::script::Module> models;
 std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
 
 void print_usage(string binary_name) {
@@ -234,10 +237,12 @@ infer_images(vector<torch::jit::script::Module> &models,
       torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
   output = output.to(cuda_device_string);
   vector<at::Tensor> outputs(models.size());
-
-  for (size_t i = 0; i < models.size(); ++i) {
-    outputs[i] = models[i].forward(input).toTensor();
-    output += outputs[i];
+  {
+    std::lock_guard<std::mutex> lock(models_mtx);
+    for (size_t i = 0; i < models.size(); ++i) {
+      outputs[i] = models[i].forward(input).toTensor();
+      output += outputs[i];
+    }
   }
   auto end = chrono::high_resolution_clock::now();
   {
@@ -274,9 +279,18 @@ void inference_ev_loop() {
   assert(inference_batch_size > 0);
   // Initial wait, just to spread out the stress at the beginning of the run
   interruptible_sleep(10000);
+  try {
+    {
+      std::scoped_lock lck{models_mtx, model_ids_mtx};
+      models = load_models(model_ids);
+    }
 
-  auto models = load_models(
-      settings["model"]["torch_script_serialization"].get<string>(), modelIds);
+  } catch (const c10::Error &e) {
+    spdlog::error("Error loading the model: {}", e.what());
+    ev_flag = 1;
+    spdlog::critical("The program must exit now");
+  }
+
   Magick::InitializeMagick(nullptr);
   vector<vector<char>> received_jpgs(image_queue_min_len);
   vector<cv::Mat> images_mats(inference_batch_size);
@@ -322,8 +336,11 @@ int main(int argc, char **argv) {
   ifstream f(config_path);
   settings = json::parse(f);
   spdlog::info("{}", settings.dump(2));
-  modelIds = settings.value("/inference/initial_model_ids"_json_pointer,
-                            vector<string>{"0"});
+  model_ids = settings.value("/inference/initial_model_ids"_json_pointer,
+                             vector<string>{"0"});
+  torch_script_serialization = settings.value(
+      "/model/torch_script_serialization"_json_pointer, string(""));
+
   initialize_rest_api(
       settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
       settings.value("/inference/swagger/port"_json_pointer, 8000),

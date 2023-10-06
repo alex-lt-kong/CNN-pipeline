@@ -11,22 +11,18 @@ using namespace std;
 const float target_img_means[] = {0.485, 0.456, 0.406};
 const float target_img_stds[] = {0.229, 0.224, 0.225};
 
-vector<torch::jit::script::Module>
-load_models(const string &torch_script_serialization,
-            const vector<string> &model_ids, const string &device_string) {
+vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
+                                               const string &device_string) {
   vector<torch::jit::script::Module> models;
   spdlog::info("A total of {} models will be loaded", model_ids.size());
   for (size_t i = 0; i < model_ids.size(); ++i) {
     string model_path = regex_replace(torch_script_serialization,
                                       regex("\\{id\\}"), model_ids[i]);
     spdlog::info("Desearilizing {}-th model from {}", i, model_path);
-    try {
-      models.emplace_back(torch::jit::load(model_path, torch::kCUDA));
-      models[i].to(device_string);
-      models[i].eval();
-    } catch (const c10::Error &e) {
-      spdlog::error("Error loading the model: {}", e.what());
-    }
+
+    models.emplace_back(torch::jit::load(model_path, torch::kCUDA));
+    models[i].to(device_string);
+    models[i].eval();
   }
   return models;
 }

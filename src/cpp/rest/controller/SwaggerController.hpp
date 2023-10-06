@@ -1,25 +1,26 @@
-
 #ifndef SwaggerController_hpp
 #define SwaggerController_hpp
+
+#include <mutex>
+#define FMT_HEADER_ONLY
 
 #include <math.h>
 #include <regex>
 
-#define FMT_HEADER_ONLY
 #include <spdlog/spdlog.h>
-//#include "../dto/PageDto.hpp"
+
+#include "../../model_utils.h"
+#include "../../utils.h"
 #include "../dto/InternalStateDto.hpp"
+#include "../dto/ModelInfoDto.hpp"
 #include "../dto/RespDto.hpp"
 #include "../dto/StatusDto.hpp"
 #include "../dto/UserDto.hpp"
-
+#include "oatpp/core/macro/codegen.hpp"
 #include "oatpp/core/macro/component.hpp"
 #include "oatpp/core/utils/ConversionUtils.hpp"
-#include "oatpp/web/protocol/http/Http.hpp"
-
-#include "../../utils.h"
-#include "oatpp/core/macro/codegen.hpp"
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
+#include "oatpp/web/protocol/http/Http.hpp"
 #include "oatpp/web/server/api/ApiController.hpp"
 
 #include OATPP_CODEGEN_BEGIN(ApiController) //<- Begin Codegen
@@ -38,35 +39,44 @@ public:
     return std::make_shared<SwaggerController>(objectMapper);
   }
 
-  ENDPOINT_INFO(getUserById) {
-    info->summary = "Get one User by userId";
+  ENDPOINT_INFO(reloadModels) {
+    info->summary = "reload models from given model IDs";
 
-    info->addResponse<Object<UserDto>>(Status::CODE_200, "application/json");
-    info->addResponse<Object<StatusDto>>(Status::CODE_404, "application/json");
-    info->addResponse<Object<StatusDto>>(Status::CODE_500, "application/json");
-
-    info->pathParams["userId"].description = "User Identifier";
+    info->addConsumes<Object<ModelInfoDto>>("application/json");
+    info->addResponse<Object<RespDto>>(Status::CODE_200, "application/json");
+    info->addResponse<Object<RespDto>>(Status::CODE_404, "application/json");
+    info->addResponse<Object<RespDto>>(Status::CODE_500, "application/json");
   }
-  ENDPOINT("GET", "users/{userId}", getUserById, PATH(Int32, userId)) {
-    if (userId != 1234) {
-      auto userDto = UserDto::createShared();
-      userDto->id = userId;
-      userDto->userName = "DummyUserName";
-      userDto->email = "DummyEmail";
-      // oatpp::Object<UserDto> t = userDto.createShared();
-
-      return createDtoResponse(Status::CODE_200, userDto);
-    } else {
-      auto err = StatusDto::createShared();
-      err->status = "error";
-      err->code = 500;
-      err->message = "1234 not allowed";
-      // oatpp::Object<UserDto> t = userDto.createShared();
-
-      return createDtoResponse(Status::CODE_404, err);
+  ENDPOINT("POST", "reloadModels", reloadModels,
+           BODY_DTO(Object<ModelInfoDto>, modelInfo)) {
+    std::vector<std::string> _model_ids;
+    auto resp = RespDto::createShared();
+    Status code;
+    if ((*modelInfo->modelIds).size() == 0) {
+      resp->success = false;
+      resp->responseText = "modelIds canNOT be empty!!";
+      code = Status::CODE_400;
     }
-    // return createDtoResponse(Status::CODE_200,
-    // m_userService.getUserById(userId));
+    for (const auto &ele : *modelInfo->modelIds) {
+      _model_ids.push_back(ele);
+    }
+    try {
+      auto _models = load_models(_model_ids, modelInfo->cudaDevice);
+      {
+        std::scoped_lock lck{models_mtx, model_ids_mtx};
+        models = std::move(_models);
+        model_ids = std::move(_model_ids);
+      }
+      resp->success = true;
+      resp->responseText = "Models loaded";
+      code = Status::CODE_200;
+    } catch (const c10::Error &e) {
+      spdlog::error("Error loading the model: {}", e.what());
+      resp->success = false;
+      resp->responseText = std::string("Model not reloaded: ") + e.what();
+      code = Status::CODE_400;
+    }
+    return createDtoResponse(code, resp);
   }
 
   ENDPOINT_INFO(setPredictionInterval) {
@@ -122,10 +132,13 @@ public:
     auto dto = InternalStateDto::createShared();
     dto->predictionIntervalMs = inference_interval_ms;
     std::stringstream ss;
-    for (int i = 0; i < modelIds.size(); ++i) {
-      ss << modelIds[i];
-      if (i < modelIds.size() - 1) {
-        ss << ", ";
+    {
+      std::lock_guard<std::mutex> lock(model_ids_mtx);
+      for (int i = 0; i < model_ids.size(); ++i) {
+        ss << model_ids[i];
+        if (i < model_ids.size() - 1) {
+          ss << ", ";
+        }
       }
     }
     dto->modelIds = ss.str();
