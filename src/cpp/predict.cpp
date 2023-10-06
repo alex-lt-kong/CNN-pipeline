@@ -42,6 +42,7 @@ constexpr ssize_t pre_detection_size = 4;
 constexpr ssize_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
 constexpr ssize_t image_queue_max_len = image_queue_min_len * 4;
+string cuda_device_string = "cuda:0";
 std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
 
 void print_usage(string binary_name) {
@@ -226,12 +227,12 @@ infer_images(vector<torch::jit::script::Module> &models,
   }
   images_tensor = torch::stack(images_tensors_vec);
 
-  input[0] = images_tensor.to(torch::kCUDA);
+  input[0] = images_tensor.to(cuda_device_string);
 
   // images_tensor.sizes()[0] stores number of images
   at::Tensor output =
       torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
-  output = output.to(torch::kCUDA);
+  output = output.to(cuda_device_string);
   vector<at::Tensor> outputs(models.size());
 
   for (size_t i = 0; i < models.size(); ++i) {
