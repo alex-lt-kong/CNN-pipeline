@@ -15,6 +15,7 @@ vector<torch::jit::script::Module>
 load_models(const string &torch_script_serialization,
             const vector<string> &model_ids, const string &device_string) {
   vector<torch::jit::script::Module> models;
+  spdlog::info("A total of {} models will be loaded", model_ids.size());
   for (size_t i = 0; i < model_ids.size(); ++i) {
     string model_path = regex_replace(torch_script_serialization,
                                       regex("\\{id\\}"), model_ids[i]);

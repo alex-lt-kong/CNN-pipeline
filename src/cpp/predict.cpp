@@ -32,9 +32,9 @@ using json = nlohmann::json;
 
 volatile sig_atomic_t ev_flag = 0;
 std::atomic<uint32_t> inference_interval_ms = 60000;
-const vector<string> modelIds = {"0", "1", "2"};
+vector<string> modelIds;
 json settings;
-mutex image_queue_mtx, ext_program_mtx, swagger_mtx;
+mutex image_queue_mtx, ext_program_mtx, swagger_mtx, models_mtx;
 deque<vector<char>> image_queue;
 constexpr ssize_t gif_frame_count = 36;
 constexpr ssize_t inference_batch_size = 24;
@@ -272,6 +272,9 @@ void inference_ev_loop() {
   assert(pre_detection_size < gif_frame_count);
   assert(gif_frame_count > 0);
   assert(inference_batch_size > 0);
+  // Initial wait, just to spread out the stress at the beginning of the run
+  interruptible_sleep(10000);
+
   auto models = load_models(
       settings["model"]["torch_script_serialization"].get<string>(), modelIds);
   Magick::InitializeMagick(nullptr);
@@ -319,6 +322,8 @@ int main(int argc, char **argv) {
   ifstream f(config_path);
   settings = json::parse(f);
   spdlog::info("{}", settings.dump(2));
+  modelIds = settings.value("/inference/initial_model_ids"_json_pointer,
+                            vector<string>{"0"});
   initialize_rest_api(
       settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
       settings.value("/inference/swagger/port"_json_pointer, 8000),
