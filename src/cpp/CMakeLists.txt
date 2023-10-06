@@ -2,12 +2,14 @@ add_subdirectory(rest/)
 
 find_package(OpenCV REQUIRED)
 find_package(spdlog REQUIRED)
-#find_package(ImageMagick COMPONENTS Magick++)
+find_package(CUDA REQUIRED)
 find_package(ImageMagick COMPONENTS Magick++ MagickCore)
 
 include_directories(rest/)
 include_directories(/usr/local/include/torch/)
+include_directories(/usr/local/cuda/include/)
 include_directories(${ImageMagick_INCLUDE_DIRS})
+
 
 set(MAGICKCORE_QUANTUM_DEPTH 16)
 
@@ -17,7 +19,7 @@ add_library(utils utils.cpp)
 add_library(model_utils model_utils.cpp)
 target_link_libraries(model_utils
   opencv_highgui  opencv_core opencv_imgproc opencv_imgcodecs
-  torch_cpu c10)
+  torch_cpu c10 c10_cuda)
 
 add_executable(predict predict.cpp)
 target_link_libraries(predict

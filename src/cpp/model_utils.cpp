@@ -1,9 +1,11 @@
 #define FMT_HEADER_ONLY
 
 #include <regex>
-
-#include <spdlog/spdlog.h>
 #include <sstream>
+
+#include <ATen/core/interned_strings.h>
+#include <c10/cuda/CUDACachingAllocator.h>
+#include <spdlog/spdlog.h>
 
 #include "model_utils.h"
 
@@ -15,6 +17,13 @@ vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
                                                const string &device_string) {
   vector<torch::jit::script::Module> models;
   spdlog::info("A total of {} models will be loaded", model_ids.size());
+  // Unfortunately, torch::jit::script::Module's RAII won't automatically
+  // release the GPU memory used by it, so we need to call emptyCache() manually
+  // to reclaim the unused memory.
+  // Without RAII, if torch::jit::load(model_path, torch::kCUDA) throws
+  // exception, emptyCache() might not be called after the loop, so we want to
+  // call the function both before and after model loading.
+  c10::cuda::CUDACachingAllocator::emptyCache();
   for (size_t i = 0; i < model_ids.size(); ++i) {
     string model_path = regex_replace(torch_script_serialization,
                                       regex("\\{id\\}"), model_ids[i]);
@@ -24,6 +33,7 @@ vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
     models[i].to(device_string);
     models[i].eval();
   }
+  c10::cuda::CUDACachingAllocator::emptyCache();
   return models;
 }
 

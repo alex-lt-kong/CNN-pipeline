@@ -279,13 +279,15 @@ void interruptible_sleep(const size_t sleep_ms) {
 }
 
 void inference_ev_loop() {
-  spdlog::info("inference_ev_loop() started");
+  int delay_ms = 10000;
+  spdlog::info("inference_ev_loop() started, waiting for {}ms before start",
+               delay_ms);
   // Otherwise we won't have any images of detected object in the GIF
   assert(pre_detection_size < gif_frame_count);
   assert(gif_frame_count > 0);
   assert(inference_batch_size > 0);
   // Initial wait, just to spread out the stress at the beginning of the run
-  interruptible_sleep(10000);
+  interruptible_sleep(delay_ms);
   try {
     {
       std::scoped_lock lck{models_mtx, model_ids_mtx};
