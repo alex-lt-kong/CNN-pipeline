@@ -505,10 +505,12 @@ def main() -> None:
     ap.add_argument('--epochs', '-e', dest='epochs')
     ap.add_argument('--model-id', '-i', dest='model-id', required=True)
     ap.add_argument('--cuda-device-id', '-d', dest='cuda-device-id',
-                    default='0', required=True)
+                    default='cuda',
+                    help=('Specify GPU to use following CUDA semantics. '
+                          'Sample values include "cuda"/"cuda:0"/"cuda:1"'))
     args = vars(ap.parse_args())
 
-    device = helper.get_cuda_device(int(args['cuda-device-id']))
+    device = helper.get_cuda_device(args['cuda-device-id'])
     properties = torch.cuda.get_device_properties(device)
     logging.info(f"GPU Model: {properties.name}")
     logging.info(f"GPU Memory: {properties.total_memory / 1024**3:.2f} GB")

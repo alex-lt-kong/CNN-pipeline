@@ -33,7 +33,7 @@ test_transforms = torchvision.transforms.Compose([
 ])
 
 
-def get_cuda_device(device_id: int = 0) -> torch.device:
+def get_cuda_device(cuda_device: str = 'cuda') -> torch.device:
     if torch.cuda.is_available():
-        return torch.device(device_id)
+        return torch.device(cuda_device)
     raise RuntimeError('CUDA device not available')
