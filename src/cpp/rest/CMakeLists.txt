@@ -2,7 +2,7 @@ add_library(rest-lib
         controller/StaticController.hpp
         controller/SwaggerController.hpp
         dto/StatusDto.hpp
-        dto/UserDto.hpp
+        dto/SettingsDto.hpp
         AppComponent.hpp
         SwaggerComponent.hpp
         ErrorHandler.cpp
