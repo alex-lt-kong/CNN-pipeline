@@ -25,7 +25,7 @@ print(device)
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 # settings: Dict[str, Any]
-with open(os.path.join(curr_dir, '..', 'config.json')) as j:
+with open(os.path.join(curr_dir, '..', '..', 'config.json')) as j:
     settings = json.load(j)
 
 v16mms = []

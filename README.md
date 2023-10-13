@@ -36,7 +36,7 @@ images before sending to them to `libtorch`,
 ```Bash
 git clone https://github.com/oatpp/oatpp.git
 cd oatpp && mkdir build && cd build
-cmake ../
+cmake ../ -DCMAKE_BUILD_TYPE=Release
 make -j4
 sudo make install
 ```
