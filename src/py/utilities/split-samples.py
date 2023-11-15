@@ -1,9 +1,7 @@
-from typing import Optional
-
 import os
 import random
 import shutil
-import time
+
 
 def split_files(
         input_dir: str,
@@ -12,11 +10,17 @@ def split_files(
 ) -> None:
 
     if os.path.exists(output_dir_1):
-        print(f'[{output_dir_1}] exists, it will be removed')
+        print(
+            f'[{output_dir_1}] exists '
+            f'(file count: {len(os.listdir(output_dir_1)):,}), it will be removed'
+        )
         shutil.rmtree(output_dir_1)
     os.makedirs(output_dir_1)
     if os.path.exists(output_dir_2):
-        print(f'[{output_dir_2}] exists, it will be removed')
+        print(
+            f'[{output_dir_2}] exists '
+            f'(file count: {len(os.listdir(output_dir_2)):,}), it will be removed'
+        )
         shutil.rmtree(output_dir_2)
     os.makedirs(output_dir_2)
 
@@ -26,7 +30,6 @@ def split_files(
     num_files = len(files)
     num_files_dir_1 = int(num_files * split_ratio)
     random.shuffle(files)
-
 
     for i, file in enumerate(files):
         src = os.path.join(input_dir, file)
@@ -38,12 +41,14 @@ def split_files(
 
     print(
         f'Splitting files from [{input_dir}] to '
-        f'[{output_dir_1}]/[{output_dir_2}] completed successfully.'
+        f'[{output_dir_1}]/[{output_dir_2}] completed successfully.\n'
+        f'[{output_dir_1}] file count: {len(os.listdir(output_dir_1)):,}\n'
+        f'[{output_dir_2}] file count: {len(os.listdir(output_dir_2)):,}\n'
     )
 
 
 split_ratio = 0.9
-#random_seed = int(time.time())
+# random_seed = int(time.time())
 random_seed = 16888
 
 input_directory = "/mnt/models/VGGNET-based-CNN-pipeline/data/raw/0/"
