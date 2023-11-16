@@ -1,15 +1,16 @@
 #ifndef AppComponent_hpp
 #define AppComponent_hpp
 
-#include <iostream>
-
 #include "ErrorHandler.hpp"
 #include "SwaggerComponent.hpp"
-#include "oatpp/core/macro/component.hpp"
-#include "oatpp/network/tcp/server/ConnectionProvider.hpp"
-#include "oatpp/parser/json/mapping/ObjectMapper.hpp"
-#include "oatpp/web/server/HttpConnectionHandler.hpp"
-#include "oatpp/web/server/HttpRouter.hpp"
+
+#include <oatpp/core/macro/component.hpp>
+#include <oatpp/network/tcp/server/ConnectionProvider.hpp>
+#include <oatpp/parser/json/mapping/ObjectMapper.hpp>
+#include <oatpp/web/server/HttpConnectionHandler.hpp>
+#include <oatpp/web/server/HttpRouter.hpp>
+
+#include <iostream>
 
 /**
  *  Class which creates and holds Application components and registers

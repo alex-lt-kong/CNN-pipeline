@@ -1,9 +1,10 @@
 
-#ifndef SwaggerComponent_hpp
-#define SwaggerComponent_hpp
-#include "oatpp-swagger/Model.hpp"
-#include "oatpp-swagger/Resources.hpp"
-#include "oatpp/core/macro/component.hpp"
+#ifndef VBCP_SwaggerComponent_hpp
+#define VBCP_SwaggerComponent_hpp
+
+#include <oatpp-swagger/Model.hpp>
+#include <oatpp-swagger/Resources.hpp>
+#include <oatpp/core/macro/component.hpp>
 
 /**
  *  Swagger ui is served at
@@ -50,4 +51,4 @@ public:
   }());
 };
 
-#endif /* SwaggerComponent_hpp */
+#endif // VBCP_SwaggerComponent_hpp

@@ -1,5 +1,5 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef VBCP_UTILS_H
+#define VBCP_UTILS_H
 
 #include <deque>
 #include <mutex>
@@ -36,20 +36,12 @@ private:
   size_t sample_size;
 };
 
-extern volatile sig_atomic_t ev_flag;
-extern nlohmann::json settings;
-extern std::atomic<uint32_t> inference_interval_ms;
-extern std::vector<std::string> model_ids;
-extern std::mutex image_queue_mtx, ext_program_mtx, swagger_mtx, models_mtx,
-    model_ids_mtx;
-extern std::deque<std::vector<char>> image_queue;
-extern std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
-extern std::vector<torch::jit::script::Module> models;
-
 static void signal_handler(int signum);
 
 void install_signal_handler();
 
 std::string getCurrentDateTimeString();
 
-#endif /* UTILS_H */
+void interruptible_sleep(const size_t sleep_ms);
+
+#endif // VBCP_UTILS_H

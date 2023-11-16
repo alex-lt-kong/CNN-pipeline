@@ -1,27 +1,27 @@
 #ifndef SwaggerController_hpp
 #define SwaggerController_hpp
 
-#include <mutex>
 #define FMT_HEADER_ONLY
 
-#include <math.h>
-#include <regex>
-
-#include <spdlog/spdlog.h>
-
+#include "../../global_vars.h"
 #include "../../model_utils.h"
-#include "../../utils.h"
 #include "../dto/InternalStateDto.hpp"
 #include "../dto/ModelInfoDto.hpp"
 #include "../dto/RespDto.hpp"
 #include "../dto/SettingsDto.hpp"
 #include "../dto/StatusDto.hpp"
+
 #include <oatpp/core/macro/codegen.hpp>
 #include <oatpp/core/macro/component.hpp>
 #include <oatpp/core/utils/ConversionUtils.hpp>
 #include <oatpp/parser/json/mapping/ObjectMapper.hpp>
 #include <oatpp/web/protocol/http/Http.hpp>
 #include <oatpp/web/server/api/ApiController.hpp>
+#include <spdlog/spdlog.h>
+
+#include <math.h>
+#include <mutex>
+#include <regex>
 
 #include OATPP_CODEGEN_BEGIN(ApiController) //<- Begin Codegen
 

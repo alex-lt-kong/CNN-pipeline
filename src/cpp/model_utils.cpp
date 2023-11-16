@@ -1,13 +1,13 @@
 #define FMT_HEADER_ONLY
 
-#include <regex>
-#include <sstream>
+#include "model_utils.h"
 
 #include <ATen/core/interned_strings.h>
 #include <c10/cuda/CUDACachingAllocator.h>
 #include <spdlog/spdlog.h>
 
-#include "model_utils.h"
+#include <regex>
+#include <sstream>
 
 using namespace std;
 const float target_img_means[] = {0.485, 0.456, 0.406};

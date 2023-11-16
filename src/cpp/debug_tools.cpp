@@ -1,14 +1,6 @@
 #define FMT_HEADER_ONLY
 
-#include <cstdlib>
-#include <ctime>
-#include <filesystem>
-#include <iostream>
-#include <memory>
-#include <regex>
-#include <sstream>
-#include <string>
-#include <vector>
+#include "model_utils.h"
 
 #include <getopt.h>
 #include <nlohmann/json.hpp>
@@ -19,7 +11,15 @@
 #include <torch/csrc/api/include/torch/types.h>
 #include <torch/script.h> // One-stop header.
 
-#include "model_utils.h"
+#include <cstdlib>
+#include <ctime>
+#include <filesystem>
+#include <iostream>
+#include <memory>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <vector>
 
 using namespace std;
 using json = nlohmann::json;

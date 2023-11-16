@@ -1,5 +1,7 @@
 #
+#
 # ===== cmake =====
+#
 #
 
 CMakeLists.txt.user
@@ -15,7 +17,9 @@ CTestTestfile.cmake
 _deps
 
 #
+#
 # ===== C++ =====
+#
 #
 
 # Prerequisites
@@ -52,7 +56,9 @@ _deps
 *.app
 
 #
+#
 # ===== Python =====
+#
 #
 
 # Byte-compiled / optimized / DLL files
@@ -186,7 +192,9 @@ dmypy.json
 .pyre/
 
 #
+#
 # ===== my ignores =====
+#
 #
 predict.sqlite
 predict.sqlite-journal
