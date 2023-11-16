@@ -1,6 +1,7 @@
 #define FMT_HEADER_ONLY
 
 #include "model_utils.h"
+#include "global_vars.h"
 
 #include <ATen/core/interned_strings.h>
 #include <c10/cuda/CUDACachingAllocator.h>

@@ -2,8 +2,8 @@
 
 #include "event_loops.h"
 #include "global_vars.h"
+#include "http_service/oatpp_entry.h"
 #include "model_utils.h"
-#include "rest/oatpp_entry.h"
 #include "utils.h"
 
 #include <fmt/core.h>

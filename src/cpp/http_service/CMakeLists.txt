@@ -28,16 +28,6 @@ target_link_libraries(rest-lib
         torch_cpu c10
 )
 
-# If CMake can't find SQLite3:
-#
-# 1. Make sure that you've built oatpp-sqlite with -DOATPP_SQLITE_AMALGAMATION=ON flag
-# 2. If you are not willing to use SQLite amalgamation then uncomment the following lines:
-#
-#find_package(SQLite3 REQUIRED)
-#
-#target_link_libraries(rest-lib
-#        PUBLIC SQLite::SQLite3
-#)
 
 add_definitions(
         ## define path to swagger-ui static resources folder
@@ -49,5 +39,5 @@ if(CMAKE_SYSTEM_NAME MATCHES Linux)
     target_link_libraries(rest-lib INTERFACE Threads::Threads ${CMAKE_DL_LIBS})
 endif()
 
-add_library(rest oatpp_entry.cpp)
-target_link_libraries(rest rest-lib)
+add_library(http_service oatpp_entry.cpp)
+target_link_libraries(http_service rest-lib)
