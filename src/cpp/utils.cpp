@@ -1,4 +1,9 @@
-#define FMT_HEADER_ONLY
+//#define FMT_HEADER_ONLY
+
+#include "utils.h"
+#include "global_vars.h"
+
+#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <ctime>
@@ -11,10 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <spdlog/spdlog.h>
-
-#include "utils.h"
 
 using namespace std;
 
@@ -83,4 +84,14 @@ void interruptible_sleep(const size_t sleep_ms) {
       this_thread::sleep_for(chrono::milliseconds(interruptible_sleep_ms));
     }
   }
+}
+
+void update_last_inference_at() {
+  auto now = chrono::system_clock::now();
+  auto now_time = chrono::system_clock::to_time_t(now);
+  tm *local_time = localtime(&now_time);
+  ostringstream oss;
+  oss << put_time(local_time, "%Y-%m-%dT%H:%M:%S");
+  last_inference_at = oss.str();
+  // last_inference_at = put_time(lt, "%Y-%m-%dT%H:%M:%S");
 }

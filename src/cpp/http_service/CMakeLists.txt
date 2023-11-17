@@ -4,9 +4,8 @@ add_library(rest-lib
         dto/StatusDto.hpp
         dto/SettingsDto.hpp
         AppComponent.hpp
-        SwaggerComponent.hpp
-        ErrorHandler.cpp
-        ErrorHandler.hpp)
+        swagger_component.hpp
+        error_handler.cpp)
 
 ## include directories
 include_directories(/usr/local/include/torch/)

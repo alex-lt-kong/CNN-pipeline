@@ -195,6 +195,7 @@ void inference_ev_loop() {
       }
     }
     auto rv = infer_images(models, received_jpgs);
+    update_last_inference_at();
     if (handle_inference_results(rv.first, rv.second, received_jpgs)) {
       const size_t cooldown_ms =
           settings.value("/inference/on_detected/cooldown_sec"_json_pointer,

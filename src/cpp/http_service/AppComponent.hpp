@@ -1,8 +1,8 @@
 #ifndef AppComponent_hpp
 #define AppComponent_hpp
 
-#include "ErrorHandler.hpp"
-#include "SwaggerComponent.hpp"
+#include "error_handler.hpp"
+#include "swagger_component.hpp"
 
 #include <oatpp/core/macro/component.hpp>
 #include <oatpp/network/tcp/server/ConnectionProvider.hpp>

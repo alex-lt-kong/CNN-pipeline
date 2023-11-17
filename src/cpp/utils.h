@@ -44,4 +44,6 @@ std::string getCurrentDateTimeString();
 
 void interruptible_sleep(const size_t sleep_ms);
 
+void update_last_inference_at();
+
 #endif // VBCP_UTILS_H

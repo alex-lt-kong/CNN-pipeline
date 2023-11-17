@@ -26,3 +26,5 @@ std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
 
 vector<torch::jit::script::Module> models;
 std::string torch_script_serialization;
+
+std::string last_inference_at;

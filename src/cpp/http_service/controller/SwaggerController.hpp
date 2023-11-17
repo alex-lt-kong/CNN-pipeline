@@ -132,7 +132,7 @@ public:
     std::stringstream ss;
     {
       std::lock_guard<std::mutex> lock(model_ids_mtx);
-      for (int i = 0; i < model_ids.size(); ++i) {
+      for (size_t i = 0; i < model_ids.size(); ++i) {
         ss << model_ids[i];
         if (i < model_ids.size() - 1) {
           ss << ", ";
@@ -144,6 +144,7 @@ public:
       std::lock_guard<std::mutex> lock(image_queue_mtx);
       dto->image_queue_size = image_queue.size();
     }
+    dto->lastInferenceAt = last_inference_at;
     auto percentiles = std::vector<double>{10, 50, 66, 90, 95, 99, 99.99};
     dto->inference_duration_stats = oatpp::data::mapping::type::List<
         oatpp::data::mapping::type::PairList<String, Int32>>::createShared();

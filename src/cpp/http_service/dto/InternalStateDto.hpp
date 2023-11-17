@@ -15,6 +15,7 @@ class InternalStateDto : public oatpp::DTO {
     info->description = "The IDs of the ensemble of CNN models";
   }
   DTO_FIELD(String, modelIds, "modelIds");
+  DTO_FIELD(String, lastInferenceAt, "lastInferenceAt");
   DTO_FIELD(UInt32, image_queue_size, "imageQueueSize");
   DTO_FIELD_INFO(inference_duration_stats) {
     info->description = "Percentiles of time (in ms) needed to infer one image";

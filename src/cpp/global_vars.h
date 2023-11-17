@@ -38,4 +38,6 @@ extern std::vector<torch::jit::script::Module> models;
 
 extern std::string torch_script_serialization;
 
+extern std::string last_inference_at;
+
 #endif // VBCP_GLOBAL_VARS_H
