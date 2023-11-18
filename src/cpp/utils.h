@@ -6,7 +6,10 @@
 #include <signal.h>
 
 #include <nlohmann/json.hpp>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <torch/script.h> // One-stop header.
+#pragma GCC diagnostic pop
 
 template <class T> class PercentileTracker {
 public:

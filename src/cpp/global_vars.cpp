@@ -10,12 +10,12 @@ mutex swagger_mtx;
 mutex models_mtx;
 mutex model_ids_mtx;
 
-const ssize_t gif_frame_count = 36;
-const ssize_t inference_batch_size = 24;
-const ssize_t pre_detection_size = 4;
-const ssize_t image_queue_min_len =
+const size_t gif_frame_count = 36;
+const size_t inference_batch_size = 24;
+const size_t pre_detection_size = 4;
+const size_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
-const ssize_t image_queue_max_len = image_queue_min_len * 4;
+const size_t image_queue_max_len = image_queue_min_len * 4;
 
 deque<std::string> image_queue;
 

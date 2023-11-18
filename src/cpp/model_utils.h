@@ -1,8 +1,11 @@
 #ifndef VBCP_MODEL_UTILS_H
 #define VBCP_MODEL_UTILS_H
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <opencv2/opencv.hpp>
 #include <torch/script.h> // One-stop header.
+#pragma GCC diagnostic pop
 
 #define NUM_OUTPUT_CLASSES 2
 

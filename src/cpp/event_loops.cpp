@@ -8,20 +8,23 @@
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
 
+#include <tuple>
+
 using namespace std;
 
 string cuda_device_string = "cuda:0";
 
-pair<vector<at::Tensor>, at::Tensor>
+tuple<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
-             const vector<decltype(image_queue)::value_type> &jpegs) {
+             const vector<string> &jpegs) {
   auto start = chrono::high_resolution_clock::now();
   vector<torch::Tensor> images_tensors_vec(inference_batch_size);
   torch::Tensor images_tensor;
   vector<torch::jit::IValue> input(1);
-  for (int i = 0; i < inference_batch_size; ++i) {
+  for (size_t i = 0; i < inference_batch_size; ++i) {
     auto idx = pre_detection_size + i;
     // TODO: can we remove this std::copy()??
+    // Profiling shows this copy takes less than 1 ms
     std::vector<char> v(jpegs[idx].length());
     std::copy(jpegs[idx].begin(), jpegs[idx].end(), v.begin());
     images_tensors_vec[i] = cv_mat_to_tensor(cv::imdecode(v, cv::IMREAD_COLOR));
@@ -53,7 +56,7 @@ infer_images(vector<torch::jit::script::Module> &models,
                 .count() /
             inference_batch_size);
   }
-  return make_pair(outputs, output);
+  return {outputs, output};
 }
 void execute_external_program_async() {
   auto f = [](string cmd) {
@@ -187,16 +190,16 @@ void inference_ev_loop() {
                      image_queue.size(), image_queue_min_len);
         continue;
       }
-      for (int i = 0; i < image_queue_min_len; ++i) {
+      for (size_t i = 0; i < image_queue_min_len; ++i) {
         received_jpgs[i] = image_queue[i];
       }
-      for (int i = 0; i < inference_batch_size; ++i) {
+      for (size_t i = 0; i < inference_batch_size; ++i) {
         image_queue.pop_front();
       }
     }
-    auto rv = infer_images(models, received_jpgs);
+    auto [outputs, output] = infer_images(models, received_jpgs);
     update_last_inference_at();
-    if (handle_inference_results(rv.first, rv.second, received_jpgs)) {
+    if (handle_inference_results(outputs, output, received_jpgs)) {
       const size_t cooldown_ms =
           settings.value("/inference/on_detected/cooldown_sec"_json_pointer,
                          120) *
@@ -245,7 +248,7 @@ void zeromq_ev_loop() {
     msg.ParseFromArray(message.data(), message.size());
     {
       lock_guard<mutex> lock(image_queue_mtx);
-      image_queue.push_back(msg.payload());
+      image_queue.emplace_back(move(*msg.mutable_payload()));
       while (image_queue.size() > image_queue_max_len) {
         image_queue.pop_front();
       }
