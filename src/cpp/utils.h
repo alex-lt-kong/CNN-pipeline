@@ -24,7 +24,10 @@ public:
     }
   }
 
-  void refreshStats() { std::sort(data.begin(), data.end()); }
+  void refreshStats() {
+    std::sort(data.begin(), data.end());
+    refreshStatsCalled = true;
+  }
 
   double getPercentile(double percent) {
     if (data.empty())
