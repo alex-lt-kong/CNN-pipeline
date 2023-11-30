@@ -1,6 +1,7 @@
 #ifndef VBCP_GLOBAL_VARS_H
 #define VBCP_GLOBAL_VARS_H
 
+#include "percentile_tracker.h"
 #include "utils.h"
 
 #include <ATen/ops/nonzero.h>

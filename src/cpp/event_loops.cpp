@@ -51,7 +51,7 @@ infer_images(vector<torch::jit::script::Module> &models,
     auto [it, success] = pt_dict.try_emplace(inference_interval_ms,
                                              PercentileTracker<float>(10000));
     pt_dict.at(inference_interval_ms)
-        .addNumber(
+        .addSample(
             (float)chrono::duration_cast<chrono::milliseconds>(end - start)
                 .count() /
             inference_batch_size);
