@@ -25,7 +25,7 @@ static void signal_handler(int signum) {
   char msg[] = "Signal [  ] caught\n";
   msg[8] = '0' + (char)(signum / 10);
   msg[9] = '0' + (char)(signum % 10);
-  write(STDIN_FILENO, msg, strlen(msg));
+  (void)!write(STDIN_FILENO, msg, strlen(msg));
   ev_flag = 1;
 }
 
@@ -56,7 +56,7 @@ void install_signal_handler() {
   }
 }
 
-string getCurrentDateTimeString() {
+string get_current_datetime_string() {
   auto now = chrono::system_clock::now();
   auto in_time_t = chrono::system_clock::to_time_t(now);
 
@@ -94,4 +94,15 @@ void update_last_inference_at() {
   oss << put_time(local_time, "%Y-%m-%dT%H:%M:%S");
   last_inference_at = oss.str();
   // last_inference_at = put_time(lt, "%Y-%m-%dT%H:%M:%S");
+}
+
+std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms) {
+  std::chrono::milliseconds ms(unix_ts_ms);
+  std::chrono::time_point<std::chrono::system_clock> time_point(ms);
+  std::time_t time_t = std::chrono::system_clock::to_time_t(time_point);
+  std::tm *p_tm = std::localtime(&time_t);
+  std::stringstream ss;
+  ss << std::put_time(p_tm, "%FT%T") << '.' << std::setfill('0') << std::setw(3)
+     << ms.count() % 1000;
+  return ss.str();
 }

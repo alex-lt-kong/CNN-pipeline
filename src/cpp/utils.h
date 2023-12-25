@@ -14,10 +14,12 @@
 
 void install_signal_handler();
 
-std::string getCurrentDateTimeString();
+std::string get_current_datetime_string();
 
 void interruptible_sleep(const size_t sleep_ms);
 
 void update_last_inference_at();
+
+std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms);
 
 #endif // VBCP_UTILS_H

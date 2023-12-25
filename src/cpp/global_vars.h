@@ -2,10 +2,12 @@
 #define VBCP_GLOBAL_VARS_H
 
 #include "percentile_tracker.h"
+#include "snapshot.pb.h"
 #include "utils.h"
 
 #include <ATen/ops/nonzero.h>
 #include <nlohmann/json.hpp>
+#include <readerwriterqueue/readerwritercircularbuffer.h>
 
 #include <deque>
 #include <mutex>
@@ -16,19 +18,21 @@
 
 extern volatile sig_atomic_t ev_flag;
 
-extern std::mutex image_queue_mtx;
 extern std::mutex ext_program_mtx;
 extern std::mutex swagger_mtx;
 extern std::mutex models_mtx;
 extern std::mutex model_ids_mtx;
 
-extern std::deque<std::string> image_queue;
+extern moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>
+    snapshot_queue;
 
 extern const size_t gif_frame_count;
 extern const size_t inference_batch_size;
 extern const size_t pre_detection_size;
 extern const size_t image_queue_min_len;
 extern const size_t image_queue_max_len;
+extern const size_t pc_queue_safe_margin;
+
 extern nlohmann::json settings;
 extern std::vector<std::string> model_ids;
 
