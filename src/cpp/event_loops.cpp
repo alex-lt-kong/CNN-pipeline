@@ -198,11 +198,12 @@ void inference_ev_loop() {
     {
       if (snapshot_queue.size_approx() <
           image_queue_min_len + pc_queue_safe_margin) {
-        spdlog::warn("image_queue.size_approx() == {} < image_queue_min_len + "
-                     "pc_queue_safe_margin({}), "
-                     "waiting for more images before inference can run",
-                     snapshot_queue.size_approx(),
-                     image_queue_min_len + pc_queue_safe_margin);
+        spdlog::warn(
+            "image_queue.size_approx() == {} < image_queue_min_len({}) + "
+            "pc_queue_safe_margin({}), "
+            "waiting for more images before inference can run",
+            snapshot_queue.size_approx(), image_queue_min_len,
+            pc_queue_safe_margin);
         continue;
       }
       for (size_t i = 0; i < image_queue_min_len; ++i) {
