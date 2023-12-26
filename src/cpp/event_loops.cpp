@@ -106,7 +106,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   spdlog::info("Timestamp of samples:");
   for (size_t i = 0; i < snaps.size(); ++i) {
     spdlog::info("snaps[{}]: {} ({})", i, snaps[i].unixepochns(),
-                 unix_ts_to_iso_datetime(snaps[i].unixepochns()));
+                 unix_ts_to_iso_datetime(snaps[i].unixepochns() / 1000 / 1000));
   }
   spdlog::info("Build GIF animation");
   vector<Magick::Image> frames;
