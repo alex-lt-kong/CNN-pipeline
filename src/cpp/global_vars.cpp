@@ -15,11 +15,10 @@ const size_t pre_detection_size = 4;
 const size_t image_queue_min_len =
     pre_detection_size + inference_batch_size + gif_frame_count;
 const size_t image_queue_max_len = image_queue_min_len * 4;
-const size_t pc_queue_safe_margin = 64;
 
 moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg> snapshot_queue =
     moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>(
-        image_queue_max_len + pc_queue_safe_margin);
+        image_queue_max_len);
 
 nlohmann::json settings;
 vector<string> model_ids;

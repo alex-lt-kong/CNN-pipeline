@@ -196,18 +196,13 @@ void inference_ev_loop() {
   while (!ev_flag) {
     interruptible_sleep(inference_interval_ms);
     {
-      if (snapshot_queue.size_approx() <
-          image_queue_min_len + pc_queue_safe_margin) {
-        spdlog::warn(
-            "image_queue.size_approx() == {} < image_queue_min_len({}) + "
-            "pc_queue_safe_margin({}), "
-            "waiting for more images before inference can run",
-            snapshot_queue.size_approx(), image_queue_min_len,
-            pc_queue_safe_margin);
-        continue;
-      }
-      for (size_t i = 0; i < image_queue_min_len; ++i) {
-        assert(snapshot_queue.try_dequeue(snapshot_batch[i]));
+      size_t sample_count = 0;
+      while (sample_count < image_queue_min_len) {
+        if (snapshot_queue.try_dequeue(snapshot_batch[sample_count])) {
+          ++sample_count;
+        } else {
+          interruptible_sleep(999);
+        }
       }
     }
     auto [raw_outputs, avg_output] = infer_images(models, snapshot_batch);
@@ -257,9 +252,8 @@ void zeromq_ev_loop() {
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      assert(snapshot_queue.try_enqueue(move(msg)));
-      SnapshotMsg t;
-      while (snapshot_queue.size_approx() > image_queue_max_len) {
+      while (!snapshot_queue.try_enqueue(msg)) {
+        SnapshotMsg t;
         snapshot_queue.try_dequeue(t);
       }
     } else {
