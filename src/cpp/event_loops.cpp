@@ -194,14 +194,20 @@ void inference_ev_loop() {
   vector<cv::Mat> images_mats(inference_batch_size);
 
   while (!ev_flag) {
-    interruptible_sleep(inference_interval_ms);
+    interruptible_sleep(inference_interval_ms, 1000, []() {
+      while (snapshot_queue.size_approx() >
+             snapshot_queue.max_capacity() - image_queue_min_len) {
+        SnapshotMsg t;
+        snapshot_queue.try_dequeue(t);
+      }
+    });
     {
       size_t sample_count = 0;
       while (sample_count < image_queue_min_len) {
         if (snapshot_queue.try_dequeue(snapshot_batch[sample_count])) {
           ++sample_count;
         } else {
-          interruptible_sleep(999);
+          interruptible_sleep(499);
         }
       }
     }
@@ -252,10 +258,7 @@ void zeromq_ev_loop() {
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      while (!snapshot_queue.try_enqueue(msg)) {
-        SnapshotMsg t;
-        snapshot_queue.try_dequeue(t);
-      }
+      snapshot_queue.try_enqueue(msg);
     } else {
       spdlog::error("Failed to parse ZeroMQ payload as SnapshotMsg");
     }

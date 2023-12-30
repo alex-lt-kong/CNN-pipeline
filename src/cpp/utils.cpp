@@ -73,15 +73,16 @@ string get_current_datetime_string() {
   return ss.str();
 }
 
-void interruptible_sleep(const size_t sleep_ms) {
-  const size_t interruptible_sleep_ms = 1000;
-  if (sleep_ms <= interruptible_sleep_ms) {
+void interruptible_sleep(const size_t sleep_ms, const size_t interval_ms,
+                         function<void()> func) {
+  if (sleep_ms <= interval_ms) {
     this_thread::sleep_for(chrono::milliseconds(sleep_ms));
   } else {
     size_t slept_ms = 0;
     while (slept_ms < sleep_ms && !ev_flag) {
-      slept_ms += interruptible_sleep_ms;
-      this_thread::sleep_for(chrono::milliseconds(interruptible_sleep_ms));
+      slept_ms += interval_ms;
+      func();
+      this_thread::sleep_for(chrono::milliseconds(interval_ms));
     }
   }
 }
