@@ -10,7 +10,6 @@ class InternalStateDto : public oatpp::DTO {
 
   DTO_INIT(InternalStateDto, DTO)
 
-  DTO_FIELD(Int32, predictionIntervalMs, "predictionIntervalMs");
   DTO_FIELD_INFO(modelIds) {
     info->description = "The IDs of the ensemble of CNN models";
   }

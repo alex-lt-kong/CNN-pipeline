@@ -79,35 +79,6 @@ public:
     return createDtoResponse(code, resp);
   }
 
-  ENDPOINT_INFO(setPredictionInterval) {
-    info->summary = "Set prediction interval";
-
-    info->addResponse<Object<RespDto>>(Status::CODE_200, "application/json");
-    info->addResponse<Object<RespDto>>(Status::CODE_400, "application/json");
-
-    info->pathParams["predictionInterval"].description =
-        "Interval in ms for the prediction loop to sleep after each iteration";
-  }
-  ENDPOINT("POST", "setPredictionInterval/{predictionIntervalMs}",
-           setPredictionInterval, PATH(UInt32, predictionIntervalMs)) {
-    auto resp = RespDto::createShared();
-    if (predictionIntervalMs <= 0) {
-      resp->success = false;
-      resp->responseText = "predictionInterval must be positive";
-      return createDtoResponse(Status::CODE_400, resp);
-    } else {
-      std::string msg =
-          "predictionInterval changed from " +
-          to_string(inference_interval_ms) + " to " +
-          oatpp::utils::conversion::uint32ToStr(predictionIntervalMs);
-      inference_interval_ms = predictionIntervalMs;
-      spdlog::info(msg);
-      resp->success = true;
-      resp->responseText = msg;
-      return createDtoResponse(Status::CODE_200, resp);
-    }
-  }
-
   ENDPOINT_INFO(getSettings) {
     info->summary =
         "get the content of config.json of this inference daemon instance";
@@ -128,7 +99,6 @@ public:
   }
   ENDPOINT("GET", "getInternalState/", getInternalState) {
     auto dto = InternalStateDto::createShared();
-    dto->predictionIntervalMs = inference_interval_ms;
     std::stringstream ss;
     {
       std::lock_guard<std::mutex> lock(model_ids_mtx);
@@ -147,26 +117,21 @@ public:
         oatpp::data::mapping::type::PairList<String, Int32>>::createShared();
     {
       std::lock_guard<std::mutex> lock(swagger_mtx);
-      for (const auto &pair : pt_dict) {
-        auto interval = pair.first;
-        auto pt = pair.second;
-        pt.refreshStats();
-        dto->inference_duration_stats->push_back(
-            oatpp::data::mapping::type::PairList<String,
-                                                 Int32>::createShared());
-        auto last_pt = dto->inference_duration_stats->back();
-        last_pt->push_back(
-            std::pair<String, Int32>("inferenceCount", pt.sampleCount()));
-        last_pt->push_back(
-            std::pair<String, Int32>("inferenceIntervalMs", interval));
 
-        for (auto const &ele : percentiles) {
-          ss.str("");
-          ss << std::fixed << std::setprecision(2) << ele << "th";
-          last_pt->push_back(
-              std::pair<String, Int32>(ss.str(), round(pt.getPercentile(ele))));
-        }
+      pt.refreshStats();
+      dto->inference_duration_stats->push_back(
+          oatpp::data::mapping::type::PairList<String, Int32>::createShared());
+      auto last_pt = dto->inference_duration_stats->back();
+      last_pt->push_back(
+          std::pair<String, Int32>("inferenceCount", pt.sampleCount()));
+
+      for (auto const &ele : percentiles) {
+        ss.str("");
+        ss << std::fixed << std::setprecision(2) << ele << "th";
+        last_pt->push_back(
+            std::pair<String, Int32>(ss.str(), round(pt.getPercentile(ele))));
       }
+
       return createDtoResponse(Status::CODE_200, dto);
     }
   }

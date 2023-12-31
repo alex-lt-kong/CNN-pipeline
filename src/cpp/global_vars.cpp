@@ -22,8 +22,7 @@ moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg> snapshot_queue =
 
 nlohmann::json settings;
 vector<string> model_ids;
-std::atomic<uint32_t> inference_interval_ms = 60000;
-std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
+PercentileTracker<float> pt = PercentileTracker<float>(10000);
 
 vector<torch::jit::script::Module> models;
 std::string torch_script_serialization;

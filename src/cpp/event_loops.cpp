@@ -50,14 +50,9 @@ infer_images(vector<torch::jit::script::Module> &models,
   auto end = chrono::steady_clock::now();
   {
     lock_guard<mutex> lock(swagger_mtx);
-    auto [it, inserted] = pt_dict.try_emplace(inference_interval_ms,
-                                              PercentileTracker<float>(10000));
-    (void)!inserted;
-    pt_dict.at(inference_interval_ms)
-        .addSample(
-            (float)chrono::duration_cast<chrono::milliseconds>(end - start)
-                .count() /
-            inference_batch_size);
+    pt.addSample((float)chrono::duration_cast<chrono::milliseconds>(end - start)
+                     .count() /
+                 inference_batch_size);
   }
   return {raw_outputs, avg_output};
 }
@@ -165,7 +160,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
 }
 
 void inference_ev_loop() {
-  constexpr int delay_ms = 10000;
+  constexpr size_t delay_ms = 10000;
   const size_t cooldown_ms =
       settings.value("/inference/on_detected/cooldown_sec"_json_pointer, 120) *
       1000;
@@ -194,23 +189,19 @@ void inference_ev_loop() {
   vector<cv::Mat> images_mats(inference_batch_size);
 
   while (!ev_flag) {
-    interruptible_sleep(inference_interval_ms, 1000, []() {
-      while (snapshot_queue.size_approx() >
-             snapshot_queue.max_capacity() - image_queue_min_len) {
-        SnapshotMsg t;
-        snapshot_queue.try_dequeue(t);
-      }
-    });
-    {
-      size_t sample_count = 0;
-      while (sample_count < image_queue_min_len) {
-        if (snapshot_queue.try_dequeue(snapshot_batch[sample_count])) {
-          ++sample_count;
-        } else {
-          interruptible_sleep(499);
-        }
+    size_t sample_count = 0;
+    while (sample_count < image_queue_min_len && !ev_flag) {
+      if (snapshot_queue.try_dequeue(snapshot_batch[sample_count])) {
+        ++sample_count;
+      } else {
+        this_thread::sleep_for(999ms);
       }
     }
+    if (ev_flag) {
+      break;
+    }
+    spdlog::info("Inferring a batch of {} images", snapshot_batch.size());
+
     auto [raw_outputs, avg_output] = infer_images(models, snapshot_batch);
     update_last_inference_at();
     if (handle_inference_results(raw_outputs, avg_output, snapshot_batch)) {
@@ -258,7 +249,10 @@ void zeromq_ev_loop() {
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      snapshot_queue.try_enqueue(msg);
+      if (!snapshot_queue.try_enqueue(msg)) {
+        spdlog::warn("snapshot_queue full, snapshots are not being inferred "
+                     "fast enough");
+      }
     } else {
       spdlog::error("Failed to parse ZeroMQ payload as SnapshotMsg");
     }

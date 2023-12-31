@@ -16,9 +16,7 @@ void install_signal_handler();
 
 std::string get_current_datetime_string();
 
-void interruptible_sleep(
-    const size_t &sleep_ms, const size_t interval_ms = 1000,
-    std::function<void()> func = []() {});
+void interruptible_sleep(const size_t sleep_ms);
 
 void update_last_inference_at();
 

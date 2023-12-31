@@ -23,14 +23,13 @@
     }
   },
   "inference": {
-    "on_detected":{
-      "external_program_cpp":"/home/user/bin/on-detected-cpp.py",
+    "on_detected": {
+      "external_program_cpp": "/home/user/bin/on-detected-cpp.py",
       "external_program_py": "/home/user/bin/on-detected.py",
       "jpegs_directory": "/tmp/detected/",
       "gif_path": "/tmp/detected-cpp.gif",
       "cooldown_sec": 120
     },
-    "initial_inference_interval_ms": 60000,
     "zeromq_address": "tcp://127.0.0.1:4241",
     "swagger": {
       "host": "127.0.0.1",

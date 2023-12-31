@@ -35,9 +35,8 @@ extern const size_t image_queue_max_len;
 extern nlohmann::json settings;
 extern std::vector<std::string> model_ids;
 
-extern std::atomic<uint32_t> inference_interval_ms;
 extern std::vector<std::string> model_ids;
-extern std::unordered_map<uint32_t, PercentileTracker<float>> pt_dict;
+extern PercentileTracker<float> pt;
 extern std::vector<torch::jit::script::Module> models;
 
 extern std::string torch_script_serialization;
