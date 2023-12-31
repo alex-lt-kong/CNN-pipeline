@@ -73,7 +73,7 @@ string get_current_datetime_string() {
   return ss.str();
 }
 
-void interruptible_sleep(const size_t sleep_ms, const size_t interval_ms,
+void interruptible_sleep(const size_t &sleep_ms, const size_t interval_ms,
                          function<void()> func) {
   if (sleep_ms <= interval_ms) {
     this_thread::sleep_for(chrono::milliseconds(sleep_ms));
