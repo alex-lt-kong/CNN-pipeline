@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
   filesystem::path parentPath = binaryPath.parent_path().parent_path();
   string config_path, image_path;
   vector<string> model_ids;
+
   parse_arguments(argc, argv, image_path, config_path, model_ids);
 
   // config_path = (parentPath / "config.json").string();

@@ -110,7 +110,7 @@ public:
       }
     }
     dto->modelIds = ss.str();
-    dto->image_queue_size = snapshot_queue.size_approx();
+    dto->image_queue_size = snapshot_pc_queue.size_approx();
     dto->lastInferenceAt = last_inference_at;
     auto percentiles = std::vector<double>{10, 50, 66, 90, 95, 99, 99.99};
     dto->inference_duration_stats = oatpp::data::mapping::type::List<

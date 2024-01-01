@@ -54,6 +54,7 @@ sudo make install
 
 - `readerwriterqueue` for lock-free SPSC queue: `apt install libreaderwriterqueue-dev`
 - `spdlog` for logging: `apt install libspdlog-dev`
+- `cxxopts` for arguments parsing: `apt install libcxxopts-dev`
 - `nlohmann-json3` for JSON support: `apt install nlohmann-json3-dev`
 - `cppzmq` for ZeroMQ support: `apt install libzmq3-dev`
 - `Magick++` for GIF support: `apt install libmagickcore-dev libmagick++-dev libmagick++-6-headers`

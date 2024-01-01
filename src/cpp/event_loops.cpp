@@ -17,19 +17,35 @@ string cuda_device_string = "cuda:0";
 
 tuple<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
-             const vector<SnapshotMsg> &jpegs) {
-  auto start = chrono::steady_clock::now();
+             const deque<SnapshotMsg> &snaps) {
+  const size_t start_idx = pre_detection_size;
+  const size_t end_idx = pre_detection_size + inference_batch_size;
+  spdlog::info(
+      "Inferring {} images from [{}] to [{}] (timespan: {} sec). The "
+      "hypothetical gif contains images from [{}] to [{}] (timespan: {} sec)",
+      end_idx - start_idx,
+      unix_ts_to_iso_datetime(snaps[start_idx].unixepochns() / 1000 / 1000),
+      unix_ts_to_iso_datetime(snaps[end_idx].unixepochns() / 1000 / 1000),
+      (snaps[end_idx].unixepochns() - snaps[start_idx].unixepochns()) / 1000 /
+          1000 / 1000,
+      unix_ts_to_iso_datetime(snaps[0].unixepochns() / 1000 / 1000),
+      unix_ts_to_iso_datetime(snaps[gif_frame_count - 1].unixepochns() / 1000 /
+                              1000),
+      (snaps[gif_frame_count - 1].unixepochns() - snaps[0].unixepochns()) /
+          1000 / 1000 / 1000);
+
+  auto t0 = chrono::steady_clock::now();
   vector<torch::Tensor> images_tensors_vec(inference_batch_size);
   torch::Tensor images_tensor;
   vector<torch::jit::IValue> input(1);
-  for (size_t i = 0; i < inference_batch_size; ++i) {
-    auto idx = pre_detection_size + i;
+  for (size_t i = start_idx; i < end_idx; ++i) {
     // TODO: can we remove this std::copy()??
     // Profiling shows this copy takes less than 1 ms
-    std::vector<char> v(jpegs[idx].payload().length());
-    std::copy(jpegs[idx].payload().begin(), jpegs[idx].payload().end(),
-              v.begin());
-    images_tensors_vec[i] = cv_mat_to_tensor(cv::imdecode(v, cv::IMREAD_COLOR));
+    int idx = i - pre_detection_size;
+    vector<char> v(snaps[i].payload().length());
+    std::copy(snaps[i].payload().begin(), snaps[i].payload().end(), v.begin());
+    images_tensors_vec[idx] =
+        cv_mat_to_tensor(cv::imdecode(v, cv::IMREAD_COLOR));
   }
   images_tensor = torch::stack(images_tensors_vec);
 
@@ -47,12 +63,12 @@ infer_images(vector<torch::jit::script::Module> &models,
       avg_output += raw_outputs[i];
     }
   }
-  auto end = chrono::steady_clock::now();
+  auto t1 = chrono::steady_clock::now();
   {
     lock_guard<mutex> lock(swagger_mtx);
-    pt.addSample((float)chrono::duration_cast<chrono::milliseconds>(end - start)
-                     .count() /
-                 inference_batch_size);
+    pt.addSample(
+        (float)chrono::duration_cast<chrono::milliseconds>(t1 - t0).count() /
+        inference_batch_size);
   }
   return {raw_outputs, avg_output};
 }
@@ -76,7 +92,7 @@ void execute_external_program_async() {
 
 bool handle_inference_results(vector<at::Tensor> &raw_outputs,
                               at::Tensor &avg_output,
-                              const vector<SnapshotMsg> &snaps) {
+                              const deque<SnapshotMsg> &snaps) {
   ostringstream oss_raw_result, oss_avg_result;
   for (size_t i = 0; i < raw_outputs.size(); ++i) {
     oss_raw_result << raw_outputs[i];
@@ -167,8 +183,6 @@ void inference_ev_loop() {
   spdlog::info("inference_ev_loop() started, waiting for {}ms before start",
                delay_ms);
   // Otherwise we won't have any images of detected object in the GIF
-  assert(pre_detection_size < gif_frame_count);
-  assert(gif_frame_count > 0);
   assert(inference_batch_size > 0);
   // Initial wait, just to spread out the stress at the beginning of the run
   interruptible_sleep(delay_ms);
@@ -185,13 +199,18 @@ void inference_ev_loop() {
   }
 
   Magick::InitializeMagick(nullptr);
-  vector<SnapshotMsg> snapshot_batch(image_queue_min_len);
+  deque<SnapshotMsg> snap_deque;
   vector<cv::Mat> images_mats(inference_batch_size);
 
   while (!ev_flag) {
     size_t sample_count = 0;
-    while (sample_count < image_queue_min_len && !ev_flag) {
-      if (snapshot_queue.try_dequeue(snapshot_batch[sample_count])) {
+    while (sample_count < inference_batch_size && !ev_flag) {
+      SnapshotMsg t;
+      if (snapshot_pc_queue.try_dequeue(t)) {
+        snap_deque.emplace_back(t);
+        if (snap_deque.size() > gif_frame_count) {
+          snap_deque.pop_front();
+        }
         ++sample_count;
       } else {
         this_thread::sleep_for(999ms);
@@ -200,11 +219,16 @@ void inference_ev_loop() {
     if (ev_flag) {
       break;
     }
-    spdlog::info("Inferring a batch of {} images", snapshot_batch.size());
+    if (snap_deque.size() < gif_frame_count) {
+      spdlog::info("snap_deque.size() too small ({}), queuing more elements "
+                   "before inference",
+                   snap_deque.size());
+      continue;
+    }
 
-    auto [raw_outputs, avg_output] = infer_images(models, snapshot_batch);
+    auto [raw_outputs, avg_output] = infer_images(models, snap_deque);
     update_last_inference_at();
-    if (handle_inference_results(raw_outputs, avg_output, snapshot_batch)) {
+    if (handle_inference_results(raw_outputs, avg_output, snap_deque)) {
       spdlog::info("inference_ev_loop() will sleep for {} ms after detection",
                    cooldown_ms);
       interruptible_sleep(cooldown_ms);
@@ -249,7 +273,7 @@ void zeromq_ev_loop() {
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      if (!snapshot_queue.try_enqueue(msg)) {
+      if (!snapshot_pc_queue.try_enqueue(msg)) {
         spdlog::warn("snapshot_queue full, snapshots are not being inferred "
                      "fast enough");
       }

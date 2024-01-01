@@ -6,8 +6,8 @@
 #include "model_utils.h"
 #include "utils.h"
 
+#include <cxxopts.hpp>
 #include <fmt/core.h>
-#include <getopt.h>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
@@ -21,46 +21,23 @@
 using namespace std;
 using json = nlohmann::json;
 
-void print_usage(string binary_name) {
-
-  cerr << "Usage: " << binary_name << " [OPTION]\n\n";
-
-  cerr << "Options:\n"
-       << "  --help,        -h        Display this help and exit\n"
-       << "  --config-path, -c        JSON configuration file path" << endl;
-}
-
-void parse_arguments(int argc, char **argv, string &config_path) {
-  static struct option long_options[] = {
-      {"config-path", required_argument, 0, 'c'},
-      {"help", optional_argument, 0, 'h'},
-      {0, 0, 0, 0}};
-
-  int opt, option_index = 0;
-
-  while ((opt = getopt_long(argc, argv, "c:h", long_options, &option_index)) !=
-         -1) {
-    switch (opt) {
-    case 'c':
-      if (optarg != NULL) {
-        config_path = string(optarg);
-      }
-      break;
-    default:
-      print_usage(argv[0]);
-      exit(EXIT_FAILURE);
-    }
-  }
-  if (config_path.empty()) {
-    print_usage(argv[0]);
-    exit(EXIT_FAILURE);
-  }
-}
-
 int main(int argc, char **argv) {
   install_signal_handler();
   string config_path;
-  parse_arguments(argc, argv, config_path);
+
+  cxxopts::Options options(argv[0], "Inference service");
+  // clang-format off
+  options.add_options()
+    ("h,help", "print help message")
+    ("c,config-path", "JSON configuration file path", cxxopts::value<string>()->default_value(config_path));
+  // clang-format on
+  auto result = options.parse(argc, argv);
+  if (result.count("help") || !result.count("config-path")) {
+    std::cout << options.help() << "\n";
+    return 0;
+  }
+  config_path = result["config-path"].as<std::string>();
+
   spdlog::set_pattern("%Y-%m-%d %T.%e | %7l | %5t | %v");
   spdlog::info("inference_service started");
   spdlog::info("Loading configurations from {}:", config_path);

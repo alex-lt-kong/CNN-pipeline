@@ -24,13 +24,13 @@ extern std::mutex models_mtx;
 extern std::mutex model_ids_mtx;
 
 extern moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>
-    snapshot_queue;
+    snapshot_pc_queue;
 
-extern const size_t gif_frame_count;
-extern const size_t inference_batch_size;
 extern const size_t pre_detection_size;
-extern const size_t image_queue_min_len;
-extern const size_t image_queue_max_len;
+extern const size_t inference_batch_size;
+extern const size_t post_detection_size;
+extern const size_t gif_frame_count;
+extern const size_t image_queue_size;
 
 extern nlohmann::json settings;
 extern std::vector<std::string> model_ids;
