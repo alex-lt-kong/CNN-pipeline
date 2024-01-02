@@ -22,17 +22,19 @@ infer_images(vector<torch::jit::script::Module> &models,
   const size_t end_idx = pre_detection_size + inference_batch_size;
   spdlog::info(
       "Inferring {} images from [{}] to [{}] (timespan: {} sec). The "
-      "hypothetical gif contains images from [{}] to [{}] (timespan: {} sec)",
+      "hypothetical gif contains {} images from [{}] to [{}] (timespan: {} "
+      "sec)",
       end_idx - start_idx,
       unix_ts_to_iso_datetime(snaps[start_idx].unixepochns() / 1000 / 1000),
       unix_ts_to_iso_datetime(snaps[end_idx].unixepochns() / 1000 / 1000),
       (snaps[end_idx].unixepochns() - snaps[start_idx].unixepochns()) / 1000 /
           1000 / 1000,
+      gif_frame_count,
       unix_ts_to_iso_datetime(snaps[0].unixepochns() / 1000 / 1000),
-      unix_ts_to_iso_datetime(snaps[gif_frame_count - 1].unixepochns() / 1000 /
+      unix_ts_to_iso_datetime(snaps[snaps.size() - 1].unixepochns() / 1000 /
                               1000),
-      (snaps[gif_frame_count - 1].unixepochns() - snaps[0].unixepochns()) /
-          1000 / 1000 / 1000);
+      (snaps[snaps.size() - 1].unixepochns() - snaps[0].unixepochns()) / 1000 /
+          1000 / 1000);
 
   auto t0 = chrono::steady_clock::now();
   vector<torch::Tensor> images_tensors_vec(inference_batch_size);
@@ -200,6 +202,11 @@ void inference_ev_loop() {
 
   Magick::InitializeMagick(nullptr);
   deque<SnapshotMsg> snap_deque;
+  // snap_deque_size is larger than gif_frame_count by (inference_batch_size +
+  // post_detection_size - 1) because the final gif is generated from a "sliding
+  // window" of snap_deque_size
+  const size_t snap_deque_size =
+      gif_frame_count + inference_batch_size + post_detection_size - 1;
   vector<cv::Mat> images_mats(inference_batch_size);
 
   while (!ev_flag) {
@@ -208,7 +215,7 @@ void inference_ev_loop() {
       SnapshotMsg t;
       if (snapshot_pc_queue.try_dequeue(t)) {
         snap_deque.emplace_back(t);
-        if (snap_deque.size() > gif_frame_count) {
+        if (snap_deque.size() > snap_deque_size) {
           snap_deque.pop_front();
         }
         ++sample_count;
@@ -219,10 +226,11 @@ void inference_ev_loop() {
     if (ev_flag) {
       break;
     }
-    if (snap_deque.size() < gif_frame_count) {
-      spdlog::info("snap_deque.size() too small ({}), queuing more elements "
-                   "before inference",
-                   snap_deque.size());
+    if (snap_deque.size() < snap_deque_size) {
+      spdlog::info(
+          "snap_deque.size() too small ({}vs{}), queuing more elements "
+          "before inference",
+          snap_deque.size(), snap_deque_size);
       continue;
     }
 
@@ -232,6 +240,7 @@ void inference_ev_loop() {
       spdlog::info("inference_ev_loop() will sleep for {} ms after detection",
                    cooldown_ms);
       interruptible_sleep(cooldown_ms);
+      snap_deque.clear();
     }
   }
   spdlog::info("inference_ev_loop() exited gracefully");
