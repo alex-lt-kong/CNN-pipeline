@@ -20,21 +20,22 @@ infer_images(vector<torch::jit::script::Module> &models,
              const deque<SnapshotMsg> &snaps) {
   const size_t start_idx = pre_detection_size;
   const size_t end_idx = pre_detection_size + inference_batch_size;
+  constexpr size_t mil = 1000 * 1000;
+  constexpr size_t bil = mil * 1000;
   spdlog::info(
-      "Inferring {} images from [{}] to [{}] (timespan: {} sec). The "
-      "hypothetical gif contains {} images from [{}] to [{}] (timespan: {} "
-      "sec)",
+      "Inferring {} images from [{}](idx:{}) to [{}](idx:{}) (timespan: {} "
+      "sec). The hypothetical gif contains {}(out of {}) images from "
+      "[{}](idx:0) to "
+      "[{}](idx:{}) (timespan: {} sec)",
       end_idx - start_idx,
-      unix_ts_to_iso_datetime(snaps[start_idx].unixepochns() / 1000 / 1000),
-      unix_ts_to_iso_datetime(snaps[end_idx].unixepochns() / 1000 / 1000),
-      (snaps[end_idx].unixepochns() - snaps[start_idx].unixepochns()) / 1000 /
-          1000 / 1000,
-      gif_frame_count,
-      unix_ts_to_iso_datetime(snaps[0].unixepochns() / 1000 / 1000),
-      unix_ts_to_iso_datetime(snaps[snaps.size() - 1].unixepochns() / 1000 /
-                              1000),
-      (snaps[snaps.size() - 1].unixepochns() - snaps[0].unixepochns()) / 1000 /
-          1000 / 1000);
+      unix_ts_to_iso_datetime(snaps[start_idx].unixepochns() / mil), start_idx,
+      unix_ts_to_iso_datetime(snaps[end_idx].unixepochns() / mil), end_idx,
+      (snaps[end_idx].unixepochns() - snaps[start_idx].unixepochns()) / bil,
+      gif_frame_count, snaps.size(),
+      unix_ts_to_iso_datetime(snaps[0].unixepochns() / mil),
+      unix_ts_to_iso_datetime(snaps[snaps.size() - 1].unixepochns() / mil),
+      snaps.size(),
+      (snaps[snaps.size() - 1].unixepochns() - snaps[0].unixepochns()) / bil);
 
   auto t0 = chrono::steady_clock::now();
   vector<torch::Tensor> images_tensors_vec(inference_batch_size);
