@@ -34,7 +34,7 @@ infer_images(vector<torch::jit::script::Module> &models,
       gif_frame_count, snaps.size(),
       unix_ts_to_iso_datetime(snaps[0].unixepochns() / mil),
       unix_ts_to_iso_datetime(snaps[snaps.size() - 1].unixepochns() / mil),
-      snaps.size(),
+      snaps.size() - 1,
       (snaps[snaps.size() - 1].unixepochns() - snaps[0].unixepochns()) / bil);
 
   auto t0 = chrono::steady_clock::now();
