@@ -39,17 +39,18 @@ vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
 }
 
 torch::Tensor cv_mat_to_tensor(cv::Mat image) {
-  cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+  auto img_clone = image.clone();
+  cv::cvtColor(image, img_clone, cv::COLOR_BGR2RGB);
 
   // cv::INTER_LINEAR is the OpenCV equivalent of
   // torchvision.transforms.InterpolationMode.BILINEAR
   // However, it is important to note that the resize() results from OpenCV
   // and PIL are not identical
-  cv::resize(image, image, target_img_size, 0, 0, cv::INTER_LINEAR);
+  cv::resize(img_clone, img_clone, target_img_size, 0, 0, cv::INTER_LINEAR);
 
   // Convert the OpenCV image to a Torch tensor
-  torch::Tensor image_tensor =
-      torch::from_blob(image.data, {image.rows, image.cols, 3}, torch::kByte);
+  torch::Tensor image_tensor = torch::from_blob(
+      img_clone.data, {img_clone.rows, img_clone.cols, 3}, torch::kByte);
 
   // permute() is used to "rearrange" dimensions. Before permute(),
   // tensor_image.sizes() is [240, 432, 3], but we want
