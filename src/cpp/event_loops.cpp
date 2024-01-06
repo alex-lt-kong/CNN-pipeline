@@ -14,6 +14,8 @@
 using namespace std;
 
 string cuda_device_string = "cuda:0";
+cv::Size zmqPayloadMatSize = cv::Size(1280, 720);
+int zmqPayloadMatType = CV_8UC3;
 
 tuple<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
@@ -45,10 +47,14 @@ infer_images(vector<torch::jit::script::Module> &models,
     // TODO: can we remove this std::copy()??
     // Profiling shows this copy takes less than 1 ms
     int idx = i - pre_detection_size;
-    vector<char> v(snaps[i].payload().length());
-    std::copy(snaps[i].payload().begin(), snaps[i].payload().end(), v.begin());
-    images_tensors_vec[idx] =
-        cv_mat_to_tensor(cv::imdecode(v, cv::IMREAD_COLOR));
+    assert((unsigned int)zmqPayloadMatSize.width * zmqPayloadMatSize.height *
+               3 ==
+           snaps[i].payload().size());
+    cv::Mat mat = cv::Mat(zmqPayloadMatSize, zmqPayloadMatType,
+                          (void *)snaps[i].payload().data());
+    // std::copy(snaps[i].payload().begin(), snaps[i].payload().end(),
+    // v.begin());
+    images_tensors_vec[idx] = cv_mat_to_tensor(mat);
   }
   images_tensor = torch::stack(images_tensors_vec);
 
@@ -135,9 +141,11 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   auto gif_height =
       settings.value("/inference/on_detected/gif_size/height"_json_pointer,
                      target_img_size.height);
+  vector<vector<uchar>> jpegs(gif_frame_count);
   // nonzero_y_preds_idx[0] stores the first non-zero item
   // index in y_pred. Note that y_pred[0] is NOT the result
   // of jpegs[0], but jpegs[pre_detection_size]
+  // cv::imdecode(v, cv::IMREAD_COLOR);
   for (size_t i = 0; i < gif_frame_count; ++i) {
     // One needs to think for a while to understand the
     // offset between jpegs_idx and y_pred's index--their gap
@@ -146,8 +154,12 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     // cv::IMREAD_COLOR));
     auto jpegs_idx = nonzero_y_preds_idx[0].item<int>() + i;
     assert(jpegs_idx < snaps.size());
-    frames.emplace_back(Magick::Blob(snaps[jpegs_idx].payload().data(),
-                                     snaps[jpegs_idx].payload().size()));
+
+    cv::imencode(".jpg",
+                 cv::Mat(zmqPayloadMatSize, zmqPayloadMatType,
+                         (void *)snaps[jpegs_idx].payload().data()),
+                 jpegs[i]);
+    frames.emplace_back(Magick::Blob(jpegs[i].data(), jpegs[i].size()));
     frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
     frames.back().resize(Magick::Geometry(gif_width, gif_height));
   }
@@ -170,8 +182,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     if (!outFile) {
       spdlog::error("Failed to open the file [{}]", jpg_path.native());
     } else {
-      outFile.write(snaps[jpegs_idx].payload().data(),
-                    snaps[jpegs_idx].payload().size());
+      outFile.write((char *)jpegs[i].data(), jpegs[i].size());
       outFile.close();
     }
   }
