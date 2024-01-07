@@ -19,8 +19,7 @@ class InternalStateDto : public oatpp::DTO {
   DTO_FIELD_INFO(inference_duration_stats) {
     info->description = "Percentiles of time (in ms) needed to infer one image";
   }
-  DTO_FIELD(List<Fields<Int32>>, inference_duration_stats,
-            "inferenceDurationStats");
+  DTO_FIELD(Fields<Int32>, inference_duration_stats, "inferenceDurationStats");
 };
 
 #include OATPP_CODEGEN_END(DTO)
