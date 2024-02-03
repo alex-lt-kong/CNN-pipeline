@@ -94,8 +94,9 @@ void execute_external_program_async() {
                    cmd);
     }
   };
-  thread th_exec(f, settings["inference"]["on_detected"]["external_program_cpp"]
-                        .get<string>());
+  thread th_exec(
+      f,
+      settings["inference"]["on_detected"]["external_program"].get<string>());
   th_exec.detach();
 }
 
