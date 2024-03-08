@@ -13,9 +13,9 @@
 
 using namespace std;
 
-string cuda_device_string = "cuda:0";
-cv::Size zmqPayloadMatSize = cv::Size(1280, 720);
-int zmqPayloadMatType = CV_8UC3;
+static string cuda_device_string = "cuda:0";
+static cv::Size zmqPayloadMatSize;
+static int zmqPayloadMatType = CV_8UC3;
 
 tuple<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
@@ -264,8 +264,11 @@ void zeromq_ev_loop() {
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
-  string zmq_address = settings.value("/inference/zeromq_address"_json_pointer,
+  string zmq_address = settings.value("/inference/zeromq/address"_json_pointer,
                                       "tcp://127.0.0.1:4240");
+  zmqPayloadMatSize = cv::Size(
+      settings.value("/inference/zeromq/image_size/width"_json_pointer, 1920),
+      settings.value("/inference/zeromq/image_size/height"_json_pointer, 1080));
   subscriber.connect(zmq_address);
   spdlog::info("ZeroMQ client connected to {}", zmq_address);
   constexpr int timeout = 5000;

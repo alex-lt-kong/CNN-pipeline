@@ -30,7 +30,10 @@
       "gif_path": "/tmp/detected-cpp.gif",
       "cooldown_sec": 120
     },
-    "zeromq_address": "tcp://127.0.0.1:4241",
+    "zeromq": {
+      "address": "tcp://127.0.0.1:4241",
+      "image_size": { "width": 1920, "height": 1080 }
+    },
     "swagger": {
       "host": "127.0.0.1",
       "port": 8000,
