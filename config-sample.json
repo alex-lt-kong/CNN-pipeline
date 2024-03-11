@@ -28,6 +28,11 @@
       "external_program_py": "/home/user/bin/on-detected.py",
       "jpegs_directory": "/tmp/detected/",
       "gif_path": "/tmp/detected-cpp.gif",
+      "gif_size": {
+        "width": 266,
+        "height": 140
+      },
+      "gif_frame_interval_ms": 200,
       "cooldown_sec": 120
     },
     "zeromq": {

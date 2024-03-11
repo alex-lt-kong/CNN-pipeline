@@ -142,6 +142,12 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   auto gif_height =
       settings.value("/inference/on_detected/gif_size/height"_json_pointer,
                      target_img_size.height);
+
+  // The unit is "Time in 1/100ths of a second"
+  unsigned int gif_frame_interval =
+      settings.value(
+          "/inference/on_detected/gif_frame_interval_ms"_json_pointer, 200) /
+      10;
   vector<vector<uchar>> jpegs(gif_frame_count);
   // nonzero_y_preds_idx[0] stores the first non-zero item
   // index in y_pred. Note that y_pred[0] is NOT the result
@@ -161,7 +167,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
                          (void *)snaps[jpegs_idx].payload().data()),
                  jpegs[i]);
     frames.emplace_back(Magick::Blob(jpegs[i].data(), jpegs[i].size()));
-    frames.back().animationDelay(10); // 100 milliseconds (10 * 1/100th)
+    frames.back().animationDelay(gif_frame_interval);
     frames.back().resize(Magick::Geometry(gif_width, gif_height));
   }
   string gif_path = settings.value(
