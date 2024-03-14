@@ -1,4 +1,4 @@
-IN_FILE="/mnt/video.mp4"
+IN_FILE="/mnt/dashboard/videos/corridor/20240313-145956_走廊_360.mp4"
 OUT_FILES="/tmp/sample/video_%05d.jpg"
 # Ignore FPS if input file is a gif animation.
 FPS=5
