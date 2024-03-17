@@ -349,10 +349,9 @@ def save_transformed_samples(dataloader: DataLoader,
         )
 
 
-def train(load_parameters: bool, model_id: str, lr: float = 0.001,
-          epochs: int = 10) -> nn.Module:
+def train(load_parameters: bool, model_id: str, num_classes: int,
+          lr: float = 0.001, epochs: int = 10) -> nn.Module:
 
-    num_classes = 2
     v16mm = VGG16MinusMinus(num_classes)
     v16mm.to(device)
     if load_parameters:
@@ -500,10 +499,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--load-parameters', '-l', action='store_true',
                     help='load existing parameters for continue training')
-    ap.add_argument('--learning-rate', '-lr', dest='learning_rate',
-                    help='Specify a learning rate')
-    ap.add_argument('--epochs', '-e', dest='epochs')
-    ap.add_argument('--model-id', '-i', dest='model-id', required=True)
+    ap.add_argument('--num-classes', '-n', dest='num_classes', type=int,
+                    help='Number of classes, if output can be 0 or 1, num-class should be 2',
+                    required=True)
+    ap.add_argument('--learning-rate', '-lr', dest='learning_rate', type=float,
+                    help='Specify a learning rate', default=0.001)
+    ap.add_argument('--epochs', '-e', dest='epochs', type=int, default=10)
+    ap.add_argument('--model-id', '-i', dest='model_id', required=True)
     ap.add_argument('--cuda-device-id', '-d', dest='cuda-device-id',
                     default='cuda',
                     help=('Specify GPU to use following CUDA semantics. '
@@ -516,17 +518,11 @@ def main() -> None:
     logging.info(f"GPU Memory: {properties.total_memory / 1024**3:.2f} GB")
     logging.info(f"GPU CUDA semantics: {device}")
 
-    try:
-        lr = float(args['learning_rate'])
-    except Exception:
-        lr = 0.001
-    try:
-        epochs = int(args['epochs'])
-    except Exception:
-        epochs = 10
-
-    set_seed(config['model']['random_seeds'][args['model-id']])
-    train(args['load_parameters'], args['model-id'], lr, epochs)
+    set_seed(config['model']['random_seeds'][args['model_id']])
+    train(
+        args['load_parameters'], args['model_id'], args['num_classes'], args['learning_rate'],
+        args['epochs']
+    )
     logging.info('Training completed')
 
 

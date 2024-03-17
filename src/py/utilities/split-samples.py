@@ -1,6 +1,12 @@
+from typing import Any, Dict
+
+import argparse
+import json
 import os
 import random
 import shutil
+
+curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def split_files(
@@ -47,16 +53,32 @@ def split_files(
     )
 
 
-split_ratio = 0.9
-# random_seed = int(time.time())
-random_seed = 16888
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        '--split-ratio', '-r', help='Ratio of the training set',
+        dest='split-ratio', type=float, default='0.9'
+    )
+    ap.add_argument(
+        '--categories', '-c', required=True, dest='categories',
+        help='Comma-separated list of categories, typically something like 0,1,2')
+    args = vars(ap.parse_args())
 
-input_directory = "/mnt/models/VGGNET-based-CNN-pipeline/data/raw/0/"
-output_directory_1 = "/mnt/models/VGGNET-based-CNN-pipeline/data/training/0/"
-output_directory_2 = "/mnt/models/VGGNET-based-CNN-pipeline/data/validation/0/"
-split_files(input_directory, output_directory_1, output_directory_2, split_ratio, random_seed)
+    config = Dict[str, Any]
+    with open(os.path.join(curr_dir, '..', '..', '..', 'config.json')) as j:
+        config = json.load(j)
 
-input_directory = "/mnt/models/VGGNET-based-CNN-pipeline/data/raw/1/"
-output_directory_1 = "/mnt/models/VGGNET-based-CNN-pipeline/data/training/1/"
-output_directory_2 = "/mnt/models/VGGNET-based-CNN-pipeline/data/validation/1/"
-split_files(input_directory, output_directory_1, output_directory_2, split_ratio, random_seed)
+    random_seed = 16888
+    # breakpoint()
+    for cat in args['categories'].split(','):
+        input_dir = os.path.join(config["dataset"]["raw"], cat)
+        training_dir = os.path.join(config["dataset"]["training"], cat)
+        validation_dir = os.path.join(config["dataset"]["validation"], cat)
+        split_files(
+            input_dir, training_dir, validation_dir,
+            args['split-ratio'], random_seed
+        )
+
+
+if __name__ == '__main__':
+    main()

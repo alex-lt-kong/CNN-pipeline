@@ -1,5 +1,6 @@
 {
   "dataset": {
+    "raw": "/tmp/data/raw/",
     "training": "/tmp/data/training/",
     "validation": "/tmp/data/validation/"
   },
