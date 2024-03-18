@@ -16,6 +16,7 @@ import torch
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
+ap.add_argument('--num-classes', '-n', dest='num_classes', type=int, required=True)
 args = vars(ap.parse_args())
 model_ids = str(args['model-ids']).split(',')
 
@@ -30,7 +31,7 @@ with open(os.path.join(curr_dir, '..', '..', 'config.json')) as j:
 
 v16mms = []
 for i in range(len(model_ids)):
-    v16mms.append(model.VGG16MinusMinus(2))
+    v16mms.append(model.VGG16MinusMinus(args['num_classes']))
     v16mms[i].to(device)
     model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])
     print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')
