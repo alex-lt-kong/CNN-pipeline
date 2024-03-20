@@ -76,20 +76,23 @@ inline void install_signal_handler() {
 int main(int argc, const char *argv[]) {
   install_signal_handler();
   cxxopts::Options options(argv[0], "Video classifier");
-  string configPath, srcVideoPath, dstVideoPath;
+  string configPath, srcVideoPath;
+  string dstVideoDir = "/tmp";
+  string dstVideoBaseName = "video";
   int numClasses = 2;
   // clang-format off
   options.add_options()
     ("h,help", "Print help message")
     ("s,src-video-path", "Source video path", cxxopts::value<string>()->default_value(srcVideoPath))
-    ("d,dst-video-path", "Destination video path", cxxopts::value<string>()->default_value(dstVideoPath))
+    ("d,dst-video-dir", "Directory video path", cxxopts::value<string>()->default_value(dstVideoDir))
+    ("b,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dstVideoBaseName))
     ("n,num-classes", "Number of classes of output", cxxopts::value<int>()->default_value(to_string(numClasses)))
     ("c,config-path", "JSON configuration file path",  cxxopts::value<string>()->default_value(configPath));
   // clang-format on
   auto result = options.parse(argc, argv);
   if (result.count("help") || !result.count("config-path") ||
-      !result.count("src-video-path") ||
-      !result.count("dst-video-path") //||      !result.count("num-classes")
+      !result.count("src-video-path") //||
+      //! result.count("dst-video-dir") || !result.count("num-classes")
   ) {
     cout << "getBuildInformation():\n" << getBuildInformation() << endl;
     cout << options.help() << "\n";
@@ -97,10 +100,11 @@ int main(int argc, const char *argv[]) {
   }
   configPath = result["config-path"].as<string>();
   srcVideoPath = result["src-video-path"].as<string>();
-  dstVideoPath = result["dst-video-path"].as<string>();
+  dstVideoDir = result["dst-video-dir"].as<string>();
+  dstVideoBaseName = result["dst-video-base-name"].as<string>();
   numClasses = result["num-classes"].as<int>();
+  vector<size_t> frameCountByOutput(numClasses, 0);
 
-  // config_path = (parentPath / "config.json").string();
   ifstream f(configPath);
 
   json settings = json::parse(f);
@@ -121,8 +125,13 @@ int main(int argc, const char *argv[]) {
     cerr << "Failed to read frame from source\n";
     return EXIT_FAILURE;
   }
+
+  filesystem::path tempVideoPath =
+      filesystem::temp_directory_path() /
+      ("temp_" + to_string(time(nullptr)) + ".mp4");
+
   Ptr<cudacodec::VideoWriter> dWriter = cudacodec::createVideoWriter(
-      string(dstVideoPath), dFrame.size(), cudacodec::Codec::H264, 45.0,
+      string(tempVideoPath), dFrame.size(), cudacodec::Codec::H264, 45.0,
       cudacodec::ColorFormat::BGR);
   dReader.release();
   dReader = cudacodec::createVideoReader(srcVideoPath);
@@ -180,6 +189,7 @@ int main(int argc, const char *argv[]) {
 
       dFrame.upload(hFrames[i]);
       dWriter->write(dFrame);
+      ++frameCountByOutput[y_pred];
     }
     hFrames.clear();
   }
@@ -187,5 +197,22 @@ int main(int argc, const char *argv[]) {
   cout << "dWriter->release()ed" << endl;
   dReader.release();
   cout << "dReader->release()ed" << endl;
+  dstVideoBaseName += "_";
+  for (int i = 0; i < numClasses; ++i) {
+    if (frameCountByOutput[i] > 0)
+      dstVideoBaseName += to_string(i) + "-";
+  }
+  dstVideoBaseName = dstVideoBaseName.substr(0, dstVideoBaseName.size() - 1);
+  filesystem::path dstVideoPath =
+      filesystem::path(dstVideoDir) / (dstVideoBaseName + ".mp4");
+  try {
+    filesystem::copy_file(tempVideoPath, dstVideoPath,
+                          filesystem::copy_options::overwrite_existing);
+    std::filesystem::remove(tempVideoPath);
+    cout << "dstVideo moved to: [" << dstVideoPath << "]\n";
+  } catch (filesystem::filesystem_error &e) {
+    cerr << "Error: " << e.what() << "\n";
+  }
+
   return 0;
 }

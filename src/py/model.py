@@ -98,7 +98,11 @@ class VGG16MinusMinus(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
-            nn.Linear(int(224 / 64) * int(426 / 64) * 256, int(4096 / 38)),
+            nn.Linear(
+                int(helper.target_img_size[0] / 64) *
+                int(helper.target_img_size[1] / 64) * 256,
+                int(4096 / 38)
+            ),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
@@ -151,7 +155,7 @@ def get_data_loaders(data_path: str,
         def __init__(
             self, subset: torch.utils.data.Subset,
             dataset_name: str,
-            transform: Optional[torchvision.transforms.Compose] = None,            
+            transform: Optional[torchvision.transforms.Compose] = None
         ) -> None:
             assert isinstance(subset, torch.utils.data.Subset)
             self.subset = subset

@@ -1,6 +1,7 @@
 from PIL import Image
 from typing import Tuple
 
+from .. import helper
 import argparse
 import os
 
@@ -30,9 +31,9 @@ def main() -> None:
     ap.add_argument('--source-dir', '-s', dest='source-dir', required=True)
     ap.add_argument('--dest-dir', '-d', dest='dest-dir', required=True)
     args = vars(ap.parse_args())
-    size = (426, 224)  # size in in (w, h)
+    # size = (426, 224)  # size in in (w, h)
 
-    resize_images(args['source-dir'], args['dest-dir'], size)
+    resize_images(args['source-dir'], args['dest-dir'], helper.target_img_size)
 
 
 if __name__ == '__main__':

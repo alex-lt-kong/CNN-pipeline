@@ -4,7 +4,7 @@ import os
 import torch
 import torchvision
 
-target_img_size = (224, 426)  # size is in (h,w)
+target_img_size = (360, 640)  # size is in (h,w)
 target_img_means = [0.485, 0.456, 0.406]
 target_img_stds = [0.229, 0.224, 0.225]
 train_transforms = torchvision.transforms.Compose([
