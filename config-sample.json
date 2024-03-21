@@ -12,6 +12,7 @@
       "3": 1621443610,
       "4": 2023055420
     },
+    "num_output_classes": 2,
     "parameters": "/tmp/data/model_{id}.pth",
     "torch_script_serialization": "/tmp/data/model_{id}.pt",
     "diagnostics_dir": "/tmp/diagnostics"

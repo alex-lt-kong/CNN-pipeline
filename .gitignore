@@ -199,7 +199,7 @@ dmypy.json
 predict.sqlite
 predict.sqlite-journal
 config*.json
-config.json
+!config-sample.json
 *.out
 diagnostics-*/
 diagnostics_*/

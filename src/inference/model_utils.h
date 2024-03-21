@@ -7,7 +7,6 @@
 #include <torch/script.h> // One-stop header.
 #pragma GCC diagnostic pop
 
-#define NUM_OUTPUT_CLASSES 2
 
 std::vector<torch::jit::script::Module>
 load_models(const std::vector<std::string> &model_ids,

@@ -16,6 +16,7 @@ using namespace std;
 static string cuda_device_string = "cuda:0";
 static cv::Size zmq_payload_mat_size;
 static cv::Size target_img_size;
+static size_t num_output_class;
 static int zmq_payload_mat_type = CV_8UC3;
 
 tuple<vector<at::Tensor>, at::Tensor>
@@ -63,7 +64,7 @@ infer_images(vector<torch::jit::script::Module> &models,
 
   // images_tensor.sizes()[0] stores number of images
   at::Tensor avg_output =
-      torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
+      torch::zeros({images_tensor.sizes()[0], num_output_class});
   avg_output = avg_output.to(cuda_device_string);
   vector<at::Tensor> raw_outputs(models.size());
   {
@@ -271,7 +272,7 @@ void zeromq_ev_loop() {
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
-  string zmq_address = settings.value("/inference/zeromq/address"_json_pointer,
+  string zmq_address = settings.value("/inference/zeromq_address"_json_pointer,
                                       "tcp://127.0.0.1:4240");
   zmq_payload_mat_size = cv::Size(
       settings.value("/inference/zeromq/image_size/width"_json_pointer, 1920),
@@ -279,6 +280,7 @@ void zeromq_ev_loop() {
   target_img_size = cv::Size(
       settings.value("/model/input_image_size/width"_json_pointer, 0),
       settings.value("/model/input_image_size/height"_json_pointer, 0));
+  num_output_class = settings.value("/model/num_output_class"_json_pointer, 2);
   subscriber.connect(zmq_address);
   spdlog::info("ZeroMQ client connected to {}", zmq_address);
   constexpr int timeout = 5000;

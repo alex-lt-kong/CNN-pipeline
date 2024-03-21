@@ -171,7 +171,8 @@ int main(int argc, char **argv) {
   // images_tensor.sizes()[0] stores number of images
   // 2 is the num_classes member variable as defined in VGG16MinusMinus@model.py
   at::Tensor output =
-      torch::zeros({images_tensor.sizes()[0], NUM_OUTPUT_CLASSES});
+      torch::zeros({images_tensor.sizes()[0],
+                    settings.value("/model/num_output_class"_json_pointer, 2)});
   output = output.to(torch::kCUDA);
   vector<at::Tensor> outputs(v16mms.size());
   spdlog::info("Running inference");
