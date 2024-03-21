@@ -198,9 +198,10 @@ dmypy.json
 #
 predict.sqlite
 predict.sqlite-journal
+config*.json
 config.json
 *.out
 diagnostics/*
 !diagnostics/.gitkeep
-data/*
-!data/.gitkeep
+data_*/
+!data_*/.gitkeep
