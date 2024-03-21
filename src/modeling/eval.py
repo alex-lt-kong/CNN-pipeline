@@ -40,7 +40,7 @@ for i in range(len(model_ids)):
     total_params = sum(p.numel() for p in v16mms[i].parameters())
     print(f"Number of parameters: {total_params:,}")
 
-misclassified_dir = settings['diagnostics']['misclassified']
+misclassified_dir = os.path.join(settings['diagnostics'], 'misclassified')
 print(f'Evaluting samples from [{misclassified_dir}]')
 if os.path.exists(misclassified_dir):
     shutil.rmtree(misclassified_dir)

@@ -216,10 +216,13 @@ def get_data_loaders(data_path: str,
 
 def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
 
-    csv_path = os.path.join(curr_dir, '..',  '..', 'diagnostics', filename)
+    csv_dir = os.path.join(config['model']['diagnostics_dir'], 'training')
+    if not os.path.isdir(csv_dir):
+        os.makedirs(csv_dir)
+    csv_path = os.path.join(csv_dir, filename)
     if os.path.isfile(csv_path):
         df = pd.read_csv(csv_path)
-    else:
+    else:        
         df = pd.DataFrame()
     # logging.info(f'Appending:\n{metrics_dict}\n--- to ---\n{df}')
     df = df.append(metrics_dict, ignore_index=True)
@@ -338,7 +341,7 @@ def save_transformed_samples(dataloader: DataLoader,
     from torchvision.utils import save_image
     if os.path.exists(save_dir):
         shutil.rmtree(save_dir)
-    os.mkdir(save_dir)
+    os.makedirs(save_dir)
     dataset_size = len(dataloader.dataset)  # type: ignore
     logging.info(
         f"{dataset_size} images are in this dataset and we sample {num_samples} from it."
@@ -386,13 +389,20 @@ def train(load_parameters: bool, model_id: str, num_classes: int,
     train_loader, train_loader_for_eval, val_loader = get_data_loaders(
         training_samples_dir, config['model']['random_seeds'][model_id]
     )
-    save_transformed_samples(train_loader, config['diagnostics']['preview'][
-            'training_samples'].replace(r'{id}', model_id), 30)
-    save_transformed_samples(train_loader_for_eval, config['diagnostics'][
-        'preview']['training_samples_for_eval'].replace(
-        r'{id}', model_id), 30)
-    save_transformed_samples(val_loader, config['diagnostics']['preview'][
-        'test_samples'].replace(r'{id}', model_id), 5)
+    save_transformed_samples(
+        train_loader,
+        os.path.join(config['model']['diagnostics_dir'], 'preview', f'training_samples_{model_id}'),
+        30
+    )
+    save_transformed_samples(
+        train_loader_for_eval,
+        os.path.join(config['model']['diagnostics_dir'], 'preview', f'training_samples_for_eval_{model_id}'),
+        30)
+    save_transformed_samples(
+        val_loader,
+        os.path.join(config['model']['diagnostics_dir'], 'preview', f'test_samples_{model_id}'),
+        5
+    )
 
     # Define the loss function, optimizer and learning rate scheduler
     loss_fn = nn.CrossEntropyLoss()
@@ -467,9 +477,12 @@ def train(load_parameters: bool, model_id: str, num_classes: int,
 
 
 def generate_curves(filename: str, mv_window: int = 1) -> None:
-    csv_path = os.path.join(curr_dir, '..', '..', 'diagnostics', f'{filename}.csv')
-    img_path = os.path.join(curr_dir, '..', '..', 'diagnostics',
-                            f'{filename}_mv{mv_window}.png')
+    csv_path = os.path.join(
+        config['model']['diagnostics_dir'], 'training', f'{filename}.csv'
+    )
+    img_path = os.path.join(
+        config['model']['diagnostics_dir'], 'training' f'{filename}_mv{mv_window}.png'
+    )
     if os.path.isfile(csv_path) is not True:
         raise FileNotFoundError(f'{csv_path} not found')
     df = pd.read_csv(csv_path)
@@ -491,8 +504,6 @@ def generate_curves(filename: str, mv_window: int = 1) -> None:
 def main() -> None:
 
     global config, device
-    with open(os.path.join(curr_dir, '..', '..', 'config.json')) as j:
-        config = json.load(j)
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s.%(msecs)03d | %(levelname)7s | %(message)s',
@@ -503,6 +514,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--load-parameters', '-l', action='store_true',
                     help='load existing parameters for continue training')
+    ap.add_argument('--config-path', '-c', dest='config-path', required=True,
+                    help='Config file path')
     ap.add_argument('--num-classes', '-n', dest='num_classes', type=int,
                     help='Number of classes, if output can be 0 or 1, num-class should be 2',
                     required=True)
@@ -516,6 +529,8 @@ def main() -> None:
                           'Sample values include "cuda"/"cuda:0"/"cuda:1"'))
     args = vars(ap.parse_args())
 
+    with open(args['config-path']) as j:
+        config = json.load(j)
     device = helper.get_cuda_device(args['cuda-device-id'])
     properties = torch.cuda.get_device_properties(device)
     logging.info(f"GPU Model: {properties.name}")

@@ -13,15 +13,8 @@
       "4": 2023055420
     },
     "parameters": "/tmp/data/model_{id}.pth",
-    "torch_script_serialization": "/tmp/data/model_{id}.pt"
-  },
-  "diagnostics": {
-    "misclassified": "/tmp/diagnostics/misclassified/",
-    "preview": {
-      "training_samples": "/tmp/diagnostics/training_samples_{id}",
-      "training_samples_for_eval": "/tmp/diagnostics/training_samples_for_eval_{id}",
-      "test_samples": "/tmp/diagnostics/test_samples_{id}"
-    }
+    "torch_script_serialization": "/tmp/data/model_{id}.pt",
+    "diagnostics_dir": "/tmp/diagnostics"
   },
   "inference": {
     "on_detected": {
