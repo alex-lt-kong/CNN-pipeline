@@ -25,6 +25,7 @@ using namespace std;
 using json = nlohmann::json;
 
 string torch_script_serialization;
+static cv::Size target_img_size;
 
 void print_usage(string binary_name) {
 
@@ -94,7 +95,7 @@ torch::Tensor get_tensor_from_img_dir(const string &image_dir) {
 
   for (const auto &imagePath : imagePaths) {
     cv::Mat image = cv::imread(imagePath);
-    tensor_vec.push_back(cv_mat_to_tensor(image));
+    tensor_vec.push_back(cv_mat_to_tensor(image, target_img_size));
   }
   return torch::stack(tensor_vec);
 }
@@ -114,6 +115,9 @@ int main(int argc, char **argv) {
   json settings = json::parse(f);
   torch_script_serialization = settings.value(
       "/model/torch_script_serialization"_json_pointer, string(""));
+  target_img_size = cv::Size(
+      settings.value("/model/input_image_size/width"_json_pointer, 0),
+      settings.value("/model/input_image_size/height"_json_pointer, 0));
   vector<torch::jit::script::Module> v16mms = load_models(model_ids);
 
   const size_t preview_ele_num = 5;

@@ -1,9 +1,8 @@
-from typing import List, Any
 from sklearn import metrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
-from typing import Dict, Any, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional
 
 import argparse
 import datetime as dt
@@ -35,8 +34,10 @@ class VGG16MinusMinus(nn.Module):
     dropout = 0.66
     num_classes = -1
 
-    def __init__(self, num_classes: int = 10) -> None:
+    def __init__(self, num_classes: int, target_image_size: Tuple[int, int]) -> None:
         self.num_classes = num_classes
+        self.target_image_size = target_image_size
+
         super(VGG16MinusMinus, self).__init__()
         # self.layer1 = nn.Sequential(
         #     nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
@@ -99,8 +100,8 @@ class VGG16MinusMinus(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
             nn.Linear(
-                int(helper.target_img_size[0] / 64) *
-                int(helper.target_img_size[1] / 64) * 256,
+                int(self.target_image_size[0] / 64) *
+                int(self.target_image_size[1] / 64) * 256,
                 int(4096 / 38)
             ),
             nn.Dropout(self.dropout),
@@ -356,10 +357,13 @@ def save_transformed_samples(dataloader: DataLoader,
         )
 
 
-def train(load_parameters: bool, model_id: str, num_classes: int,
-          lr: float = 0.001, epochs: int = 10) -> nn.Module:
+def train(
+    load_parameters: bool, model_id: str, num_classes: int,
+    target_image_size: Tuple[int, int], lr: float = 0.001,
+    epochs: int = 10
+) -> nn.Module:
 
-    v16mm = VGG16MinusMinus(num_classes)
+    v16mm = VGG16MinusMinus(num_classes, target_image_size)
     v16mm.to(device)
     if load_parameters:
         logging.warning(
@@ -537,10 +541,15 @@ def main() -> None:
     logging.info(f"GPU Memory: {properties.total_memory / 1024**3:.2f} GB")
     logging.info(f"GPU CUDA semantics: {device}")
 
+    target_img_size = (
+        config['model']['input_image_size']['height'],
+        config['model']['input_image_size']['width']
+    )
     set_seed(config['model']['random_seeds'][args['model_id']])
+    helper.init_transforms(target_img_size)
     train(
-        args['load_parameters'], args['model_id'], args['num_classes'], args['learning_rate'],
-        args['epochs']
+        args['load_parameters'], args['model_id'], args['num_classes'],
+        target_img_size, args['learning_rate'], args['epochs']
     )
     logging.info('Training completed')
 

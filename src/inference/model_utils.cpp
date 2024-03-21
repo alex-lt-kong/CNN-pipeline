@@ -38,7 +38,7 @@ vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
   return models;
 }
 
-torch::Tensor cv_mat_to_tensor(cv::Mat image) {
+torch::Tensor cv_mat_to_tensor(cv::Mat image, cv::Size target_img_size) {
   auto img_clone = image.clone();
   cv::cvtColor(image, img_clone, cv::COLOR_BGR2RGB);
 

@@ -32,7 +32,7 @@ def main() -> None:
     ap.add_argument('--dest-dir', '-d', dest='dest-dir', required=True)
     args = vars(ap.parse_args())
     # size = (426, 224)  # size in in (w, h)
-
+    raise NotImplementedError('helper.target_img_size is obsolete')
     resize_images(args['source-dir'], args['dest-dir'], helper.target_img_size)
 
 

@@ -40,11 +40,12 @@ static void signal_handler(int signum) {
   e_flag = 1;
 }
 
-torch::Tensor get_tensor_from_mat_vector(vector<Mat> &images) {
+torch::Tensor get_tensor_from_mat_vector(vector<Mat> &images,
+                                         Size target_img_size) {
   std::vector<torch::Tensor> tensor_vec;
 
   for (const auto &image : images) {
-    tensor_vec.push_back(cv_mat_to_tensor(image));
+    tensor_vec.push_back(cv_mat_to_tensor(image, target_img_size));
   }
   return torch::stack(tensor_vec);
 }
@@ -113,6 +114,9 @@ int main(int argc, const char *argv[]) {
       "/inference/initial_model_ids"_json_pointer, vector<string>{"0"});
   torch_script_serialization = settings.value(
       "/model/torch_script_serialization"_json_pointer, string(""));
+  static Size target_img_size =
+      Size(settings.value("/model/input_image_size/width"_json_pointer, 0),
+           settings.value("/model/input_image_size/height"_json_pointer, 0));
   vector<torch::jit::script::Module> v16mms = load_models(model_ids);
 
   cuda::GpuMat dFrame;
@@ -156,7 +160,7 @@ int main(int argc, const char *argv[]) {
 
     if (hFrames.size() < batchSize)
       continue;
-    auto imgs_tensor = get_tensor_from_mat_vector(hFrames);
+    auto imgs_tensor = get_tensor_from_mat_vector(hFrames, target_img_size);
     vector<torch::jit::IValue> input(1);
     input[0] = imgs_tensor.to(torch::kCUDA);
     // imgs_tensor.sizes()[0] stores number of images

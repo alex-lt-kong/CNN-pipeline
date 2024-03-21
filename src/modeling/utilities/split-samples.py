@@ -55,17 +55,19 @@ def split_files(
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument('--config-path', '-c', dest='config-path', required=True,
+                    help='Config file path')
     ap.add_argument(
         '--split-ratio', '-r', help='Ratio of the training set',
         dest='split-ratio', type=float, default='0.9'
     )
     ap.add_argument(
-        '--categories', '-c', required=True, dest='categories',
+        '--categories', '-cat', required=True, dest='categories',
         help='Comma-separated list of categories, typically something like 0,1,2')
     args = vars(ap.parse_args())
 
     config = Dict[str, Any]
-    with open(os.path.join(curr_dir, '..', '..', '..', 'config.json')) as j:
+    with open(args['config-path']) as j:
         config = json.load(j)
 
     random_seed = 16888

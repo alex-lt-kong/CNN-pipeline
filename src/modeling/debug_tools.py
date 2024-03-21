@@ -1,5 +1,5 @@
 from PIL import Image
-from typing import Any, List
+from typing import Any, List, Tuple
 
 import argparse
 import helper
@@ -12,9 +12,12 @@ import sys
 import time
 import torch
 
+
 NUM_CLASSES = 2
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# target_img_size in (height, width)
+target_img_size: Tuple[int, int]
 
 
 def get_tensor_from_img_dir(images_dir: str) -> torch.Tensor:
@@ -27,7 +30,7 @@ def get_tensor_from_img_dir(images_dir: str) -> torch.Tensor:
             assert isinstance(image, Image.Image)
 
     tensor_images = torch.empty(
-        (len(images), 3, helper.target_img_size[0], helper.target_img_size[1])
+        (len(images), 3, target_img_size[0], target_img_size[1])
     )
     for i in range(len(images)):
         assert images[i] is not None
@@ -58,10 +61,16 @@ def main() -> None:
 
     with open(config_path) as j:
         settings = json.load(j)
+    global target_img_size
+    target_img_size = (
+        settings['model']['input_image_size']['height'],
+        settings['model']['input_image_size']['width']
+    )
+    helper.init_transforms(target_img_size)
+
     # v16mm = model.VGG16MinusMinus(2)
     # logging.info(f'Loading parameters from {settings["model"]["parameters"]}')
     # v16mm.load_state_dict(torch.load(settings['model']['parameters']))
-
     v16mms = []
     for i in range(len(model_ids)):
         v16mms.append(model.VGG16MinusMinus(NUM_CLASSES))

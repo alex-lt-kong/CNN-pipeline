@@ -14,8 +14,9 @@
 using namespace std;
 
 static string cuda_device_string = "cuda:0";
-static cv::Size zmqPayloadMatSize;
-static int zmqPayloadMatType = CV_8UC3;
+static cv::Size zmq_payload_mat_size;
+static cv::Size target_img_size;
+static int zmq_payload_mat_type = CV_8UC3;
 
 tuple<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
@@ -47,14 +48,14 @@ infer_images(vector<torch::jit::script::Module> &models,
     // TODO: can we remove this std::copy()??
     // Profiling shows this copy takes less than 1 ms
     int idx = i - pre_detection_size;
-    assert((unsigned int)zmqPayloadMatSize.width * zmqPayloadMatSize.height *
-               3 ==
+    assert((unsigned int)zmq_payload_mat_size.width *
+               zmq_payload_mat_size.height * 3 ==
            snaps[i].payload().size());
-    cv::Mat mat = cv::Mat(zmqPayloadMatSize, zmqPayloadMatType,
+    cv::Mat mat = cv::Mat(zmq_payload_mat_size, zmq_payload_mat_type,
                           (void *)snaps[i].payload().data());
     // std::copy(snaps[i].payload().begin(), snaps[i].payload().end(),
     // v.begin());
-    images_tensors_vec[idx] = cv_mat_to_tensor(mat);
+    images_tensors_vec[idx] = cv_mat_to_tensor(mat, target_img_size);
   }
   images_tensor = torch::stack(images_tensors_vec);
 
@@ -163,7 +164,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     assert(jpegs_idx < snaps.size());
 
     cv::imencode(".jpg",
-                 cv::Mat(zmqPayloadMatSize, zmqPayloadMatType,
+                 cv::Mat(zmq_payload_mat_size, zmq_payload_mat_type,
                          (void *)snaps[jpegs_idx].payload().data()),
                  jpegs[i]);
     frames.emplace_back(Magick::Blob(jpegs[i].data(), jpegs[i].size()));
@@ -272,9 +273,12 @@ void zeromq_ev_loop() {
   zmq::socket_t subscriber(context, ZMQ_SUB);
   string zmq_address = settings.value("/inference/zeromq/address"_json_pointer,
                                       "tcp://127.0.0.1:4240");
-  zmqPayloadMatSize = cv::Size(
+  zmq_payload_mat_size = cv::Size(
       settings.value("/inference/zeromq/image_size/width"_json_pointer, 1920),
       settings.value("/inference/zeromq/image_size/height"_json_pointer, 1080));
+  target_img_size = cv::Size(
+      settings.value("/model/input_image_size/width"_json_pointer, 0),
+      settings.value("/model/input_image_size/height"_json_pointer, 0));
   subscriber.connect(zmq_address);
   spdlog::info("ZeroMQ client connected to {}", zmq_address);
   constexpr int timeout = 5000;
