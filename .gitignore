@@ -201,7 +201,7 @@ predict.sqlite-journal
 config*.json
 config.json
 *.out
-diagnostics/*
-!diagnostics/.gitkeep
+diagnostics-*/
+diagnostics_*/
 data_*/
-!data_*/.gitkeep
+data-*/
