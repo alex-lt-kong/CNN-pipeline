@@ -63,8 +63,8 @@ infer_images(vector<torch::jit::script::Module> &models,
   input[0] = images_tensor.to(cuda_device_string);
 
   // images_tensor.sizes()[0] stores number of images
-  at::Tensor avg_output =
-      torch::zeros({images_tensor.sizes()[0], num_output_class});
+  at::Tensor avg_output = torch::zeros(
+      {images_tensor.sizes()[0], static_cast<long>(num_output_class)});
   avg_output = avg_output.to(cuda_device_string);
   vector<at::Tensor> raw_outputs(models.size());
   {

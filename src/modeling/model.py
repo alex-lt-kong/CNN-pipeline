@@ -520,9 +520,6 @@ def main() -> None:
                     help='load existing parameters for continue training')
     ap.add_argument('--config-path', '-c', dest='config-path', required=True,
                     help='Config file path')
-    ap.add_argument('--num-classes', '-n', dest='num_classes', type=int,
-                    help='Number of classes, if output can be 0 or 1, num-class should be 2',
-                    required=True)
     ap.add_argument('--learning-rate', '-lr', dest='learning_rate', type=float,
                     help='Specify a learning rate', default=0.001)
     ap.add_argument('--epochs', '-e', dest='epochs', type=int, default=10)
@@ -548,8 +545,9 @@ def main() -> None:
     set_seed(config['model']['random_seeds'][args['model_id']])
     helper.init_transforms(target_img_size)
     train(
-        args['load_parameters'], args['model_id'], args['num_classes'],
-        target_img_size, args['learning_rate'], args['epochs']
+        args['load_parameters'], args['model_id'],
+        config['model']['num_output_class'], target_img_size,
+        args['learning_rate'], args['epochs']
     )
     logging.info('Training completed')
 

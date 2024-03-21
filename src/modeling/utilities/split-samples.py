@@ -61,9 +61,6 @@ def main() -> None:
         '--split-ratio', '-r', help='Ratio of the training set',
         dest='split-ratio', type=float, default='0.9'
     )
-    ap.add_argument(
-        '--categories', '-cat', required=True, dest='categories',
-        help='Comma-separated list of categories, typically something like 0,1,2')
     args = vars(ap.parse_args())
 
     config = Dict[str, Any]
@@ -71,8 +68,7 @@ def main() -> None:
         config = json.load(j)
 
     random_seed = 16888
-    # breakpoint()
-    for cat in args['categories'].split(','):
+    for cat in range(config['model']['num_output_class']):
         input_dir = os.path.join(config["dataset"]["raw"], cat)
         training_dir = os.path.join(config["dataset"]["training"], cat)
         validation_dir = os.path.join(config["dataset"]["validation"], cat)

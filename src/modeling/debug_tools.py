@@ -13,7 +13,6 @@ import time
 import torch
 
 
-NUM_CLASSES = 2
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # target_img_size in (height, width)
@@ -73,7 +72,9 @@ def main() -> None:
     # v16mm.load_state_dict(torch.load(settings['model']['parameters']))
     v16mms = []
     for i in range(len(model_ids)):
-        v16mms.append(model.VGG16MinusMinus(NUM_CLASSES))
+        v16mms.append(
+            model.VGG16MinusMinus(settings['model']['num_output_class'])
+        )
         v16mms[i].to(device)
         model_path = settings['model']['parameters'].replace(
             r'{id}', model_ids[i]
