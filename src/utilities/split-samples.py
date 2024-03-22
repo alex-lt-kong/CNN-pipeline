@@ -69,6 +69,7 @@ def main() -> None:
 
     random_seed = 16888
     for cat in range(config['model']['num_output_class']):
+        cat = str(cat)
         input_dir = os.path.join(config["dataset"]["raw"], cat)
         training_dir = os.path.join(config["dataset"]["training"], cat)
         validation_dir = os.path.join(config["dataset"]["validation"], cat)

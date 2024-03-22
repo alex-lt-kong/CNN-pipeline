@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 from PIL import Image
 from torchvision.datasets import ImageFolder
 from sklearn import metrics
@@ -13,12 +13,12 @@ import os
 import shutil
 import torch
 
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--config-path', '-c', dest='config-path', required=True,
                     help='Config file path')
     ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
-    ap.add_argument('--num-classes', '-n', dest='num_classes', type=int, required=True)
     args = vars(ap.parse_args())
     model_ids = str(args['model-ids']).split(',')
 
@@ -29,10 +29,16 @@ def main() -> None:
     # settings: Dict[str, Any]
     with open(args['config-path']) as j:
         settings = json.load(j)
+    target_img_size = (
+        settings['model']['input_image_size']['height'],
+        settings['model']['input_image_size']['width']
+    )
 
+    helper.init_transforms(target_img_size)
     v16mms = []
     for i in range(len(model_ids)):
-        v16mms.append(model.VGG16MinusMinus(args['num_classes']))
+        v16mms.append(model.VGG16MinusMinus(
+            settings['model']['num_output_class'], target_img_size))
         v16mms[i].to(device)
         model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])
         print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')
@@ -52,7 +58,6 @@ def main() -> None:
     misclassified_count = 0
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
     # shuffle breaks the relationship of batch and file path.
-
 
     # Classify the image using the model
     torch.set_grad_enabled(False)
@@ -101,8 +106,10 @@ def main() -> None:
 
             misclassified_count += 1
             misclassified_samples.append((batch_idx, i))
-            print(f"[{misclassified_count}-th misclassified sample] {i}-th sample's y-true is "
-                f"{y_true} but y-hat is {pred_label}", end='')
+            print(
+                f"[{misclassified_count}-th misclassified sample] {i}-th sample's y-true is "
+                f"{y_true} but y-hat is {pred_label}", end=''
+            )
             # If the predicted label is incorrect, save the misclassified image to the file system
             folder_name = str(y_true)
             output_dir = os.path.join(misclassified_dir, folder_name)
