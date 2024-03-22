@@ -37,9 +37,9 @@ target_link_libraries(inference_service
   torch_cpu c10)
 
 
-add_executable(debug_tools debug_tools.cpp)
+add_executable(classify_images classify_images.cpp)
 target_link_libraries(
-  debug_tools model_utils
+  classify_images model_utils
   opencv_highgui  opencv_core opencv_imgproc opencv_imgcodecs
   torch_cpu c10
   spdlog
