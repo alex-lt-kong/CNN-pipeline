@@ -97,8 +97,8 @@ void execute_external_program_async() {
     }
   };
   thread th_exec(
-      f,
-      settings["inference"]["on_detected"]["external_program"].get<string>());
+      f, settings.value("/inference/on_detected/external_program"_json_pointer,
+                        ""));
   th_exec.detach();
 }
 
