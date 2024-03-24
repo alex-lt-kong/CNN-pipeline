@@ -485,7 +485,8 @@ def generate_curves(filename: str, mv_window: int = 1) -> None:
         config['model']['diagnostics_dir'], 'training', f'{filename}.csv'
     )
     img_path = os.path.join(
-        config['model']['diagnostics_dir'], 'training' f'{filename}_mv{mv_window}.png'
+        config['model']['diagnostics_dir'], 'training',
+        f'{filename}_mv{mv_window}.png'
     )
     if os.path.isfile(csv_path) is not True:
         raise FileNotFoundError(f'{csv_path} not found')

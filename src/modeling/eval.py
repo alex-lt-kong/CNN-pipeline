@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 from PIL import Image
 from torchvision.datasets import ImageFolder
 from sklearn import metrics
@@ -13,46 +13,15 @@ import os
 import shutil
 import torch
 
+if not torch.cuda.is_available():
+    raise RuntimeError('CUDA is unavailable')
+device = torch.device("cuda")
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--config-path', '-c', dest='config-path', required=True,
-                    help='Config file path')
-    ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
-    args = vars(ap.parse_args())
-    model_ids = str(args['model-ids']).split(',')
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # device = 'cpu'
-    print(device)
-
-    # settings: Dict[str, Any]
-    with open(args['config-path']) as j:
-        settings = json.load(j)
-    target_img_size = (
-        settings['model']['input_image_size']['height'],
-        settings['model']['input_image_size']['width']
-    )
-
-    helper.init_transforms(target_img_size)
-    v16mms = []
-    for i in range(len(model_ids)):
-        v16mms.append(model.VGG16MinusMinus(
-            settings['model']['num_output_class'], target_img_size))
-        v16mms[i].to(device)
-        model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])
-        print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')
-        v16mms[i].load_state_dict(torch.load(model_path))
-        v16mms[i].eval()
-        total_params = sum(p.numel() for p in v16mms[i].parameters())
-        print(f"Number of parameters: {total_params:,}")
-
-    misclassified_dir = os.path.join(settings['model']['diagnostics_dir'], 'misclassified')
-    print(f'Evaluting samples from [{misclassified_dir}]')
-    if os.path.exists(misclassified_dir):
-        shutil.rmtree(misclassified_dir)
-    dataset = ImageFolder(root=settings['dataset']['validation'],
-                        transform=helper.test_transforms)
+def evaluate(
+    settings: Dict[str, Any], v16mms: List[model.VGG16MinusMinus],
+    dataset: ImageFolder, misclassified_dir: str
+) -> None:
 
     batch_size = 16
     misclassified_count = 0
@@ -146,6 +115,49 @@ def main() -> None:
     cm = metrics.confusion_matrix(y_trues_total, y_preds_total)
     print(f'Confusion matrix (true-by-pred):\n{cm}')
 
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--config-path', '-c', dest='config-path', required=True,
+                    help='Config file path')
+    ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
+    args = vars(ap.parse_args())
+    model_ids = str(args['model-ids']).split(',')
+
+
+    # settings: Dict[str, Any]
+    with open(args['config-path']) as j:
+        settings = json.load(j)
+    target_img_size = (
+        settings['model']['input_image_size']['height'],
+        settings['model']['input_image_size']['width']
+    )
+
+    helper.init_transforms(target_img_size)
+    v16mms = []
+    for i in range(len(model_ids)):
+        v16mms.append(model.VGG16MinusMinus(
+            settings['model']['num_output_class'], target_img_size))
+        v16mms[i].to(device)
+        model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])
+        print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')
+        v16mms[i].load_state_dict(torch.load(model_path))
+        v16mms[i].eval()
+        total_params = sum(p.numel() for p in v16mms[i].parameters())
+        print(f"Number of parameters: {total_params:,}")
+
+    misclassified_dir = os.path.join(settings['model']['diagnostics_dir'], 'misclassified')
+    if os.path.exists(misclassified_dir):
+        shutil.rmtree(misclassified_dir)
+    print(f'Misclassified sample will be saved to: {misclassified_dir}')
+    for dir in [settings['dataset']['training'], settings['dataset']['validation']]:
+        print(f'\n\n====={dir}=====\n\n')
+        dataset = ImageFolder(
+            root=dir,
+            transform=helper.test_transforms
+        )
+        evaluate(settings, v16mms, dataset, misclassified_dir)
+        input()
 
 if __name__ == '__main__':
     main()
