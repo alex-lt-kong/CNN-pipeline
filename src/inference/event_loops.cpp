@@ -272,7 +272,7 @@ void zeromq_ev_loop() {
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
-  string zmq_address = settings.value("/inference/zeromq_address"_json_pointer,
+  string zmq_address = settings.value("/inference/zeromq/address"_json_pointer,
                                       "tcp://127.0.0.1:4240");
   zmq_payload_mat_size = cv::Size(
       settings.value("/inference/zeromq/image_size/width"_json_pointer, 1920),
