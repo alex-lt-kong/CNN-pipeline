@@ -191,7 +191,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     if (!outFile) {
       spdlog::error("Failed to open the file [{}]", jpg_path.native());
     } else {
-      outFile.write((char *)jpegs[i].data(), jpegs[i].size());
+      outFile.write((char *)jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size());
       outFile.close();
     }
   }
@@ -311,8 +311,8 @@ void zeromq_ev_loop() {
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
       if (!snapshot_pc_queue.try_enqueue(msg)) {
-        spdlog::warn("snapshot_queue full, snapshots are not being inferred "
-                     "fast enough");
+        spdlog::warn("try_enqueue() failed: snapshot_queue full, snapshots are "
+                     "not being inferred fast enough");
       }
     } else {
       spdlog::error("Failed to parse ZeroMQ payload as SnapshotMsg");
