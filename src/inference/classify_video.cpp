@@ -80,14 +80,13 @@ int main(int argc, const char *argv[]) {
   string configPath, srcVideoPath;
   string dstVideoDir = "/tmp";
   string dstVideoBaseName = "video";
-  int numClasses = 2;
+
   // clang-format off
   options.add_options()
     ("h,help", "Print help message")
     ("s,src-video-path", "Source video path", cxxopts::value<string>()->default_value(srcVideoPath))
     ("d,dst-video-dir", "Directory video path", cxxopts::value<string>()->default_value(dstVideoDir))
     ("b,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dstVideoBaseName))
-    ("n,num-classes", "Number of classes of output", cxxopts::value<int>()->default_value(to_string(numClasses)))
     ("c,config-path", "JSON configuration file path",  cxxopts::value<string>()->default_value(configPath));
   // clang-format on
   auto result = options.parse(argc, argv);
@@ -103,8 +102,6 @@ int main(int argc, const char *argv[]) {
   srcVideoPath = result["src-video-path"].as<string>();
   dstVideoDir = result["dst-video-dir"].as<string>();
   dstVideoBaseName = result["dst-video-base-name"].as<string>();
-  numClasses = result["num-classes"].as<int>();
-  vector<size_t> frameCountByOutput(numClasses, 0);
 
   ifstream f(configPath);
 
@@ -117,6 +114,9 @@ int main(int argc, const char *argv[]) {
   static Size target_img_size =
       Size(settings.value("/model/input_image_size/width"_json_pointer, 0),
            settings.value("/model/input_image_size/height"_json_pointer, 0));
+  static int numClasses =
+      settings.value("/model/num_output_class"_json_pointer, 1);
+  vector<size_t> frameCountByOutput(numClasses, 0);
   vector<torch::jit::script::Module> v16mms = load_models(model_ids);
 
   cuda::GpuMat dFrame;

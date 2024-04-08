@@ -29,8 +29,7 @@ infer_images(vector<torch::jit::script::Module> &models,
   spdlog::info(
       "Inferring {} images from [{}](idx:{}) to [{}](idx:{}) (timespan: {} "
       "sec). The hypothetical gif contains {}(out of {}) images from "
-      "[{}](idx:0) to "
-      "[{}](idx:{}) (timespan: {} sec)",
+      "[{}](idx:0) to [{}](idx:{}) (timespan: {} sec)",
       end_idx - start_idx,
       unix_ts_to_iso_datetime(snaps[start_idx].unixepochns() / mil), start_idx,
       unix_ts_to_iso_datetime(snaps[end_idx].unixepochns() / mil), end_idx,
