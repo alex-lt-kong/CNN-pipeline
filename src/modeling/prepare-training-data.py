@@ -19,13 +19,21 @@ def apply_transform_and_save(source_dir: str, image_filename: str, target_dir: s
     # Load the image
     image_path = os.path.join(source_dir, image_filename)
     image = Image.open(image_path)
-    transformed_image = helper.train_transforms(image)
-    image.close()
+    try:
+        transformed_image = helper.train_transforms(image)
+    except Exception as ex:
+        print(f'Error transforming {image_filename}: {ex}')
+        continue
+    finally:
+        image.close()
 
     # Save the transformed image to the target directory
     target_path = os.path.join(target_dir, image_filename)
     from torchvision.utils import save_image
-    save_image(transformed_image, target_path, format='BMP')
+    save_image(
+        transformed_image,
+        target_path if target_path[-4:].lower() == '.bmp' else target_path + '.bmp'
+    )
 
 
 def prepare_files(
