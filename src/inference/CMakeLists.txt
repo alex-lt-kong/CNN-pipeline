@@ -1,3 +1,6 @@
+# Needed to suppress Magick's nonsense warnings...
+add_compile_definitions(MAGICKCORE_QUANTUM_DEPTH=16)
+add_compile_definitions(MAGICKCORE_HDRI_ENABLE=1)
 add_subdirectory(http_service/)
 
 find_package(OpenCV REQUIRED)

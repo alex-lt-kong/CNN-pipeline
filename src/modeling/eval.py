@@ -25,7 +25,9 @@ def evaluate(
 
     batch_size = 16
     misclassified_count = 0
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    data_loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=False, num_workers=8
+    )
     # shuffle breaks the relationship of batch and file path.
 
     # Classify the image using the model

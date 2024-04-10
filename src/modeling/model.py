@@ -3,6 +3,8 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
 from typing import Any, Dict, List, Tuple, Optional
+from torch.utils.data import Dataset
+from torch.profiler import profile, record_function, ProfilerActivity
 
 import argparse
 import datetime as dt
@@ -134,6 +136,14 @@ class VGG16MinusMinus(nn.Module):
         return x
 
 
+class DatesetInRAM(Dataset):
+    def __init__(self, data):
+        self.data = data
+    def __getitem__(self, index):
+        return self.data['x'][index,:], self.data['y'][index,:]
+    def __len__(self):
+        return self.data['x'].shape[0]
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -147,45 +157,9 @@ def set_seed(seed: int) -> None:
 
 
 def get_data_loaders(data_path: str,
-                     random_seed: int = 0) -> Tuple[DataLoader, DataLoader, DataLoader]:
+                     random_seed: int = 0) -> Tuple[DataLoader, DataLoader]:
 
-    class TransformedSubset(torch.utils.data.Subset):
-
-        cached_data: List[Any] = []
-
-        def __init__(
-            self, subset: torch.utils.data.Subset,
-            dataset_name: str,
-            transform: Optional[torchvision.transforms.Compose] = None
-        ) -> None:
-            assert isinstance(subset, torch.utils.data.Subset)
-            self.subset = subset
-            self.dataset_name = dataset_name
-            self.transform = transform
-            # x, y = self.subset[i]
-            # if transform:
-                # torch.save(
-                #     transform(self.subset[i][0]),
-                #     f'/tmp/usb-hdd/{self.dataset_name}_sample_{i:05d}.pt'
-                # )
-                # self.cached_data.append(transform(self.subset[i][0]))
-
-        def __getitem__(self, index: int) -> Tuple[Any, Any]:
-            x, y = self.subset[index]
-            # assert isinstance(x, Image.Image)
-            if self.transform:
-                x = self.transform(x)
-            # t = torch.load(
-            #     f'/tmp/usb-hdd/{self.dataset_name}_sample_{index:05d}.pt'
-            # )
-            # t = self.cached_data[index]
-            assert isinstance(x, torch.Tensor)
-            return x, self.subset[index][1]
-
-        def __len__(self) -> int:
-            return len(self.subset)
-
-    dataset = ImageFolder(root=data_path, transform=None)
+    dataset = ImageFolder(root=data_path, transform=helper.dummy_transforms)
     test_split_ratio = 0.2
     train_size = int((1 - test_split_ratio) * len(dataset))
     test_size = len(dataset) - train_size
@@ -193,26 +167,24 @@ def get_data_loaders(data_path: str,
     train_dataset, test_dataset = random_split(
         dataset, [train_size, test_size],
         generator=torch.Generator().manual_seed(random_seed))
+    
+    #train_dataset = DatesetInRAM(train_dataset)
+    #test_dataset = DatesetInRAM(test_dataset)
 
-    train_dataset_for_eval = train_dataset
     batch_size = 64
     shuffle = True
-    # Apply the respective transformations to each subset
-    train_dataset = TransformedSubset(
-        train_dataset, 'train', transform=helper.train_transforms
-    )
-    train_dataset_for_eval = TransformedSubset(
-        train_dataset_for_eval, 'train-for-eval', transform=helper.test_transforms
-    )
-    test_dataset = TransformedSubset(test_dataset, 'test', transform=helper.test_transforms)
 
-    train_loader = DataLoader(train_dataset,
-                              batch_size=batch_size, shuffle=shuffle)
-    train_loader_for_eval = DataLoader(train_dataset_for_eval,
-                                       batch_size=batch_size, shuffle=shuffle)
-    test_loader = DataLoader(test_dataset,
-                             batch_size=batch_size, shuffle=shuffle)
-    return (train_loader, train_loader_for_eval, test_loader)
+    # not setting num_workers disables sample prefetching,
+    # which drags down performance a lot
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=shuffle,
+        num_workers=4, pin_memory=True
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=shuffle,
+        num_workers=4, pin_memory=True
+    )
+    return (train_loader, test_loader)
 
 
 def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
@@ -226,7 +198,8 @@ def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
     else:        
         df = pd.DataFrame()
     # logging.info(f'Appending:\n{metrics_dict}\n--- to ---\n{df}')
-    df = df.append(metrics_dict, ignore_index=True)
+    df = pd.concat([df, pd.DataFrame([metrics_dict])], ignore_index=True)
+    # df = df.append(metrics_dict, ignore_index=True)
     df.to_csv(csv_path, index=False)
 
 
@@ -345,7 +318,8 @@ def save_transformed_samples(dataloader: DataLoader,
     os.makedirs(save_dir)
     dataset_size = len(dataloader.dataset)  # type: ignore
     logging.info(
-        f"{dataset_size} images are in this dataset and we sample {num_samples} from it."
+        f"{dataset_size:,} images are in this dataset and we save "
+        f"{num_samples} from it to [{save_dir}] for preview."
     )
     for i in range(num_samples):
         image_dst_path = f"{save_dir}/sample_{i}.jpg"
@@ -390,7 +364,7 @@ def train(
     training_samples_dir = config['dataset']['training']
     logging.info(f'Loading samples from [{training_samples_dir}]')
     # Define the dataset and data loader for the training set
-    train_loader, train_loader_for_eval, val_loader = get_data_loaders(
+    train_loader, val_loader = get_data_loaders(
         training_samples_dir, config['model']['random_seeds'][model_id]
     )
     save_transformed_samples(
@@ -398,10 +372,7 @@ def train(
         os.path.join(config['model']['diagnostics_dir'], 'preview', f'training_samples_{model_id}'),
         30
     )
-    save_transformed_samples(
-        train_loader_for_eval,
-        os.path.join(config['model']['diagnostics_dir'], 'preview', f'training_samples_for_eval_{model_id}'),
-        30)
+    
     save_transformed_samples(
         val_loader,
         os.path.join(config['model']['diagnostics_dir'], 'preview', f'test_samples_{model_id}'),
@@ -459,13 +430,11 @@ def train(
 
         scheduler.step()
         logging.info('Evaluating model after this epoch')
-        evalute_model_classification(v16mm, num_classes, train_loader,
-                                     f'training_eval-off_{model_id}', 50)
 
         # switch to evaluation mode
         v16mm.eval()
-        evalute_model_classification(v16mm, num_classes, train_loader_for_eval,
-                                     f'training_eval-on_{model_id}', 50)
+        evalute_model_classification(v16mm, num_classes, train_loader,
+                                     f'training_{model_id}', 50)
 
         evalute_model_classification(v16mm, num_classes, val_loader,
                                      f'test_{model_id}', 10)

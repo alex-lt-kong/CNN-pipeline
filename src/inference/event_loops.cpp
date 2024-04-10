@@ -110,18 +110,36 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   }
   oss_avg_result << avg_output;
   at::Tensor y_pred = torch::argmax(avg_output, 1);
+  vector<int> include_outputs = settings.value(
+      "/inference/on_detected/triggers/include_outputs"_json_pointer,
+      vector<int>{1});
+  vector<int> positive_y_preds_idx;
+  for (int64_t i = 0; i < y_pred.size(0); i++) {
+    for (size_t j = 0; j < include_outputs.size(); ++j) {
+      if (y_pred[i].item<int>() == include_outputs[j]) {
+        positive_y_preds_idx.push_back(i);
+      }
+    }
+  }
 
-  auto nonzero_y_preds_idx = torch::nonzero(y_pred);
-  if (nonzero_y_preds_idx.sizes()[0] == 0) {
+  // auto nonzero_y_preds_idx = torch::nonzero(y_pred);
+  if (positive_y_preds_idx.size() == 0) {
     return false;
   }
   spdlog::warn("Target detected at {}-th frame in a batch of {} frames",
-               nonzero_y_preds_idx[0].item<int>(), inference_batch_size, 0);
+               positive_y_preds_idx[0], inference_batch_size, 0);
   spdlog::info("y_pred:              {}",
                tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
-  spdlog::info("nonzero_y_preds_idx: {}",
-               tensor_to_string_like_pytorch(nonzero_y_preds_idx, 0,
-                                             nonzero_y_preds_idx.sizes()[0]));
+  ostringstream positive_y_preds_idx_str;
+  positive_y_preds_idx_str << "[";
+  for (size_t i = 0; i < positive_y_preds_idx.size(); ++i) {
+    positive_y_preds_idx_str << positive_y_preds_idx[i];
+    if (i != positive_y_preds_idx.size() - 1) {
+      positive_y_preds_idx_str << ", ";
+    }
+  }
+  positive_y_preds_idx_str << "]";
+  spdlog::info("positive_y_preds_idx: {}", positive_y_preds_idx_str.str());
   spdlog::info("Raw results are:\n{}", oss_raw_result.str());
   spdlog::info("and arithmetic average of raw results is:\n{}",
                oss_avg_result.str());
@@ -134,9 +152,8 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   vector<Magick::Image> frames;
   spdlog::info("jpegs[{}: {}] of {} images will be used to build the GIF "
                "animation",
-               nonzero_y_preds_idx[0].item<int>(),
-               nonzero_y_preds_idx[0].item<int>() + gif_frame_count,
-               snaps.size());
+               positive_y_preds_idx[0],
+               positive_y_preds_idx[0] + gif_frame_count, snaps.size());
   auto gif_width =
       settings.value("/inference/on_detected/gif_size/width"_json_pointer,
                      target_img_size.width);
@@ -160,7 +177,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     // is exactly inference_batch_size, which is implied in
     // the line: cv::imdecode(jpegs[pre_detection_size + i],
     // cv::IMREAD_COLOR));
-    auto jpegs_idx = nonzero_y_preds_idx[0].item<int>() + i;
+    auto jpegs_idx = positive_y_preds_idx[0] + i;
     assert(jpegs_idx < snaps.size());
 
     cv::imencode(".jpg",
@@ -181,8 +198,8 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
       "/inference/on_detected/jpegs_directory"_json_pointer, "/");
   spdlog::info("Saving positive images as JPEG files to [{}]",
                jpg_dir.native());
-  for (int i = 0; i < nonzero_y_preds_idx.sizes()[0]; ++i) {
-    auto jpegs_idx = nonzero_y_preds_idx[i].item<int>() + pre_detection_size;
+  for (auto idx : positive_y_preds_idx) {
+    auto jpegs_idx = idx + pre_detection_size;
     assert(jpegs_idx < snaps.size());
     filesystem::path jpg_path =
         jpg_dir / (get_current_datetime_string() + ".jpg");
