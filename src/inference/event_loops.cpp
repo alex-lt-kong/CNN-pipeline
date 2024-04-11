@@ -148,8 +148,6 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     spdlog::info("snaps[{}]: {} ({})", i, snaps[i].unixepochns(),
                  unix_ts_to_iso_datetime(snaps[i].unixepochns() / 1000 / 1000));
   }
-  spdlog::info("Build GIF animation");
-  vector<Magick::Image> frames;
   spdlog::info("jpegs[{}: {}] of {} images will be used to build the GIF "
                "animation",
                positive_y_preds_idx[0],
@@ -167,19 +165,14 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
           "/inference/on_detected/gif/frame_interval_ms"_json_pointer, 200) /
       10;
   vector<vector<uchar>> jpegs(gif_frame_count);
-  // nonzero_y_preds_idx[0] stores the first non-zero item
-  // index in y_pred. Note that y_pred[0] is NOT the result
+  // positive_y_preds_idx[0] stores the first non-zero item
+  // index in y_pred. Note that y_pred[0] is NOT the prediction
   // of jpegs[0], but jpegs[pre_detection_size]
   // cv::imdecode(v, cv::IMREAD_COLOR);
+  vector<Magick::Image> frames;
   for (size_t i = 0; i < gif_frame_count; ++i) {
-    // One needs to think for a while to understand the
-    // offset between jpegs_idx and y_pred's index--their gap
-    // is exactly inference_batch_size, which is implied in
-    // the line: cv::imdecode(jpegs[pre_detection_size + i],
-    // cv::IMREAD_COLOR));
     auto jpegs_idx = positive_y_preds_idx[0] + i;
     assert(jpegs_idx < snaps.size());
-
     cv::imencode(".jpg",
                  cv::Mat(zmq_payload_mat_size, zmq_payload_mat_type,
                          (void *)snaps[jpegs_idx].payload().data()),
@@ -188,6 +181,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     frames.back().animationDelay(gif_frame_interval);
     frames.back().resize(Magick::Geometry(gif_width, gif_height));
   }
+  assert(frames.size() == gif_frame_count);
   string gif_path = settings.value(
       "/inference/on_detected/gif/path"_json_pointer, "/tmp/detected.gif");
   spdlog::info("Saving GIF file (size: {}x{}) to [{}]", gif_width, gif_height,
@@ -199,6 +193,11 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   spdlog::info("Saving positive images as JPEG files to [{}]",
                jpg_dir.native());
   for (auto idx : positive_y_preds_idx) {
+    // One needs to think for a while to understand the
+    // offset between jpegs_idx and y_pred's index--their gap
+    // is exactly inference_batch_size, which is implied in
+    // the line: cv::imdecode(jpegs[pre_detection_size + i],
+    // cv::IMREAD_COLOR));
     auto jpegs_idx = idx + pre_detection_size;
     assert(jpegs_idx < snaps.size());
     filesystem::path jpg_path =

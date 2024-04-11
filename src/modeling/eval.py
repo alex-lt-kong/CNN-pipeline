@@ -159,7 +159,7 @@ def main() -> None:
         print(f'\n\n====={dir}=====\n\n')
         dataset = ImageFolder(
             root=dir,
-            transform=helper.test_transforms
+            transform=helper.dummy_transforms
         )
         evaluate(settings, v16mms, dataset, misclassified_dir)
         input()
