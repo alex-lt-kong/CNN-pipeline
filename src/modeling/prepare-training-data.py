@@ -16,7 +16,7 @@ curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def apply_transform_and_save(
-    source_dir: str, image_filename: str, target_dir: str,
+    source_dir: str, image_filename: str, target_dir: str, variant_no: int,
     transforms: torchvision.transforms.Compose
 ):
 
@@ -36,7 +36,7 @@ def apply_transform_and_save(
     from torchvision.utils import save_image
     save_image(
         transformed_image,
-        target_path if target_path[-4:].lower() == '.bmp' else target_path + '.bmp'
+        target_path + f'_{variant_no}.bmp'
     )
 
 
@@ -45,7 +45,7 @@ def prepare_files(
         train_dir: str, val_dir: str,
         split_ratio: float, seed: int = 97381
 ) -> None:
-
+    multiplier = 2
     if os.path.exists(train_dir):
         print(
             f'[{train_dir}] exists '
@@ -70,10 +70,15 @@ def prepare_files(
     random.shuffle(files)
 
     for i, file in enumerate(files):
-        if i < num_files_dir_1:
-            apply_transform_and_save(input_dir, file, train_dir, helper.train_transforms)
-        else:
-            apply_transform_and_save(input_dir, file, val_dir, helper.test_transforms)
+        for j in range(multiplier):
+            if i < num_files_dir_1:
+                apply_transform_and_save(
+                    input_dir, file, train_dir, j, helper.train_transforms
+                )
+            else:
+                apply_transform_and_save(
+                    input_dir, file, val_dir, j, helper.test_transforms
+                )
 
     print(
         f'Splitting files from [{input_dir}] to '
