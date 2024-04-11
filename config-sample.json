@@ -1,9 +1,5 @@
 {
-  "dataset": {
-    "raw": "/tmp/data/raw/",
-    "training": "/tmp/data/training/",
-    "validation": "/tmp/data/validation/"
-  },
+  "dataset": "/tmp/data/",
   "model": {
     "random_seeds": {
       "0": 9527,
@@ -20,14 +16,17 @@
   },
   "inference": {
     "on_detected": {
+      "triggers": { "include_outputs": [2], "exclude_outputs": [0] },
       "external_program": "/home/user/bin/on-detected.py",
       "jpegs_directory": "/tmp/detected/",
-      "gif_path": "/tmp/detected-cpp.gif",
-      "gif_size": {
-        "width": 266,
-        "height": 140
+      "gif": {
+        "path": "/tmp/detected.gif",
+        "size": {
+          "width": 266,
+          "height": 140
+        },
+        "frame_interval_ms": 200
       },
-      "gif_frame_interval_ms": 200,
       "cooldown_sec": 120
     },
     "zeromq": {

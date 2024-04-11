@@ -155,16 +155,16 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
                positive_y_preds_idx[0],
                positive_y_preds_idx[0] + gif_frame_count, snaps.size());
   auto gif_width =
-      settings.value("/inference/on_detected/gif_size/width"_json_pointer,
+      settings.value("/inference/on_detected/gif/size/width"_json_pointer,
                      target_img_size.width);
   auto gif_height =
-      settings.value("/inference/on_detected/gif_size/height"_json_pointer,
+      settings.value("/inference/on_detected/gif/size/height"_json_pointer,
                      target_img_size.height);
 
   // The unit is "Time in 1/100ths of a second"
   unsigned int gif_frame_interval =
       settings.value(
-          "/inference/on_detected/gif_frame_interval_ms"_json_pointer, 200) /
+          "/inference/on_detected/gif/frame_interval_ms"_json_pointer, 200) /
       10;
   vector<vector<uchar>> jpegs(gif_frame_count);
   // nonzero_y_preds_idx[0] stores the first non-zero item
@@ -189,7 +189,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     frames.back().resize(Magick::Geometry(gif_width, gif_height));
   }
   string gif_path = settings.value(
-      "/inference/on_detected/gif_path"_json_pointer, "/tmp/detected.gif");
+      "/inference/on_detected/gif/path"_json_pointer, "/tmp/detected.gif");
   spdlog::info("Saving GIF file (size: {}x{}) to [{}]", gif_width, gif_height,
                gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);

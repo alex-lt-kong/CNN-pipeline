@@ -152,7 +152,10 @@ def main() -> None:
     if os.path.exists(misclassified_dir):
         shutil.rmtree(misclassified_dir)
     print(f'Misclassified sample will be saved to: {misclassified_dir}')
-    for dir in [settings['dataset']['training'], settings['dataset']['validation']]:
+    for dir in [
+        os.path.join(settings['dataset'], 'training'),
+        os.path.join(settings['dataset'], 'validation')
+    ]:
         print(f'\n\n====={dir}=====\n\n')
         dataset = ImageFolder(
             root=dir,

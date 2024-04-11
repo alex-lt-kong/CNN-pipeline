@@ -13,6 +13,12 @@ test_transforms: torchvision.transforms.Compose
 
 def init_transforms(target_img_size: Tuple[int, int]) -> None:
     global train_transforms, dummy_transforms, test_transforms
+
+    # train_transforms should be called in prepare-training-data.py
+    # to save runtime CPU use (a lot)
+    dummy_transforms = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor()
+    ])
     train_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(
             size=target_img_size,
@@ -26,11 +32,6 @@ def init_transforms(target_img_size: Tuple[int, int]) -> None:
         # Why we use different means/std here?:
         # https://stackoverflow.com/questions/58151507/why-pytorch-officially-use-mean-0-485-0-456-0-406-and-std-0-229-0-224-0-2
         torchvision.transforms.Normalize(mean=target_img_means, std=target_img_stds)
-    ])
-    # train_transforms should be called in prepare-training-data.py
-    # to save runtime CPU use (a lot)
-    dummy_transforms = torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor()
     ])
     test_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(

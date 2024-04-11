@@ -9,21 +9,25 @@ import random
 import shutil
 import threading
 import time
+import torchvision
 
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-def apply_transform_and_save(source_dir: str, image_filename: str, target_dir: str):
+def apply_transform_and_save(
+    source_dir: str, image_filename: str, target_dir: str,
+    transforms: torchvision.transforms.Compose
+):
 
     # Load the image
     image_path = os.path.join(source_dir, image_filename)
     image = Image.open(image_path)
     try:
-        transformed_image = helper.train_transforms(image)
+        transformed_image = transforms(image)
     except Exception as ex:
-        print(f'Error transforming {image_filename}: {ex}')
-        continue
+        print(f'Error transforming [{image_path}]: {ex}')
+        return
     finally:
         image.close()
 
@@ -67,11 +71,9 @@ def prepare_files(
 
     for i, file in enumerate(files):
         if i < num_files_dir_1:
-            dst = os.path.join(train_dir, file)
-            apply_transform_and_save(input_dir, file, train_dir)
+            apply_transform_and_save(input_dir, file, train_dir, helper.train_transforms)
         else:
-            dst = os.path.join(val_dir, file)
-            shutil.copy2(os.path.join(input_dir, file), dst)
+            apply_transform_and_save(input_dir, file, val_dir, helper.test_transforms)
 
     print(
         f'Splitting files from [{input_dir}] to '
@@ -103,9 +105,9 @@ def main() -> None:
     threads = []
     for cat in range(config['model']['num_output_class']):
         cat = str(cat)
-        input_dir = os.path.join(config["dataset"]["raw"], cat)
-        training_dir = os.path.join(config["dataset"]["training"], cat)
-        validation_dir = os.path.join(config["dataset"]["validation"], cat)
+        input_dir = os.path.join(config["dataset"], 'raw', cat)
+        training_dir = os.path.join(config["dataset"], 'training', cat)
+        validation_dir = os.path.join(config["dataset"], 'validation', cat)
         thread = threading.Thread(target=prepare_files, args=(
             input_dir, training_dir, validation_dir,
             args['split-ratio'], random_seed

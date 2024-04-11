@@ -33,7 +33,7 @@ config: Dict[str, Any]
 
 
 class VGG16MinusMinus(nn.Module):
-    dropout = 0.66
+    dropout = 0.75
     num_classes = -1
 
     def __init__(self, num_classes: int, target_image_size: Tuple[int, int]) -> None:
@@ -104,16 +104,16 @@ class VGG16MinusMinus(nn.Module):
             nn.Linear(
                 int(self.target_image_size[0] / 64) *
                 int(self.target_image_size[1] / 64) * 256,
-                int(4096 / 38)
+                int(4096 / 41)
             ),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 38), int(4096 / 38)),
+            nn.Linear(int(4096 / 41), int(4096 / 41)),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 38), num_classes))
+            nn.Linear(int(4096 / 41), num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.layer1(x)
@@ -156,20 +156,10 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
 
-def get_data_loaders(data_path: str,
-                     random_seed: int = 0) -> Tuple[DataLoader, DataLoader]:
+def get_data_loaders(training_data_dir: str, test_data_dir: str) -> Tuple[DataLoader, DataLoader]:
 
-    dataset = ImageFolder(root=data_path, transform=helper.dummy_transforms)
-    test_split_ratio = 0.2
-    train_size = int((1 - test_split_ratio) * len(dataset))
-    test_size = len(dataset) - train_size
-
-    train_dataset, test_dataset = random_split(
-        dataset, [train_size, test_size],
-        generator=torch.Generator().manual_seed(random_seed))
-    
-    #train_dataset = DatesetInRAM(train_dataset)
-    #test_dataset = DatesetInRAM(test_dataset)
+    train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)   
+    test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)   
 
     batch_size = 64
     shuffle = True
@@ -177,11 +167,11 @@ def get_data_loaders(data_path: str,
     # not setting num_workers disables sample prefetching,
     # which drags down performance a lot
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=shuffle,
+        train_ds, batch_size=batch_size, shuffle=shuffle,
         num_workers=4, pin_memory=True
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=shuffle,
+        test_ds, batch_size=batch_size, shuffle=shuffle,
         num_workers=4, pin_memory=True
     )
     return (train_loader, test_loader)
@@ -361,11 +351,13 @@ def train(
         logging.info(f'{name.ljust(10)} | {layer_parameters: >11,} | {module}')
     logging.info(f'{"Total".ljust(10)} | {total_parameters: >11,} | NA')
 
-    training_samples_dir = config['dataset']['training']
-    logging.info(f'Loading samples from [{training_samples_dir}]')
+    training_samples_dir = os.path.join(config['dataset'], 'training')
+    test_samples_dir = os.path.join(config['dataset'], 'validation')
+    logging.info(f'Loading samples from [{training_samples_dir}] and [{test_samples_dir}]')
+
     # Define the dataset and data loader for the training set
-    train_loader, val_loader = get_data_loaders(
-        training_samples_dir, config['model']['random_seeds'][model_id]
+    train_loader, test_loader = get_data_loaders(
+        training_samples_dir, test_samples_dir
     )
     save_transformed_samples(
         train_loader,
@@ -374,7 +366,7 @@ def train(
     )
     
     save_transformed_samples(
-        val_loader,
+        test_loader,
         os.path.join(config['model']['diagnostics_dir'], 'preview', f'test_samples_{model_id}'),
         5
     )
@@ -436,7 +428,7 @@ def train(
         evalute_model_classification(v16mm, num_classes, train_loader,
                                      f'training_{model_id}', 50)
 
-        evalute_model_classification(v16mm, num_classes, val_loader,
+        evalute_model_classification(v16mm, num_classes, test_loader,
                                      f'test_{model_id}', 10)
 
         save_params(v16mm, model_id)
