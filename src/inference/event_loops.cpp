@@ -113,33 +113,38 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   vector<int> include_outputs = settings.value(
       "/inference/on_detected/triggers/include_outputs"_json_pointer,
       vector<int>{1});
-  vector<int> positive_y_preds_idx;
+  vector<int> exclude_outputs = settings.value(
+      "/inference/on_detected/triggers/exclude_outputs"_json_pointer,
+      vector<int>{});
+  vector<int> positive_y_preds_idx, negative_y_preds_idx;
   for (int64_t i = 0; i < y_pred.size(0); i++) {
     for (size_t j = 0; j < include_outputs.size(); ++j) {
       if (y_pred[i].item<int>() == include_outputs[j]) {
         positive_y_preds_idx.push_back(i);
       }
     }
-  }
-
-  // auto nonzero_y_preds_idx = torch::nonzero(y_pred);
-  if (positive_y_preds_idx.size() == 0) {
-    return false;
-  }
-  spdlog::warn("Target detected at {}-th frame in a batch of {} frames",
-               positive_y_preds_idx[0], inference_batch_size, 0);
-  spdlog::info("y_pred:              {}",
-               tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
-  ostringstream positive_y_preds_idx_str;
-  positive_y_preds_idx_str << "[";
-  for (size_t i = 0; i < positive_y_preds_idx.size(); ++i) {
-    positive_y_preds_idx_str << positive_y_preds_idx[i];
-    if (i != positive_y_preds_idx.size() - 1) {
-      positive_y_preds_idx_str << ", ";
+    for (size_t j = 0; j < exclude_outputs.size(); ++j) {
+      if (y_pred[i].item<int>() == exclude_outputs[j]) {
+        negative_y_preds_idx.push_back(i);
+      }
     }
   }
-  positive_y_preds_idx_str << "]";
-  spdlog::info("positive_y_preds_idx: {}", positive_y_preds_idx_str.str());
+
+  spdlog::info("y_pred: {}",
+               tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
+  if (positive_y_preds_idx.size() == 0) {
+    spdlog::info("y_pred does not contain any include_outputs, returning");
+    return false;
+  }
+  if (negative_y_preds_idx.size() > 0) {
+    spdlog::info("y_pred contains exclude_outputs, returning");
+    return false;
+  }
+
+  spdlog::warn("Target detected at {}-th frame in a batch of {} frames",
+               positive_y_preds_idx[0], inference_batch_size, 0);
+  spdlog::info("positive_y_preds_idx: {}",
+               vector_to_string(positive_y_preds_idx));
   spdlog::info("Raw results are:\n{}", oss_raw_result.str());
   spdlog::info("and arithmetic average of raw results is:\n{}",
                oss_avg_result.str());
