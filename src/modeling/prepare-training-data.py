@@ -117,9 +117,9 @@ def main() -> None:
     threads = []
     for cat in range(config['model']['num_output_class']):
         cat = str(cat)
-        input_dir = os.path.join(config["dataset"], 'raw', cat)
-        training_dir = os.path.join(config["dataset"], 'training', cat)
-        validation_dir = os.path.join(config["dataset"], 'validation', cat)
+        input_dir = os.path.join(config["dataset"]['raw'], cat)
+        training_dir = os.path.join(config["dataset"]['training'], cat)
+        validation_dir = os.path.join(config["dataset"]['validation'], cat)
         thread = threading.Thread(target=prepare_files, args=(
             input_dir, training_dir, validation_dir,
             args['split-ratio'], int(args['synthetic-multiplier']), random_seed

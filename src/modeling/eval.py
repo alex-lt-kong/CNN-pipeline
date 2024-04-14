@@ -26,7 +26,7 @@ def evaluate(
     batch_size = 16
     misclassified_count = 0
     data_loader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=False, num_workers=8
+        dataset, batch_size=batch_size, shuffle=False, num_workers=4
     )
     # shuffle breaks the relationship of batch and file path.
 
@@ -153,8 +153,8 @@ def main() -> None:
         shutil.rmtree(misclassified_dir)
     print(f'Misclassified sample will be saved to: {misclassified_dir}')
     for dir in [
-        os.path.join(settings['dataset'], 'training'),
-        os.path.join(settings['dataset'], 'validation')
+        os.path.join(settings['dataset']['training']),
+        os.path.join(settings['dataset']['validation'])
     ]:
         print(f'\n\n====={dir}=====\n\n')
         dataset = ImageFolder(

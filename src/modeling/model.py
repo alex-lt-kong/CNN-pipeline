@@ -351,8 +351,8 @@ def train(
         logging.info(f'{name.ljust(10)} | {layer_parameters: >11,} | {module}')
     logging.info(f'{"Total".ljust(10)} | {total_parameters: >11,} | NA')
 
-    training_samples_dir = os.path.join(config['dataset'], 'training')
-    test_samples_dir = os.path.join(config['dataset'], 'validation')
+    training_samples_dir = os.path.join(config['dataset']['training'])
+    test_samples_dir = os.path.join(config['dataset']['validation'])
     logging.info(f'Loading samples from [{training_samples_dir}] and [{test_samples_dir}]')
 
     # Define the dataset and data loader for the training set
