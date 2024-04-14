@@ -43,9 +43,8 @@ def apply_transform_and_save(
 def prepare_files(
         input_dir: str,
         train_dir: str, val_dir: str,
-        split_ratio: float, seed: int = 97381
+        split_ratio: float, synthetic_multiplier: int, seed: int = 97381
 ) -> None:
-    multiplier = 2
     if os.path.exists(train_dir):
         print(
             f'[{train_dir}] exists '
@@ -70,7 +69,7 @@ def prepare_files(
     random.shuffle(files)
 
     for i, file in enumerate(files):
-        for j in range(multiplier):
+        for j in range(synthetic_multiplier):
             if i < num_files_dir_1:
                 apply_transform_and_save(
                     input_dir, file, train_dir, j, helper.train_transforms
@@ -96,6 +95,14 @@ def main() -> None:
         '--split-ratio', '-r', help='Ratio of the training set',
         dest='split-ratio', type=float, default='0.9'
     )
+    ap.add_argument(
+        '--synthetic-multiplier', '-m',
+        help=(
+            'Number of raw samples times synthetic-multiplier will be the '
+            'count of training+validation samples'
+        ),
+        dest='synthetic-multiplier', type=float, default='2'
+    )
     args = vars(ap.parse_args())
 
     config = Dict[str, Any]
@@ -115,7 +122,7 @@ def main() -> None:
         validation_dir = os.path.join(config["dataset"], 'validation', cat)
         thread = threading.Thread(target=prepare_files, args=(
             input_dir, training_dir, validation_dir,
-            args['split-ratio'], random_seed
+            args['split-ratio'], int(args['synthetic-multiplier']), random_seed
         ))
         thread.start()
         threads.append(thread)
