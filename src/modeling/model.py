@@ -22,7 +22,6 @@ import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision
 import torch.cuda
 import time
 
@@ -33,10 +32,13 @@ config: Dict[str, Any]
 
 
 class VGG16MinusMinus(nn.Module):
-    dropout = 0.75
+    dropout = 0.50
     num_classes = -1
 
-    def __init__(self, num_classes: int, target_image_size: Tuple[int, int]) -> None:
+    def __init__(
+            self, num_classes: int, target_image_size: Tuple[int, int],
+            fc_layer_neuron_count: int = 4096
+        ) -> None:
         self.num_classes = num_classes
         self.target_image_size = target_image_size
 
@@ -96,24 +98,24 @@ class VGG16MinusMinus(nn.Module):
              nn.ReLU(),
              nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer13 = nn.Sequential(
-            nn.Conv2d(64, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Sequential(
             nn.Linear(
                 int(self.target_image_size[0] / 64) *
-                int(self.target_image_size[1] / 64) * 256,
-                int(4096 / 41)
+                int(self.target_image_size[1] / 64) * 128,
+                fc_layer_neuron_count
             ),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(int(4096 / 41), int(4096 / 41)),
+            nn.Linear(fc_layer_neuron_count, fc_layer_neuron_count),
             nn.Dropout(self.dropout),
             nn.ReLU())
         self.fc2 = nn.Sequential(
-            nn.Linear(int(4096 / 41), num_classes))
+            nn.Linear(fc_layer_neuron_count, num_classes))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x = self.layer1(x)
@@ -135,14 +137,6 @@ class VGG16MinusMinus(nn.Module):
         x = self.fc2(x)
         return x
 
-
-class DatesetInRAM(Dataset):
-    def __init__(self, data):
-        self.data = data
-    def __getitem__(self, index):
-        return self.data['x'][index,:], self.data['y'][index,:]
-    def __len__(self):
-        return self.data['x'].shape[0]
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
@@ -323,11 +317,11 @@ def save_transformed_samples(dataloader: DataLoader,
 
 def train(
     load_parameters: bool, model_id: str, num_classes: int,
-    target_image_size: Tuple[int, int], lr: float = 0.001,
-    epochs: int = 10
+    target_image_size: Tuple[int, int], fc_layer_neuron_count: int = 4096,
+    lr: float = 0.001, epochs: int = 10
 ) -> nn.Module:
 
-    v16mm = VGG16MinusMinus(num_classes, target_image_size)
+    v16mm = VGG16MinusMinus(num_classes, target_image_size, fc_layer_neuron_count)
     v16mm.to(device)
     if load_parameters:
         logging.warning(
@@ -509,6 +503,7 @@ def main() -> None:
     train(
         args['load_parameters'], args['model_id'],
         config['model']['num_output_class'], target_img_size,
+        int(config['model']['fully_connected_layer_neuron_count']),
         args['learning_rate'], args['epochs']
     )
     logging.info('Training completed')
