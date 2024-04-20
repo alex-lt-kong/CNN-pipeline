@@ -52,7 +52,13 @@ def evaluate(
         images, y_trues = images.to(device), y_trues.to(device)
         output = output.to(device)
         for i in range(len(v16mms)):
-            outputs.append(v16mms[i](images))
+            y = v16mms[i](images)
+            # Normalize the output, otherwise one model could have (unexpected)
+            # outsized impact on the final result
+            # Ref:
+            # https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
+            y_min = torch.min(y)
+            outputs.append(2 * ((y - y_min) / (torch.max(y) - y_min)) - 1)
             output += outputs[i]
 
         assert isinstance(output, torch.Tensor)

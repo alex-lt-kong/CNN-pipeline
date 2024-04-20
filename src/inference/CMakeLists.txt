@@ -53,3 +53,6 @@ target_link_libraries(classify_video
   model_utils
   ${OpenCV_LIBS} torch_cpu c10
 )
+add_executable(playground playground.cpp)
+target_link_libraries(playground torch_cpu c10
+)

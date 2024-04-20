@@ -168,7 +168,13 @@ int main(int argc, const char *argv[]) {
     avg_output = avg_output.to(torch::kCUDA);
     vector<at::Tensor> raw_outputs(v16mms.size());
     for (size_t i = 0; i < v16mms.size(); ++i) {
-      raw_outputs[i] = v16mms[i].forward(input).toTensor();
+      auto y = v16mms[i].forward(input).toTensor();
+      // Normalize the output, otherwise one model could have (unexpected)
+      // outsized impact on the final result
+      // Ref:
+      // https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
+      auto y_min = at::min(y);
+      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) - y_min)) - 1;
       avg_output += raw_outputs[i];
     }
     at::Tensor y_preds = torch::argmax(avg_output, 1);

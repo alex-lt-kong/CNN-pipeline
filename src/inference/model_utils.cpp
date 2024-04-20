@@ -28,7 +28,7 @@ vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
   for (size_t i = 0; i < model_ids.size(); ++i) {
     string model_path = regex_replace(torch_script_serialization,
                                       regex("\\{id\\}"), model_ids[i]);
-    spdlog::info("Desearilizing {}-th model from {}", i, model_path);
+    spdlog::info("Deserializing {}-th model from {}", i, model_path);
 
     models.emplace_back(torch::jit::load(model_path, torch::kCUDA));
     models[i].to(device_string);

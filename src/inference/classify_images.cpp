@@ -177,7 +177,13 @@ int main(int argc, char **argv) {
   vector<at::Tensor> outputs(v16mms.size());
   spdlog::info("Running inference");
   for (size_t i = 0; i < v16mms.size(); ++i) {
-    outputs[i] = v16mms[i].forward(input).toTensor();
+    auto y = v16mms[i].forward(input).toTensor();
+    // Normalize the output, otherwise one model could have (unexpected)
+    // outsized impact on the final result
+    // Ref:
+    // https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
+    auto y_min = at::min(y);
+    outputs[i] = 2 * ((y - y_min) / (at::max(y) - y_min)) - 1;
     output += outputs[i];
   }
   spdlog::info("Done");

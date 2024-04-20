@@ -69,7 +69,21 @@ infer_images(vector<torch::jit::script::Module> &models,
   {
     std::lock_guard<std::mutex> lock(models_mtx);
     for (size_t i = 0; i < models.size(); ++i) {
-      raw_outputs[i] = models[i].forward(input).toTensor();
+      auto y = models[i].forward(input).toTensor();
+      /*
+      ostringstream oss;
+      if (i == 1) {
+        oss << y;
+        spdlog::info("{}", y.toString());
+        spdlog::info("{}", oss.str());
+      }
+      */
+      // Normalize the output, otherwise one model could have (unexpected)
+      // outsized impact on the final result
+      // Ref:
+      // https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
+      auto y_min = at::min(y);
+      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) - y_min)) - 1;
       avg_output += raw_outputs[i];
     }
   }
@@ -101,12 +115,39 @@ void execute_external_program_async() {
   th_exec.detach();
 }
 
+void save_positive_outputs_as_jpeg(const vector<int> &positive_y_preds_idx,
+                                   const vector<vector<uchar>> &jpegs) {
+  filesystem::path jpg_dir = settings.value(
+      "/inference/on_detected/jpegs_directory"_json_pointer, "/");
+  spdlog::info("Saving positive images as JPEG files to [{}]",
+               jpg_dir.native());
+  for (auto idx : positive_y_preds_idx) {
+    // One needs to think for a while to understand the
+    // offset between jpegs_idx and y_pred's index--their gap
+    // is exactly inference_batch_size, which is implied in
+    // the line: cv::imdecode(jpegs[pre_detection_size + i],
+    // cv::IMREAD_COLOR));
+    auto jpegs_idx = idx + pre_detection_size;
+    filesystem::path jpg_path =
+        jpg_dir / (get_current_datetime_string() + ".jpg");
+    ofstream outFile(jpg_path, ios::binary);
+    if (!outFile) {
+      spdlog::error("Failed to open the file [{}]", jpg_path.native());
+    } else {
+      outFile.write((char *)jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size());
+      outFile.close();
+    }
+  }
+}
+
 bool handle_inference_results(vector<at::Tensor> &raw_outputs,
                               at::Tensor &avg_output,
                               const deque<SnapshotMsg> &snaps) {
   ostringstream oss_raw_result, oss_avg_result;
   for (size_t i = 0; i < raw_outputs.size(); ++i) {
+    oss_raw_result << "raw_outputs[" << i << "]:\n";
     oss_raw_result << raw_outputs[i];
+    oss_raw_result << "\n";
   }
   oss_avg_result << avg_output;
   at::Tensor y_pred = torch::argmax(avg_output, 1);
@@ -193,28 +234,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
                gif_path);
   Magick::writeImages(frames.begin(), frames.end(), gif_path);
   execute_external_program_async();
-  filesystem::path jpg_dir = settings.value(
-      "/inference/on_detected/jpegs_directory"_json_pointer, "/");
-  spdlog::info("Saving positive images as JPEG files to [{}]",
-               jpg_dir.native());
-  for (auto idx : positive_y_preds_idx) {
-    // One needs to think for a while to understand the
-    // offset between jpegs_idx and y_pred's index--their gap
-    // is exactly inference_batch_size, which is implied in
-    // the line: cv::imdecode(jpegs[pre_detection_size + i],
-    // cv::IMREAD_COLOR));
-    auto jpegs_idx = idx + pre_detection_size;
-    assert(jpegs_idx < snaps.size());
-    filesystem::path jpg_path =
-        jpg_dir / (get_current_datetime_string() + ".jpg");
-    ofstream outFile(jpg_path, ios::binary);
-    if (!outFile) {
-      spdlog::error("Failed to open the file [{}]", jpg_path.native());
-    } else {
-      outFile.write((char *)jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size());
-      outFile.close();
-    }
-  }
+  save_positive_outputs_as_jpeg(positive_y_preds_idx, jpegs);
   return true;
 }
 
