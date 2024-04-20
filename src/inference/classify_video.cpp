@@ -74,6 +74,54 @@ inline void install_signal_handler() {
   }
 }
 
+void overlay_result_to_frame(vector<Mat> &frames, int idx,
+                             vector<at::Tensor> &raw_outputs,
+                             at::Tensor &avg_output, int y_pred) {
+
+  Scalar color;
+  if (y_pred == 0)
+    color = Scalar(0, 0, 255);
+  else if (y_pred == 2)
+    color = Scalar(0, 255, 0);
+  else
+    color = Scalar(255, 255, 255);
+
+  // The avg_output should be one-dimensional
+  assert(avg_output[idx].sizes().size() == 1);
+
+  string oss_str;
+
+  Point cords = Point(8, 32);
+  float fontScale = 0.66;
+  for (size_t i = 0; i < raw_outputs.size(); ++i) {
+    cords.y += fontScale * 25;
+    ostringstream oss;
+    oss << "raw_outputs[" << i << "]: " << raw_outputs[i][idx];
+    oss_str = std::regex_replace(oss.str(), std::regex("\n"), " ");
+    putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
+            Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
+    putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale, color,
+            fontScale, LINE_8, false);
+  }
+
+  ostringstream oss;
+  oss << "avg_output:     " << avg_output[idx];
+  oss_str = std::regex_replace(oss.str(), std::regex("\n"), " ");
+  oss.clear();
+  cords.y += fontScale * 25;
+  putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
+          Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
+  putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale, color,
+          fontScale, LINE_8, false);
+
+  fontScale = 4;
+  cords.y += fontScale * 25;
+  putText(frames[idx], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX, fontScale,
+          Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
+  putText(frames[idx], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX, fontScale,
+          color, fontScale, LINE_8, false);
+}
+
 int main(int argc, const char *argv[]) {
   install_signal_handler();
   cxxopts::Options options(argv[0], "Video classifier");
@@ -174,29 +222,14 @@ int main(int argc, const char *argv[]) {
       // Ref:
       // https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
       auto y_min = at::min(y);
-      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) - y_min)) - 1;
+      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) + 0.0001 - y_min)) - 1;
       avg_output += raw_outputs[i];
     }
     at::Tensor y_preds = torch::argmax(avg_output, 1);
     // cout << tensor_to_string_like_pytorch(y_pred, 0, batchSize) << endl;
     for (size_t i = 0; i < hFrames.size(); ++i) {
-      float fontScale = 5;
       int y_pred = y_preds[i].item<int>();
-      Point cords = Point(16, 256);
-      Scalar color;
-
-      if (y_pred == 0)
-        color = Scalar(0, 0, 255);
-      else if (y_pred == 2)
-        color = Scalar(0, 255, 0);
-      else
-        color = Scalar(255, 255, 255);
-
-      putText(hFrames[i], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX,
-              fontScale, Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
-      putText(hFrames[i], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX,
-              fontScale, color, fontScale, LINE_8, false);
-
+      overlay_result_to_frame(hFrames, i, raw_outputs, avg_output, y_pred);
       dFrame.upload(hFrames[i]);
       dWriter->write(dFrame);
       ++frameCountByOutput[y_pred];
