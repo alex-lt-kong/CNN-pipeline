@@ -130,12 +130,12 @@ void save_positive_outputs_as_jpeg(const vector<int> &positive_y_preds_idx,
     auto jpegs_idx = idx + pre_detection_size;
     filesystem::path jpg_path =
         jpg_dir / (get_current_datetime_string() + ".jpg");
-    ofstream outFile(jpg_path, ios::binary);
-    if (!outFile) {
+    ofstream out_file(jpg_path, ios::binary);
+    if (!out_file) {
       spdlog::error("Failed to open the file [{}]", jpg_path.native());
     } else {
-      outFile.write((char *)jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size());
-      outFile.close();
+      out_file.write((char *)jpegs[jpegs_idx].data(), jpegs[jpegs_idx].size());
+      out_file.close();
     }
   }
 }

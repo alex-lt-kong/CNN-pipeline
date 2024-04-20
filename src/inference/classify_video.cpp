@@ -74,67 +74,71 @@ inline void install_signal_handler() {
   }
 }
 
-void overlay_result_to_frame(vector<Mat> &frames, int idx,
+void overlay_result_to_frame(int frame_idx, vector<Mat> &frames, int batch_idx,
                              vector<at::Tensor> &raw_outputs,
                              at::Tensor &avg_output, int y_pred) {
 
-  Scalar color;
+  Scalar color = Scalar(255, 255, 255);
+
+  // The avg_output should be one-dimensional
+  assert(avg_output[batch_idx].sizes().size() == 1);
+
+  string oss_str;
+
+  Point cords = Point(8, 48);
+  float fontScale = 0.6;
+  putText(frames[batch_idx], "frame " + to_string(frame_idx), cords,
+          FONT_HERSHEY_DUPLEX, fontScale, Scalar(0, 0, 0), 4 * fontScale,
+          LINE_8, false);
+  putText(frames[batch_idx], "frame " + to_string(frame_idx), cords,
+          FONT_HERSHEY_DUPLEX, fontScale, color, fontScale, LINE_8, false);
+
+  for (size_t i = 0; i < raw_outputs.size(); ++i) {
+    cords.y += fontScale * 26;
+    ostringstream oss;
+    oss << "raw_outputs[" << i << "]: " << raw_outputs[i][batch_idx];
+    oss_str = std::regex_replace(oss.str(), std::regex("\n"), " ");
+    putText(frames[batch_idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
+            Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
+    putText(frames[batch_idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
+            color, fontScale, LINE_8, false);
+  }
+
+  ostringstream oss;
+  oss << "avg_output:     " << avg_output[batch_idx];
+  oss_str = std::regex_replace(oss.str(), std::regex("\n"), " ");
+  oss.clear();
+  cords.y += fontScale * 26;
+  putText(frames[batch_idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
+          Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
+  putText(frames[batch_idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
+          color, fontScale, LINE_8, false);
+
   if (y_pred == 0)
     color = Scalar(0, 0, 255);
   else if (y_pred == 2)
     color = Scalar(0, 255, 0);
-  else
-    color = Scalar(255, 255, 255);
-
-  // The avg_output should be one-dimensional
-  assert(avg_output[idx].sizes().size() == 1);
-
-  string oss_str;
-
-  Point cords = Point(8, 32);
-  float fontScale = 0.66;
-  for (size_t i = 0; i < raw_outputs.size(); ++i) {
-    cords.y += fontScale * 25;
-    ostringstream oss;
-    oss << "raw_outputs[" << i << "]: " << raw_outputs[i][idx];
-    oss_str = std::regex_replace(oss.str(), std::regex("\n"), " ");
-    putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
-            Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
-    putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale, color,
-            fontScale, LINE_8, false);
-  }
-
-  ostringstream oss;
-  oss << "avg_output:     " << avg_output[idx];
-  oss_str = std::regex_replace(oss.str(), std::regex("\n"), " ");
-  oss.clear();
-  cords.y += fontScale * 25;
-  putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale,
-          Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
-  putText(frames[idx], oss_str, cords, FONT_HERSHEY_DUPLEX, fontScale, color,
-          fontScale, LINE_8, false);
-
-  fontScale = 4;
-  cords.y += fontScale * 25;
-  putText(frames[idx], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX, fontScale,
-          Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
-  putText(frames[idx], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX, fontScale,
-          color, fontScale, LINE_8, false);
+  fontScale = 3.5;
+  cords.y += fontScale * 26;
+  putText(frames[batch_idx], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX,
+          fontScale, Scalar(0, 0, 0), 4 * fontScale, LINE_8, false);
+  putText(frames[batch_idx], to_string(y_pred), cords, FONT_HERSHEY_DUPLEX,
+          fontScale, color, fontScale, LINE_8, false);
 }
 
 int main(int argc, const char *argv[]) {
   install_signal_handler();
   cxxopts::Options options(argv[0], "Video classifier");
   string configPath, srcVideoPath;
-  string dstVideoDir = "/tmp";
-  string dstVideoBaseName = "video";
+  filesystem::path dst_video_dir = filesystem::temp_directory_path();
+  string dst_video_base_name = "video";
 
   // clang-format off
   options.add_options()
     ("h,help", "Print help message")
     ("s,src-video-path", "Source video path", cxxopts::value<string>()->default_value(srcVideoPath))
-    ("d,dst-video-dir", "Directory video path", cxxopts::value<string>()->default_value(dstVideoDir))
-    ("b,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dstVideoBaseName))
+    ("d,dst-video-dir", "Directory video path", cxxopts::value<string>()->default_value(dst_video_dir.string()))
+    ("b,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dst_video_base_name))
     ("c,config-path", "JSON configuration file path",  cxxopts::value<string>()->default_value(configPath));
   // clang-format on
   auto result = options.parse(argc, argv);
@@ -148,8 +152,17 @@ int main(int argc, const char *argv[]) {
   }
   configPath = result["config-path"].as<string>();
   srcVideoPath = result["src-video-path"].as<string>();
-  dstVideoDir = result["dst-video-dir"].as<string>();
-  dstVideoBaseName = result["dst-video-base-name"].as<string>();
+  dst_video_dir = result["dst-video-dir"].as<string>();
+  dst_video_base_name = result["dst-video-base-name"].as<string>();
+  auto frames_dir = dst_video_dir / dst_video_base_name;
+
+  if (!filesystem::exists(frames_dir)) {
+    try {
+      filesystem::create_directory(frames_dir);
+    } catch (const filesystem::filesystem_error &ex) {
+      std::cerr << "Error creating directory: " << ex.what() << std::endl;
+    }
+  }
 
   ifstream f(configPath);
 
@@ -178,17 +191,16 @@ int main(int argc, const char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  filesystem::path tempVideoPath =
-      filesystem::temp_directory_path() /
-      ("temp_" + to_string(time(nullptr)) + ".mp4");
+  auto temp_video_path = filesystem::temp_directory_path() /
+                         ("temp_" + to_string(time(nullptr)) + ".mp4");
 
   Ptr<cudacodec::VideoWriter> dWriter = cudacodec::createVideoWriter(
-      string(tempVideoPath), dFrame.size(), cudacodec::Codec::H264, 45.0,
+      temp_video_path.string(), dFrame.size(), cudacodec::Codec::H264, 45.0,
       cudacodec::ColorFormat::BGR);
   dReader.release();
   dReader = cudacodec::createVideoReader(srcVideoPath);
   dReader->set(cv::cudacodec::ColorFormat::BGR);
-  size_t frameCount = 0;
+  size_t frame_count = 0;
   size_t batchSize = 8;
   while (!e_flag) {
     if (!dReader->nextFrame(dFrame)) {
@@ -197,13 +209,13 @@ int main(int argc, const char *argv[]) {
     }
     if (dFrame.empty()) {
       break;
-    } else if (frameCount % 100 == 0) {
-      cout << "frameCount: " << frameCount << ", size(): " << dFrame.size()
+    } else if (frame_count % 100 == 0) {
+      cout << "frameCount: " << frame_count << ", size(): " << dFrame.size()
            << ", channels(): " << dFrame.channels() << endl;
     }
     Mat hFrame;
     dFrame.download(hFrame);
-    ++frameCount;
+    ++frame_count;
     hFrames.push_back(hFrame);
 
     if (hFrames.size() < batchSize)
@@ -229,7 +241,23 @@ int main(int argc, const char *argv[]) {
     // cout << tensor_to_string_like_pytorch(y_pred, 0, batchSize) << endl;
     for (size_t i = 0; i < hFrames.size(); ++i) {
       int y_pred = y_preds[i].item<int>();
-      overlay_result_to_frame(hFrames, i, raw_outputs, avg_output, y_pred);
+      string padded_frame_count = std::to_string(frame_count - batchSize + i);
+      padded_frame_count =
+          string(5 - padded_frame_count.length(), '0') + padded_frame_count;
+      filesystem::path jpg_path =
+          frames_dir / (dst_video_base_name + "_" + padded_frame_count + "_" +
+                        to_string(y_pred) + ".jpg");
+      ofstream out_file(jpg_path, ios::binary);
+      vector<uchar> jpeg_data;
+      imencode(".jpg", hFrames[i], jpeg_data);
+      if (!out_file) {
+        cerr << "Failed to open the file: " << jpg_path.native() << endl;
+      } else {
+        out_file.write((char *)jpeg_data.data(), jpeg_data.size());
+        out_file.close();
+      }
+      overlay_result_to_frame(frame_count - batchSize + i, hFrames, i,
+                              raw_outputs, avg_output, y_pred);
       dFrame.upload(hFrames[i]);
       dWriter->write(dFrame);
       ++frameCountByOutput[y_pred];
@@ -240,19 +268,19 @@ int main(int argc, const char *argv[]) {
   cout << "dWriter->release()ed" << endl;
   dReader.release();
   cout << "dReader->release()ed" << endl;
-  dstVideoBaseName += "_";
+  dst_video_base_name += "_";
   for (int i = 0; i < numClasses; ++i) {
     if (frameCountByOutput[i] > 0)
-      dstVideoBaseName += to_string(i) + "-";
+      dst_video_base_name += to_string(i) + "-";
   }
-  dstVideoBaseName = dstVideoBaseName.substr(0, dstVideoBaseName.size() - 1);
-  filesystem::path dstVideoPath =
-      filesystem::path(dstVideoDir) / (dstVideoBaseName + ".mp4");
+  dst_video_base_name =
+      dst_video_base_name.substr(0, dst_video_base_name.size() - 1);
+  auto dst_video_path = dst_video_dir / (dst_video_base_name + ".mp4");
   try {
-    filesystem::copy_file(tempVideoPath, dstVideoPath,
+    filesystem::copy_file(temp_video_path, dst_video_path,
                           filesystem::copy_options::overwrite_existing);
-    std::filesystem::remove(tempVideoPath);
-    cout << "dstVideo moved to: [" << dstVideoPath << "]\n";
+    filesystem::remove(temp_video_path);
+    cout << "dstVideo moved to: [" << dst_video_path << "]\n";
   } catch (filesystem::filesystem_error &e) {
     cerr << "Error: " << e.what() << "\n";
   }
