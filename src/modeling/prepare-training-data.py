@@ -36,7 +36,7 @@ def apply_transform_and_save(
     from torchvision.utils import save_image
     save_image(
         transformed_image,
-        target_path + f'_{variant_no}.bmp'
+        target_path + f'_{variant_no}.jpg'
     )
 
 

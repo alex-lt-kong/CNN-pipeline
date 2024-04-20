@@ -73,7 +73,8 @@ def main() -> None:
     v16mms = []
     for i in range(len(model_ids)):
         v16mms.append(
-            model.VGG16MinusMinus(settings['model']['num_output_class'])
+            model.VGG16MinusMinus(settings['model']['num_output_class'],
+            target_img_size, settings['model']['fully_connected_layer_neuron_count'])
         )
         v16mms[i].to(device)
         model_path = settings['model']['parameters'].replace(
@@ -121,8 +122,8 @@ def main() -> None:
     images_tensor = get_tensor_from_img_dir(image_path)
 
     rounded_unix_time = int(time.time() / 100000)
-    h = rounded_unix_time % helper.target_img_size[0]
-    w = rounded_unix_time % (helper.target_img_size[1] - preview_ele_num)
+    h = rounded_unix_time % target_img_size[0]
+    w = rounded_unix_time % (target_img_size[1] - preview_ele_num)
     logging.info(
         f'Image tensor ready, tensor shape: {images_tensor.shape}, '
         f'sample values start from (w{w}, h{h}):'

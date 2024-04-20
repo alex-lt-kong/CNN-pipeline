@@ -31,7 +31,7 @@ def init_transforms(target_img_size: Tuple[int, int]) -> None:
         torchvision.transforms.ToTensor(),
         # Why we use different means/std here?:
         # https://stackoverflow.com/questions/58151507/why-pytorch-officially-use-mean-0-485-0-456-0-406-and-std-0-229-0-224-0-2
-        torchvision.transforms.Normalize(mean=target_img_means, std=target_img_stds)
+        # torchvision.transforms.Normalize(mean=target_img_means, std=target_img_stds)
     ])
     test_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(
@@ -40,7 +40,7 @@ def init_transforms(target_img_size: Tuple[int, int]) -> None:
             antialias=True
         ),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=target_img_means, std=target_img_stds)
+        # torchvision.transforms.Normalize(mean=target_img_means, std=target_img_stds)
     ])
 
 
