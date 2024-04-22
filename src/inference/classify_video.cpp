@@ -284,6 +284,11 @@ int main(int argc, const char *argv[]) {
   } catch (filesystem::filesystem_error &e) {
     cerr << "Error: " << e.what() << "\n";
   }
-
+  try {
+    filesystem::rename(frames_dir, dst_video_dir / dst_video_base_name);
+  } catch (filesystem::filesystem_error &e) {
+    cerr << "Error filesystem::rename()ing [" << frames_dir << "]: " << e.what()
+         << "\n";
+  }
   return 0;
 }

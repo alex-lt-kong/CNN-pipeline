@@ -27,7 +27,7 @@ def init_transforms(target_img_size: Tuple[int, int]) -> None:
         ),
         torchvision.transforms.ColorJitter(brightness=0.2, contrast=0.2, hue=0.2, saturation=0.2),
         torchvision.transforms.RandomGrayscale(p=0.1),
-        torchvision.transforms.RandomRotation(3),
+        torchvision.transforms.RandomRotation(5),
         torchvision.transforms.ToTensor(),
         # Why we use different means/std here?:
         # https://stackoverflow.com/questions/58151507/why-pytorch-officially-use-mean-0-485-0-456-0-406-and-std-0-229-0-224-0-2
