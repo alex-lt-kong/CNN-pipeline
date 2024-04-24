@@ -10,7 +10,7 @@ mutex models_mtx;
 mutex model_ids_mtx;
 
 const size_t pre_detection_size = 6;
-const size_t inference_batch_size = 36;
+const size_t inference_batch_size = 30;
 const size_t post_detection_size = 6;
 const size_t gif_frame_count =
     pre_detection_size + inference_batch_size + post_detection_size;
