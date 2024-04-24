@@ -1,10 +1,9 @@
+from model_resnet import ResNet18, ResNet50
+from model_vggnet import VGG16MM
 from sklearn import metrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
-from torch.utils.data import random_split
-from typing import Any, Dict, List, Tuple, Optional
-from torch.utils.data import Dataset
-from torch.profiler import profile, record_function, ProfilerActivity
+from typing import Any, Dict, Tuple
 
 import argparse
 import datetime as dt
@@ -30,114 +29,6 @@ curr_dir = os.path.dirname(os.path.abspath(__file__))
 device: torch.device
 config: Dict[str, Any]
 
-
-class VGG16MinusMinus(nn.Module):
-    dropout = 0.50
-    num_classes = -1
-
-    def __init__(
-            self, num_classes: int, target_image_size: Tuple[int, int],
-            fc_layer_neuron_count: int = 4096
-        ) -> None:
-        self.num_classes = num_classes
-        self.target_image_size = target_image_size
-
-        super(VGG16MinusMinus, self).__init__()
-        # self.layer1 = nn.Sequential(
-        #     nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
-        #     nn.BatchNorm2d(64),
-        #     nn.ReLU())
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(3, 8, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(8),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(8, 12, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(12),
-            nn.ReLU())
-        # self.layer4 = nn.Sequential(
-        #    nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-        #    nn.BatchNorm2d(128),
-        #    nn.ReLU(),
-        #    nn.MaxPool2d(kernel_size=2, stride=2))
-        self.layer5 = nn.Sequential(
-            nn.Conv2d(12, 16, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
-        # self.layer6 = nn.Sequential(
-        #    nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-        #    nn.BatchNorm2d(256),
-        #    nn.ReLU())
-        self.layer7 = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
-        # self.layer8 = nn.Sequential(
-        #     nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-        #     nn.BatchNorm2d(512),
-        #     nn.ReLU())
-        # self.layer9 = nn.Sequential(
-        #    nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-        #    nn.BatchNorm2d(512),
-        #    nn.ReLU())
-        self.layer10 = nn.Sequential(
-            nn.Conv2d(32, 48, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(48),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
-        # self.layer11 = nn.Sequential(
-        #     nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-        #     nn.BatchNorm2d(512),
-        #     nn.ReLU())
-        self.layer12 = nn.Sequential(
-             nn.Conv2d(48, 64, kernel_size=3, stride=1, padding=1),
-             nn.BatchNorm2d(64),
-             nn.ReLU(),
-             nn.MaxPool2d(kernel_size=2, stride=2))
-        self.layer13 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
-        self.fc = nn.Sequential(
-            nn.Linear(
-                int(self.target_image_size[0] / 64) *
-                int(self.target_image_size[1] / 64) * 128,
-                fc_layer_neuron_count
-            ),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc1 = nn.Sequential(
-            nn.Linear(fc_layer_neuron_count, fc_layer_neuron_count),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc2 = nn.Sequential(
-            nn.Linear(fc_layer_neuron_count, num_classes))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        # x = self.layer4(x)
-        x = self.layer5(x)
-        # x = self.layer6(x)
-        x = self.layer7(x)
-        # x = self.layer8(x)
-        # x = self.layer9(x)
-        x = self.layer10(x)
-        # x = self.layer11(x)
-        x = self.layer12(x)
-        x = self.layer13(x)
-        x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
-        x = self.fc1(x)
-        x = self.fc2(x)
-        return x
-
-
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -155,7 +46,7 @@ def get_data_loaders(training_data_dir: str, test_data_dir: str) -> Tuple[DataLo
     train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)   
     test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)   
 
-    batch_size = 64
+    batch_size = 16
     shuffle = True
 
     # not setting num_workers disables sample prefetching,
@@ -316,23 +207,21 @@ def save_transformed_samples(dataloader: DataLoader,
 
 
 def train(
-    load_parameters: bool, model_id: str, num_classes: int,
-    target_image_size: Tuple[int, int], fc_layer_neuron_count: int = 4096,
-    lr: float = 0.001, epochs: int = 10
+    load_parameters: bool, model_id: str, lr: float = 0.001, epochs: int = 10
 ) -> nn.Module:
 
-    v16mm = VGG16MinusMinus(num_classes, target_image_size, fc_layer_neuron_count)
-    v16mm.to(device)
+    # m = ResNet18(config).to(device)
+    m = VGG16MM(config).to(device)
     if load_parameters:
         logging.warning(
             'Loading existing model parameters to continue training')
-        v16mm.load_state_dict(torch.load(
+        m.load_state_dict(torch.load(
             config['model']['parameters'].replace(r'{id}', model_id)
         ))
 
     logging.info('Name       |      Params | Structure')
     total_parameters = 0
-    for name, module in v16mm.named_modules():
+    for name, module in m.named_modules():
         if isinstance(module, nn.Sequential):
             # Sequential() is like a wrapper module, we will print layers twice
             # if we don't skip it.
@@ -370,7 +259,7 @@ def train(
 
     # weight_decay is L2 regularization's lambda
     optimizer = optim.Adam(
-        v16mm.parameters(),
+        m.parameters(),
         lr=(0.001 if lr is None else lr),
         weight_decay=3e-4
     )
@@ -383,7 +272,7 @@ def train(
                      f'lr: {scheduler.get_last_lr()}'
                      '\n========================================')
 
-        v16mm.train()   # switch to training mode
+        m.train()   # switch to training mode
         for batch_idx, (images, y_trues) in enumerate(train_loader):
             # Every data instance is an input + label pair
             images, y_trues = images.to(device), y_trues.to(device)
@@ -391,7 +280,7 @@ def train(
             # Zero your gradients for every batch!
             optimizer.zero_grad()
             # Make predictions for this batch
-            y_preds = v16mm(images)
+            y_preds = m(images)
 
             # Compute the loss
             loss = loss_fn(y_preds, y_trues)
@@ -418,21 +307,22 @@ def train(
         logging.info('Evaluating model after this epoch')
 
         # switch to evaluation mode
-        v16mm.eval()
-        evalute_model_classification(v16mm, num_classes, train_loader,
-                                     f'training_{model_id}', 50)
+        m.eval()
+        evalute_model_classification(
+            m, config['model']['num_output_class'], train_loader, f'training_{model_id}', 50
+        )
+        evalute_model_classification(
+            m, config['model']['num_output_class'], test_loader, f'test_{model_id}', 10
+        )
 
-        evalute_model_classification(v16mm, num_classes, test_loader,
-                                     f'test_{model_id}', 10)
-
-        save_params(v16mm, model_id)
-        save_ts_model(v16mm, model_id)
+        save_params(m, model_id)
+        save_ts_model(m, model_id)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
             f', estimated training duration: {(eta - start_ts)/3600:.1f} hrs'
         )
-    return v16mm
+    return m
 
 
 def generate_curves(filename: str, mv_window: int = 1) -> None:
@@ -494,16 +384,13 @@ def main() -> None:
     logging.info(f"GPU Memory: {properties.total_memory / 1024**3:.2f} GB")
     logging.info(f"GPU CUDA semantics: {device}")
 
-    target_img_size = (
+    set_seed(config['model']['random_seeds'][args['model_id']])
+    helper.init_transforms((
         config['model']['input_image_size']['height'],
         config['model']['input_image_size']['width']
-    )
-    set_seed(config['model']['random_seeds'][args['model_id']])
-    helper.init_transforms(target_img_size)
+    ))
     train(
         args['load_parameters'], args['model_id'],
-        config['model']['num_output_class'], target_img_size,
-        int(config['model']['fully_connected_layer_neuron_count']),
         args['learning_rate'], args['epochs']
     )
     logging.info('Training completed')
