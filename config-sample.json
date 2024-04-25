@@ -8,15 +8,22 @@
       "3": 1621443610,
       "4": 2023055420
     },
-    "input_image_size": { "width": 640, "height": 360 },
-    "num_output_classes": 2,
+    "input_image_size": {
+      "width": 640,
+      "height": 360
+    },
+    "num_classes": 2,
+    "dropout_rate": 0.5,
     "parameters": "/tmp/data/model_{id}.pth",
     "torch_script_serialization": "/tmp/data/model_{id}.pt",
     "diagnostics_dir": "/tmp/diagnostics"
   },
   "inference": {
     "on_detected": {
-      "triggers": { "include_outputs": [2], "exclude_outputs": [0] },
+      "triggers": {
+        "include_outputs": [2],
+        "exclude_outputs": [0]
+      },
       "external_program": "/home/user/bin/on-detected.py",
       "jpegs_directory": "/tmp/detected/",
       "gif": {
@@ -31,7 +38,10 @@
     },
     "zeromq": {
       "address": "tcp://127.0.0.1:4241",
-      "image_size": { "width": 1920, "height": 1080 }
+      "image_size": {
+        "width": 1920,
+        "height": 1080
+      }
     },
     "swagger": {
       "host": "127.0.0.1",

@@ -145,7 +145,7 @@ def main() -> None:
     v16mms = []
     for i in range(len(model_ids)):
         v16mms.append(model.VGG16MinusMinus(
-            settings['model']['num_output_class'], target_img_size,
+            settings['model']['num_classes'], target_img_size,
             settings['model']['fully_connected_layer_neuron_count']))
         v16mms[i].to(device)
         model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])

@@ -113,7 +113,7 @@ class VGG16MinusMinus(nn.Module):
 
 def VGG16MM(config: Dict[str, Any]):
     return VGG16MinusMinus(
-        config['model']['num_output_class'],
+        config['model']['num_classes'],
         (
             config['model']['input_image_size']['height'],
             config['model']['input_image_size']['width']

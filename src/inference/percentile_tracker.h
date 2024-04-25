@@ -3,6 +3,8 @@
 #include <stdexcept>
 
 template <class T> class PercentileTracker {
+  static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
+
 public:
   PercentileTracker(size_t sample_size) : sample_size(sample_size) {
     refreshStatsCalled = false;
@@ -22,7 +24,7 @@ public:
     refreshStatsCalled = true;
   }
 
-  double getPercentile(double percent) {
+  T getPercentile(double percent) {
     if (samples.empty())
       return -1;
     if (!refreshStatsCalled) {

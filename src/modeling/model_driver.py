@@ -1,4 +1,4 @@
-from model_resnet import ResNet18, ResNet50
+from model_resnet import resnet10
 from model_vggnet import VGG16MM
 from sklearn import metrics
 from torch.utils.data import DataLoader
@@ -171,6 +171,7 @@ def save_params(m: nn.Module, model_id: str) -> None:
 
 
 def save_ts_model(m: nn.Module, model_id: str) -> None:
+    assert isinstance(m, nn.Module)
     logging.info('Serializing model to Torch Script file')
     ts_serialization_path = config['model'][
         'torch_script_serialization'
@@ -210,8 +211,9 @@ def train(
     load_parameters: bool, model_id: str, lr: float = 0.001, epochs: int = 10
 ) -> nn.Module:
 
-    # m = ResNet18(config).to(device)
-    m = VGG16MM(config).to(device)
+    m = resnet10(config).to(device)
+    # m = VGG16MM(config).to(device)    
+
     if load_parameters:
         logging.warning(
             'Loading existing model parameters to continue training')
@@ -271,7 +273,10 @@ def train(
                      f'Epoch {epoch + 1} / {epochs} started, '
                      f'lr: {scheduler.get_last_lr()}'
                      '\n========================================')
-
+        hook_handle = m.fc.register_forward_hook(
+            lambda m, inp, out: torch.nn.functional.dropout(
+                out, p=config['model']['dropout_rate'], training=m.training
+        ))
         m.train()   # switch to training mode
         for batch_idx, (images, y_trues) in enumerate(train_loader):
             # Every data instance is an input + label pair
@@ -309,13 +314,14 @@ def train(
         # switch to evaluation mode
         m.eval()
         evalute_model_classification(
-            m, config['model']['num_output_class'], train_loader, f'training_{model_id}', 50
+            m, config['model']['num_classes'], train_loader, f'training_{model_id}', 50
         )
         evalute_model_classification(
-            m, config['model']['num_output_class'], test_loader, f'test_{model_id}', 10
+            m, config['model']['num_classes'], test_loader, f'test_{model_id}', 10
         )
 
         save_params(m, model_id)
+        hook_handle.remove()
         save_ts_model(m, model_id)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
@@ -384,7 +390,14 @@ def main() -> None:
     logging.info(f"GPU Memory: {properties.total_memory / 1024**3:.2f} GB")
     logging.info(f"GPU CUDA semantics: {device}")
 
-    set_seed(config['model']['random_seeds'][args['model_id']])
+    if args['model_id'] in config['model']['random_seeds']:
+        set_seed(config['model']['random_seeds'][args['model_id']])
+    else:
+        logging.warning(
+            f'model_id [{args["model_id"]}] does not have pre-defined random seed, '
+            'will use unix epoch time as seed instead'
+        )
+        set_seed(int(time.time()))
     helper.init_transforms((
         config['model']['input_image_size']['height'],
         config['model']['input_image_size']['width']

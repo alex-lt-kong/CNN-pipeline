@@ -175,8 +175,7 @@ int main(int argc, const char *argv[]) {
   static Size target_img_size =
       Size(settings.value("/model/input_image_size/width"_json_pointer, 0),
            settings.value("/model/input_image_size/height"_json_pointer, 0));
-  static int numClasses =
-      settings.value("/model/num_output_class"_json_pointer, 1);
+  static int numClasses = settings.value("/model/num_classes"_json_pointer, 1);
   vector<size_t> frameCountByOutput(numClasses, 0);
   vector<torch::jit::script::Module> v16mms = load_models(model_ids);
 

@@ -9,8 +9,10 @@ mutex swagger_mtx;
 mutex models_mtx;
 mutex model_ids_mtx;
 
+// These three sizes can't be too large, otherwise GPUs with smaller VRAM
+// may not run the program successfully
 const size_t pre_detection_size = 6;
-const size_t inference_batch_size = 30;
+const size_t inference_batch_size = 24;
 const size_t post_detection_size = 6;
 const size_t gif_frame_count =
     pre_detection_size + inference_batch_size + post_detection_size;

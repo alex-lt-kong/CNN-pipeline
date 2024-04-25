@@ -115,7 +115,7 @@ def main() -> None:
         config['model']['input_image_size']['width']
     ))
     threads = []
-    for cat in range(config['model']['num_output_class']):
+    for cat in range(config['model']['num_classes']):
         cat = str(cat)
         input_dir = os.path.join(config["dataset"]['raw'], cat)
         training_dir = os.path.join(config["dataset"]['training'], cat)
