@@ -1,3 +1,5 @@
+from model_resnet import resnet10
+from model_vggnet import VGG16MM
 from typing import Any, Dict, List, Tuple
 from PIL import Image
 from torchvision.datasets import ImageFolder
@@ -5,13 +7,13 @@ from sklearn import metrics
 from torch.utils.data import DataLoader
 
 import argparse
-import model
 import numpy as np
 import json
 import helper
 import os
 import shutil
 import torch
+import torch.nn as nn
 
 if not torch.cuda.is_available():
     raise RuntimeError('CUDA is unavailable')
@@ -19,7 +21,7 @@ device = torch.device("cuda")
 
 
 def evaluate(
-    settings: Dict[str, Any], v16mms: List[model.VGG16MinusMinus],
+    settings: Dict[str, Any], v16mms: List[nn.Module],
     dataset: ImageFolder, misclassified_dir: str
 ) -> None:
 
@@ -35,9 +37,9 @@ def evaluate(
     # Loop through the images in batches
     num_correct = 0
     total_samples = 0
-    true_positives = np.zeros(v16mms[0].num_classes)
-    false_positives = np.zeros(v16mms[0].num_classes)
-    false_negatives = np.zeros(v16mms[0].num_classes)
+    true_positives = np.zeros(settings['model']['num_classes'])
+    false_positives = np.zeros(settings['model']['num_classes'])
+    false_negatives = np.zeros(settings['model']['num_classes'])
 
     y_trues_total = []
     y_preds_total = []
@@ -48,7 +50,7 @@ def evaluate(
 
         # Use your model to make predictions for the batch of images
         outputs: List[torch.Tensor] = []
-        output = torch.zeros([len(y_trues), v16mms[0].num_classes], dtype=torch.float32)
+        output = torch.zeros([len(y_trues), settings['model']['num_classes']], dtype=torch.float32)
         images, y_trues = images.to(device), y_trues.to(device)
         output = output.to(device)
         for i in range(len(v16mms)):
@@ -105,17 +107,17 @@ def evaluate(
     torch.set_grad_enabled(True)
     print(f'All misclassified samples are:\n{misclassified_samples}')
 
-    precision = np.zeros(v16mms[0].num_classes)
-    recall = np.zeros(v16mms[0].num_classes)
-    fscore = np.zeros(v16mms[0].num_classes)
-    for i in range(v16mms[0].num_classes):
+    precision = np.zeros(settings['model']['num_classes'])
+    recall = np.zeros(settings['model']['num_classes'])
+    fscore = np.zeros(settings['model']['num_classes'])
+    for i in range(settings['model']['num_classes']):
         precision[i] = true_positives[i] / (true_positives[i] + false_positives[i])
         recall[i] = true_positives[i] / (true_positives[i] + false_negatives[i])
         beta = 1  # set beta to 1 for f1-score
         fscore[i] = (1 + beta**2) * (precision[i] * recall[i]) / (beta**2 * precision[i] + recall[i])
 
     print('Class\tPrecision\tRecall\t\tF-Score')
-    for i in range(v16mms[0].num_classes):
+    for i in range(settings['model']['num_classes']):
         print('{}    \t{:.2f}%\t\t{:.2f}%\t\t{:.2f}%'.format(
             i, precision[i] * 100, recall[i] * 100, fscore[i] * 100))
 
@@ -144,9 +146,7 @@ def main() -> None:
     helper.init_transforms(target_img_size)
     v16mms = []
     for i in range(len(model_ids)):
-        v16mms.append(model.VGG16MinusMinus(
-            settings['model']['num_classes'], target_img_size,
-            settings['model']['fully_connected_layer_neuron_count']))
+        v16mms.append(resnet10(settings))
         v16mms[i].to(device)
         model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])
         print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')

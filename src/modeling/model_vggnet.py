@@ -6,7 +6,7 @@ import torch.cuda
 
 
 class VGG16MinusMinus(nn.Module):
-    dropout = 0.50
+    dropout = 0.0
     num_classes = -1
 
     def __init__(
@@ -111,7 +111,7 @@ class VGG16MinusMinus(nn.Module):
         x = self.fc2(x)
         return x
 
-def VGG16MM(config: Dict[str, Any]):
+def vggnet(config: Dict[str, Any]):
     return VGG16MinusMinus(
         config['model']['num_classes'],
         (

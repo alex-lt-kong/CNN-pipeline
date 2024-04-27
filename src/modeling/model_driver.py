@@ -1,5 +1,6 @@
 from model_resnet import resnet10
-from model_vggnet import VGG16MM
+from model_vggnet import vggnet
+from model_mobilenetv3 import mobilenet_v3_small
 from sklearn import metrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
@@ -153,7 +154,7 @@ def evalute_model_classification(
     generate_curves(ds_name)
     generate_curves(ds_name, 4)
     generate_curves(ds_name, 16)
-    generate_curves(ds_name, 64)
+    generate_curves(ds_name, 32)
 
     cm = metrics.confusion_matrix(y_trues_total, y_preds_total)
     logging.info(f'Confusion matrix (true-by-pred):\n{cm}')
@@ -208,10 +209,11 @@ def save_transformed_samples(dataloader: DataLoader,
 
 
 def train(
-    load_parameters: bool, model_id: str, lr: float = 0.001, epochs: int = 10
+    load_parameters: bool, model_name: str, model_id: str,
+    dropout_rate: float = 0.001, lr: float = 0.001, epochs: int = 10
 ) -> nn.Module:
 
-    m = resnet10(config).to(device)
+    m = globals()[model_name](config).to(device)
     # m = VGG16MM(config).to(device)    
 
     if load_parameters:
@@ -221,7 +223,7 @@ def train(
             config['model']['parameters'].replace(r'{id}', model_id)
         ))
 
-    logging.info('Name       |      Params | Structure')
+    logging.info('Name                  |       Params | Structure')
     total_parameters = 0
     for name, module in m.named_modules():
         if isinstance(module, nn.Sequential):
@@ -233,8 +235,8 @@ def train(
             continue
         layer_parameters = sum(p.numel() for p in module.parameters() if p.requires_grad)
         total_parameters += layer_parameters
-        logging.info(f'{name.ljust(10)} | {layer_parameters: >11,} | {module}')
-    logging.info(f'{"Total".ljust(10)} | {total_parameters: >11,} | NA')
+        logging.info(f'{name.ljust(21)} | {layer_parameters: >12,} | {module}')
+    logging.info(f'{"Total".ljust(21)} | {total_parameters: >12,} | NA')
 
     training_samples_dir = os.path.join(config['dataset']['training'])
     test_samples_dir = os.path.join(config['dataset']['validation'])
@@ -273,10 +275,10 @@ def train(
                      f'Epoch {epoch + 1} / {epochs} started, '
                      f'lr: {scheduler.get_last_lr()}'
                      '\n========================================')
-        hook_handle = m.fc.register_forward_hook(
-            lambda m, inp, out: torch.nn.functional.dropout(
-                out, p=config['model']['dropout_rate'], training=m.training
-        ))
+        #hook_handle = m.fc.register_forward_hook(
+        #    lambda m, inp, out: torch.nn.functional.dropout(
+        #        out, p=dropout_rate, training=m.training
+        #))
         m.train()   # switch to training mode
         for batch_idx, (images, y_trues) in enumerate(train_loader):
             # Every data instance is an input + label pair
@@ -321,7 +323,7 @@ def train(
         )
 
         save_params(m, model_id)
-        hook_handle.remove()
+        # hook_handle.remove()
         save_ts_model(m, model_id)
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
@@ -376,7 +378,10 @@ def main() -> None:
                     help='Specify a learning rate', default=0.001)
     ap.add_argument('--epochs', '-e', dest='epochs', type=int, default=10)
     ap.add_argument('--model-id', '-i', dest='model_id', required=True)
-    ap.add_argument('--cuda-device-id', '-d', dest='cuda-device-id',
+    ap.add_argument('--model-name', '-n', dest='model_name', required=True)
+    ap.add_argument('--dropout-rate', '-d', dest='dropout_rate',
+                    default=0.5, type=float)
+    ap.add_argument('--cuda-device-id', '-g', dest='cuda-device-id',
                     default='cuda',
                     help=('Specify GPU to use following CUDA semantics. '
                           'Sample values include "cuda"/"cuda:0"/"cuda:1"'))
@@ -403,8 +408,8 @@ def main() -> None:
         config['model']['input_image_size']['width']
     ))
     train(
-        args['load_parameters'], args['model_id'],
-        args['learning_rate'], args['epochs']
+        args['load_parameters'], args['model_name'], args['model_id'],
+        float(args['dropout_rate']), args['learning_rate'], args['epochs']
     )
     logging.info('Training completed')
 
