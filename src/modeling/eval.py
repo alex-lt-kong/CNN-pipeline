@@ -1,5 +1,6 @@
 from model_resnet import resnet10
-from model_vggnet import VGG16MM
+from modeling.model_vgg import vggnet
+from model_mobilenetv3 import mobilenet_v3_small
 from typing import Any, Dict, List, Tuple
 from PIL import Image
 from torchvision.datasets import ImageFolder
@@ -130,12 +131,16 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--config-path', '-c', dest='config-path', required=True,
                     help='Config file path')
+    ap.add_argument(
+        '--model-names', '-n', dest='model-names', required=True,
+        help="A list of comma-separated model names such as vggnet and resnet10"
+    )
     ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
     args = vars(ap.parse_args())
     model_ids = str(args['model-ids']).split(',')
-
-
-    # settings: Dict[str, Any]
+    model_names = str(args['model-names']).split(',')
+    assert(len(model_ids) == len(model_names))
+    
     with open(args['config-path']) as j:
         settings = json.load(j)
     target_img_size = (
@@ -144,15 +149,16 @@ def main() -> None:
     )
 
     helper.init_transforms(target_img_size)
-    v16mms = []
+    models: List[nn.Module] = []
     for i in range(len(model_ids)):
-        v16mms.append(resnet10(settings))
-        v16mms[i].to(device)
+        models.append(globals()[model_names[i]](settings))
+        assert isinstance(models[i], nn.Module)
+        models[i].to(device)
         model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])
         print(f'Loading parameters from [{model_path}] to model [{model_ids[i]}]')
-        v16mms[i].load_state_dict(torch.load(model_path))
-        v16mms[i].eval()
-        total_params = sum(p.numel() for p in v16mms[i].parameters())
+        models[i].load_state_dict(torch.load(model_path))
+        models[i].eval()
+        total_params = sum(p.numel() for p in models[i].parameters())
         print(f"Number of parameters: {total_params:,}")
 
     misclassified_dir = os.path.join(settings['model']['diagnostics_dir'], 'misclassified')
@@ -168,7 +174,7 @@ def main() -> None:
             root=dir,
             transform=helper.dummy_transforms
         )
-        evaluate(settings, v16mms, dataset, misclassified_dir)
+        evaluate(settings, models, dataset, misclassified_dir)
         input()
 
 if __name__ == '__main__':

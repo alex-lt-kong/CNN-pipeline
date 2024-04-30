@@ -1,5 +1,5 @@
-from model_resnet import resnet10
-from model_vggnet import vggnet
+from model_resnet import resnet18, resnet34, resnet50
+from model_vgg import vgg11, vgg16, vgg19
 from model_mobilenetv3 import mobilenet_v3_small
 from sklearn import metrics
 from torch.utils.data import DataLoader
@@ -47,7 +47,7 @@ def get_data_loaders(training_data_dir: str, test_data_dir: str) -> Tuple[DataLo
     train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)   
     test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)   
 
-    batch_size = 16
+    batch_size = 32
     shuffle = True
 
     # not setting num_workers disables sample prefetching,
@@ -165,8 +165,7 @@ def save_params(m: nn.Module, model_id: str) -> None:
         r'{id}', model_id
     )
     if os.path.exists(model_params_path):
-        dst_path = model_params_path + '.bak'
-        shutil.move(model_params_path, dst_path)
+        os.remove(model_params_path)
     torch.save(m.state_dict(), model_params_path)
     logging.info(f'Model weights saved to [{model_params_path}]')
 
@@ -178,8 +177,7 @@ def save_ts_model(m: nn.Module, model_id: str) -> None:
         'torch_script_serialization'
     ].replace(r'{id}', model_id)
     if os.path.exists(ts_serialization_path):
-        dst_path = ts_serialization_path + '.bak'
-        shutil.move(ts_serialization_path, dst_path)
+        os.remove(ts_serialization_path)
     m_ts = torch.jit.script(m)
     logging.info('Torch Script model created')
     m_ts.save(ts_serialization_path)
@@ -212,9 +210,10 @@ def train(
     load_parameters: bool, model_name: str, model_id: str,
     dropout_rate: float = 0.001, lr: float = 0.001, epochs: int = 10
 ) -> nn.Module:
-
-    m = globals()[model_name](config).to(device)
-    # m = VGG16MM(config).to(device)    
+    
+    m = globals()[model_name](config, dropout_rate)
+    assert isinstance(m, nn.Module)
+    m = m.to(device)    
 
     if load_parameters:
         logging.warning(

@@ -240,20 +240,23 @@ int main(int argc, const char *argv[]) {
     // cout << tensor_to_string_like_pytorch(y_pred, 0, batchSize) << endl;
     for (size_t i = 0; i < hFrames.size(); ++i) {
       int y_pred = y_preds[i].item<int>();
-      string padded_frame_count = std::to_string(frame_count - batchSize + i);
-      padded_frame_count =
-          string(5 - padded_frame_count.length(), '0') + padded_frame_count;
-      filesystem::path jpg_path =
-          frames_dir / (dst_video_base_name + "_" + padded_frame_count + "_" +
-                        to_string(y_pred) + ".jpg");
-      ofstream out_file(jpg_path, ios::binary);
-      vector<uchar> jpeg_data;
-      imencode(".jpg", hFrames[i], jpeg_data);
-      if (!out_file) {
-        cerr << "Failed to open the file: " << jpg_path.native() << endl;
-      } else {
-        out_file.write((char *)jpeg_data.data(), jpeg_data.size());
-        out_file.close();
+      int padded_frame_count = frame_count - batchSize + i;
+      if (padded_frame_count % 10 == 0) {
+        string padded_frame_count_str =
+            string(5 - to_string(padded_frame_count).length(), '0') +
+            to_string(padded_frame_count);
+        filesystem::path jpg_path =
+            frames_dir / (dst_video_base_name + "_" + padded_frame_count_str +
+                          "_" + to_string(y_pred) + ".jpg");
+        ofstream out_file(jpg_path, ios::binary);
+        vector<uchar> jpeg_data;
+        imencode(".jpg", hFrames[i], jpeg_data);
+        if (!out_file) {
+          cerr << "Failed to open the file: " << jpg_path.native() << endl;
+        } else {
+          out_file.write((char *)jpeg_data.data(), jpeg_data.size());
+          out_file.close();
+        }
       }
       overlay_result_to_frame(frame_count - batchSize + i, hFrames, i,
                               raw_outputs, avg_output, y_pred);

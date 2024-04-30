@@ -13,7 +13,6 @@
       "height": 360
     },
     "num_classes": 2,
-    "dropout_rate": 0.5,
     "parameters": "/tmp/data/model_{id}.pth",
     "torch_script_serialization": "/tmp/data/model_{id}.pt",
     "diagnostics_dir": "/tmp/diagnostics"
