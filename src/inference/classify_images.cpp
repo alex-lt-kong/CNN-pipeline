@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
     // Ref:
     // https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
     auto y_min = at::min(y);
-    outputs[i] = 2 * ((y - y_min) / (at::max(y) + 0.0001 - y_min)) - 1;
+    outputs[i] = 2 * ((y - y_min) / (at::max(y) + 0.000001 - y_min)) - 1;
     output += outputs[i];
   }
   spdlog::info("Done");

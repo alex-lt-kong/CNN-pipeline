@@ -1,6 +1,7 @@
-from model_resnet import resnet10
-from modeling.model_vgg import vggnet
+from model_resnet import resnet18, resnet34, resnet50
+from model_vgg import vgg11, vgg16, vgg19
 from model_mobilenetv3 import mobilenet_v3_small
+from model_vggmm import vggmm
 from typing import Any, Dict, List, Tuple
 from PIL import Image
 from torchvision.datasets import ImageFolder
@@ -151,7 +152,7 @@ def main() -> None:
     helper.init_transforms(target_img_size)
     models: List[nn.Module] = []
     for i in range(len(model_ids)):
-        models.append(globals()[model_names[i]](settings))
+        models.append(globals()[model_names[i]](settings, dropout_rate=0.0))
         assert isinstance(models[i], nn.Module)
         models[i].to(device)
         model_path = settings['model']['parameters'].replace(r'{id}', model_ids[i])

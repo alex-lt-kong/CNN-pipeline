@@ -1,6 +1,7 @@
 from model_resnet import resnet18, resnet34, resnet50
 from model_vgg import vgg11, vgg16, vgg19
 from model_mobilenetv3 import mobilenet_v3_small
+from model_vggmm import vggmm, vgg3m, vgg4m, vgg5m, vgg6m
 from sklearn import metrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
@@ -46,8 +47,8 @@ def get_data_loaders(training_data_dir: str, test_data_dir: str) -> Tuple[DataLo
 
     train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)   
     test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)   
-
-    batch_size = 32
+    # need to keep this low for larger models such as ResNet50
+    batch_size = 16
     shuffle = True
 
     # not setting num_workers disables sample prefetching,

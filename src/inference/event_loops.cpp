@@ -83,7 +83,7 @@ infer_images(vector<torch::jit::script::Module> &models,
       // Ref:
       // https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
       auto y_min = at::min(y);
-      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) + 0.0001 - y_min)) - 1;
+      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) + 0.000001 - y_min)) - 1;
       avg_output += raw_outputs[i];
     }
   }

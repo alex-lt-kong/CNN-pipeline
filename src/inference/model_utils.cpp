@@ -78,7 +78,7 @@ string tensor_to_string_like_pytorch(const torch::Tensor &t, const long index,
   oss << "tensor([";
   bool small_non_zero_numbers = false;
   for (long i = index; i < index + ele_count && i < t.sizes()[0]; ++i) {
-    if (t[i].abs().item<float>() < 0.0001 && t[i].abs().item<float>() != 0) {
+    if (t[i].abs().item<float>() < 0.000001 && t[i].abs().item<float>() != 0) {
       small_non_zero_numbers = true;
       break;
     }

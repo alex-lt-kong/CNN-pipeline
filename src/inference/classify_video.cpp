@@ -177,7 +177,7 @@ int main(int argc, const char *argv[]) {
            settings.value("/model/input_image_size/height"_json_pointer, 0));
   static int numClasses = settings.value("/model/num_classes"_json_pointer, 1);
   vector<size_t> frameCountByOutput(numClasses, 0);
-  vector<torch::jit::script::Module> v16mms = load_models(model_ids);
+  vector<torch::jit::script::Module> models = load_models(model_ids);
 
   cuda::GpuMat dFrame;
   vector<Mat> hFrames;
@@ -225,15 +225,15 @@ int main(int argc, const char *argv[]) {
     // imgs_tensor.sizes()[0] stores number of images
     at::Tensor avg_output = torch::zeros({imgs_tensor.sizes()[0], numClasses});
     avg_output = avg_output.to(torch::kCUDA);
-    vector<at::Tensor> raw_outputs(v16mms.size());
-    for (size_t i = 0; i < v16mms.size(); ++i) {
-      auto y = v16mms[i].forward(input).toTensor();
+    vector<at::Tensor> raw_outputs(models.size());
+    for (size_t i = 0; i < models.size(); ++i) {
+      auto y = models[i].forward(input).toTensor();
       // Normalize the output, otherwise one model could have (unexpected)
       // outsized impact on the final result
       // Ref:
       // https://stats.stackexchange.com/questions/178626/how-to-normalize-data-between-1-and-1
       auto y_min = at::min(y);
-      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) + 0.0001 - y_min)) - 1;
+      raw_outputs[i] = 2 * ((y - y_min) / (at::max(y) + 0.000001 - y_min)) - 1;
       avg_output += raw_outputs[i];
     }
     at::Tensor y_preds = torch::argmax(avg_output, 1);

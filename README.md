@@ -1,8 +1,6 @@
-# VGGNET-based CNN pipeline
+# CNN pipeline
 
-A pipeline of an ensemble of CNN models that are based on (but much smaller
-than) the good old
-[VGGNET-16 model](https://www.kaggle.com/code/blurredmachine/vggnet-16-architecture-a-complete-guide).
+A pipeline of an ensemble of heterogeneous CNN models.
 
 ## Prepare environment
 
