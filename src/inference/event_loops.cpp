@@ -300,7 +300,12 @@ void inference_ev_loop() {
     if (handle_inference_results(raw_outputs, avg_output, snap_deque)) {
       spdlog::info("inference_ev_loop() will sleep for {} ms after detection",
                    cooldown_ms);
+      SnapshotMsg t;
       interruptible_sleep(cooldown_ms);
+      for (size_t i = 0; i < image_queue_size; ++i) {
+        if (!snapshot_pc_queue.try_dequeue(t))
+          break;
+      }
       snap_deque.clear();
     }
   }

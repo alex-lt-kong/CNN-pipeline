@@ -157,20 +157,17 @@ class VGG16ThreeMinuses(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
-        self.fc = nn.Sequential(
-            nn.Linear(
-                int(self.target_image_size[0] / 64) *
-                int(self.target_image_size[1] / 64) * 256,
-                50
-            ),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc1 = nn.Sequential(
+        
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.classifier = nn.Sequential(
+            nn.Linear(256 * 7 * 7, 50),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
             nn.Linear(50, 50),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc2 = nn.Sequential(
-            nn.Linear(50, num_classes))
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(50, num_classes),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer2(x)
@@ -180,10 +177,9 @@ class VGG16ThreeMinuses(nn.Module):
         x = self.layer10(x)
         x = self.layer12(x)
         x = self.layer13(x)
+        x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        x = self.classifier(x)
         return x
 
 
@@ -233,21 +229,18 @@ class VGG16FourMinuses(nn.Module):
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
-        self.fc = nn.Sequential(
-            nn.Linear(
-                int(self.target_image_size[0] / 64) *
-                int(self.target_image_size[1] / 64) * 128,
-                50
-            ),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc1 = nn.Sequential(
+            nn.MaxPool2d(kernel_size=2, stride=2))        
+        
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.classifier = nn.Sequential(
+            nn.Linear(128 * 7 * 7, 50),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
             nn.Linear(50, 50),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc2 = nn.Sequential(
-            nn.Linear(50, num_classes))
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(50, num_classes),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer2(x)
@@ -257,11 +250,11 @@ class VGG16FourMinuses(nn.Module):
         x = self.layer10(x)
         x = self.layer12(x)
         x = self.layer13(x)
+        x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        x = self.classifier(x)
         return x
+
 
 class VGG16FiveMinuses(nn.Module):
     dropout = 0.5
@@ -310,20 +303,17 @@ class VGG16FiveMinuses(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
-        self.fc = nn.Sequential(
-            nn.Linear(
-                int(self.target_image_size[0] / 64) *
-                int(self.target_image_size[1] / 64) * 64,
-                32
-            ),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc1 = nn.Sequential(
+        
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.classifier = nn.Sequential(
+            nn.Linear(64 * 7 * 7, 32),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
             nn.Linear(32, 32),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc2 = nn.Sequential(
-            nn.Linear(32, num_classes))
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(32, num_classes),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer2(x)
@@ -333,10 +323,9 @@ class VGG16FiveMinuses(nn.Module):
         x = self.layer10(x)
         x = self.layer12(x)
         x = self.layer13(x)
+        x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        x = self.classifier(x)
         return x
 
 
@@ -387,20 +376,16 @@ class VGG16SixMinuses(nn.Module):
             nn.BatchNorm2d(36),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
-        self.fc = nn.Sequential(
-            nn.Linear(
-                int(self.target_image_size[0] / 64) *
-                int(self.target_image_size[1] / 64) * 36,
-                24
-            ),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc1 = nn.Sequential(
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.classifier = nn.Sequential(
+            nn.Linear(36 * 7 * 7, 24),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
             nn.Linear(24, 24),
-            nn.Dropout(self.dropout),
-            nn.ReLU())
-        self.fc2 = nn.Sequential(
-            nn.Linear(24, num_classes))
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(24, num_classes),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer2(x)
@@ -410,10 +395,131 @@ class VGG16SixMinuses(nn.Module):
         x = self.layer10(x)
         x = self.layer12(x)
         x = self.layer13(x)
+        x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        x = self.classifier(x)
+        return x
+
+
+class VGG16SevenMinuses(nn.Module):
+    dropout = 0.5
+    num_classes = -1
+
+    def __init__(
+        self, num_classes: int, target_image_size: Tuple[int, int], dropout_rate: float
+    ) -> None:
+        self.num_classes = num_classes
+        self.dropout = dropout_rate
+        self.target_image_size = target_image_size
+
+        super(VGG16SevenMinuses, self).__init__()
+
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(3, 4, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(4),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(4, 8, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer10 = nn.Sequential(
+            nn.Conv2d(8, 12, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(12),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer12 = nn.Sequential(
+             nn.Conv2d(12, 18, kernel_size=3, stride=1, padding=1),
+             nn.BatchNorm2d(18),
+             nn.ReLU(),
+             nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer13 = nn.Sequential(
+            nn.Conv2d(18, 24, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(24),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.classifier = nn.Sequential(
+            nn.Linear(24 * 7 * 7, 18),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(18, 18),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(18, num_classes),
+        )
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.layer2(x)
+        x = self.layer5(x)
+        x = self.layer10(x)
+        x = self.layer12(x)
+        x = self.layer13(x)
+        x = self.avgpool(x)
+        x = x.reshape(x.size(0), -1)
+        x = self.classifier(x)
+        return x
+
+
+class VGG16EightMinuses(nn.Module):
+    dropout = 0.5
+    num_classes = -1
+
+    def __init__(
+        self, num_classes: int, target_image_size: Tuple[int, int], dropout_rate: float
+    ) -> None:
+        self.num_classes = num_classes
+        self.dropout = dropout_rate
+        self.target_image_size = target_image_size
+
+        super(VGG16EightMinuses, self).__init__()
+
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(3, 4, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(4),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(4, 6, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(6),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer10 = nn.Sequential(
+            nn.Conv2d(6, 8, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer12 = nn.Sequential(
+             nn.Conv2d(8, 10, kernel_size=3, stride=1, padding=1),
+             nn.BatchNorm2d(10),
+             nn.ReLU(),
+             nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer13 = nn.Sequential(
+            nn.Conv2d(10, 12, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(12),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.classifier = nn.Sequential(
+            nn.Linear(12 * 7 * 7, 10),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(10, 10),
+            nn.ReLU(True),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(10, num_classes),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.layer2(x)
+        x = self.layer5(x)
+        x = self.layer10(x)
+        x = self.layer12(x)
+        x = self.layer13(x)
+        x = self.avgpool(x)
+        x = x.reshape(x.size(0), -1)
+        x = self.classifier(x)
         return x
 
 
@@ -451,6 +557,22 @@ def vgg5m(configs: Dict[str, Any], dropout_rate: float):
 
 def vgg6m(configs: Dict[str, Any], dropout_rate: float):    
     return VGG16SixMinuses(
+        configs['model']['num_classes'],
+        (configs['model']['input_image_size']['width'], configs['model']['input_image_size']['height']),
+        dropout_rate
+    )
+
+
+def vgg7m(configs: Dict[str, Any], dropout_rate: float):    
+    return VGG16SevenMinuses(
+        configs['model']['num_classes'],
+        (configs['model']['input_image_size']['width'], configs['model']['input_image_size']['height']),
+        dropout_rate
+    )
+
+
+def vgg8m(configs: Dict[str, Any], dropout_rate: float):    
+    return VGG16EightMinuses(
         configs['model']['num_classes'],
         (configs['model']['input_image_size']['width'], configs['model']['input_image_size']['height']),
         dropout_rate

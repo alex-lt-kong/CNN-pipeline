@@ -1,7 +1,8 @@
 from model_resnet import resnet18, resnet34, resnet50
-from model_vgg import vgg11, vgg16, vgg19
 from model_mobilenetv3 import mobilenet_v3_small
-from model_vggmm import vggmm
+from model_vggmm import vggmm, vgg3m, vgg4m, vgg5m, vgg6m, vgg7m, vgg8m
+from model_squeezenet import squeezenet1_1
+
 from typing import Any, Dict, List, Tuple
 from PIL import Image
 from torchvision.datasets import ImageFolder
