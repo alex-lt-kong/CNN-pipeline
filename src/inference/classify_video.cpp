@@ -1,3 +1,5 @@
+#define FMT_HEADER_ONLY
+
 #include "model_utils.h"
 
 #include <cstdlib>
@@ -15,6 +17,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <spdlog/spdlog.h>
 
 #include <filesystem>
 #include <iostream>
@@ -130,22 +133,21 @@ int main(int argc, const char *argv[]) {
   install_signal_handler();
   cxxopts::Options options(argv[0], "Video classifier");
   string configPath, srcVideoPath;
+  int output_sample_interval;
   filesystem::path dst_video_dir = filesystem::temp_directory_path();
   string dst_video_base_name = "video";
 
   // clang-format off
-  options.add_options()
-    ("h,help", "Print help message")
+  options.add_options()("h,help", "Print help message")
     ("s,src-video-path", "Source video path", cxxopts::value<string>()->default_value(srcVideoPath))
     ("d,dst-video-dir", "Directory video path", cxxopts::value<string>()->default_value(dst_video_dir.string()))
     ("b,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dst_video_base_name))
-    ("c,config-path", "JSON configuration file path",  cxxopts::value<string>()->default_value(configPath));
+    ("i,output-sample-interval", "A sample image will be saved every this number of frames", cxxopts::value<int>()->default_value("10"))
+    ("c,config-path", "JSON configuration file path", cxxopts::value<string>()->default_value(configPath));
   // clang-format on
   auto result = options.parse(argc, argv);
   if (result.count("help") || !result.count("config-path") ||
-      !result.count("src-video-path") //||
-      //! result.count("dst-video-dir") || !result.count("num-classes")
-  ) {
+      !result.count("src-video-path")) {
     cout << "getBuildInformation():\n" << getBuildInformation() << endl;
     cout << options.help() << "\n";
     return 0;
@@ -153,6 +155,7 @@ int main(int argc, const char *argv[]) {
   configPath = result["config-path"].as<string>();
   srcVideoPath = result["src-video-path"].as<string>();
   dst_video_dir = result["dst-video-dir"].as<string>();
+  output_sample_interval = result["output-sample-interval"].as<int>();
   dst_video_base_name = result["dst-video-base-name"].as<string>();
   auto frames_dir = dst_video_dir / dst_video_base_name;
 
@@ -160,7 +163,10 @@ int main(int argc, const char *argv[]) {
     try {
       filesystem::create_directory(frames_dir);
     } catch (const filesystem::filesystem_error &ex) {
-      std::cerr << "Error creating directory: " << ex.what() << std::endl;
+      spdlog::error(
+          "Error creating directory: {}, program will exit prematurely",
+          ex.what());
+      return EXIT_FAILURE;
     }
   }
 
@@ -186,7 +192,7 @@ int main(int argc, const char *argv[]) {
       cudacodec::createVideoReader(srcVideoPath);
 
   if (!dReader->nextFrame(dFrame)) {
-    cerr << "Failed to read frame from source\n";
+    spdlog::error("Failed to read frame from source {}", srcVideoPath);
     return EXIT_FAILURE;
   }
 
@@ -203,14 +209,12 @@ int main(int argc, const char *argv[]) {
   size_t batchSize = 8;
   while (!e_flag) {
     if (!dReader->nextFrame(dFrame)) {
-      cerr << "dReader->nextFrame(dFrame) is False" << endl;
+      spdlog::info("dReader->nextFrame(dFrame) is False");
       break;
-    }
-    if (dFrame.empty()) {
-      break;
-    } else if (frame_count % 100 == 0) {
-      cout << "frameCount: " << frame_count << ", size(): " << dFrame.size()
-           << ", channels(): " << dFrame.channels() << endl;
+    } else if (frame_count % output_sample_interval == 0) {
+      spdlog::info("frame_count: {:>5}, size(): {}x{}, channels(): {}",
+                   frame_count, dFrame.size().width, dFrame.size().height,
+                   dFrame.channels());
     }
     Mat hFrame;
     dFrame.download(hFrame);
@@ -240,19 +244,21 @@ int main(int argc, const char *argv[]) {
     // cout << tensor_to_string_like_pytorch(y_pred, 0, batchSize) << endl;
     for (size_t i = 0; i < hFrames.size(); ++i) {
       int y_pred = y_preds[i].item<int>();
-      int padded_frame_count = frame_count - batchSize + i;
-      if (padded_frame_count % 10 == 0) {
-        string padded_frame_count_str =
-            string(5 - to_string(padded_frame_count).length(), '0') +
-            to_string(padded_frame_count);
+      // frames are handled in batches, so frame_count here is always a multiple
+      // of batch_size.
+      auto derived_real_frame_count = frame_count - batchSize + i;
+      if (derived_real_frame_count % output_sample_interval == 0) {
+        string padded_frame_count =
+            string(5 - to_string(derived_real_frame_count).length(), '0') +
+            to_string(derived_real_frame_count);
         filesystem::path jpg_path =
-            frames_dir / (dst_video_base_name + "_" + padded_frame_count_str +
-                          "_" + to_string(y_pred) + ".jpg");
+            frames_dir / (dst_video_base_name + "_" + padded_frame_count + "_" +
+                          to_string(y_pred) + ".jpg");
         ofstream out_file(jpg_path, ios::binary);
         vector<uchar> jpeg_data;
         imencode(".jpg", hFrames[i], jpeg_data);
         if (!out_file) {
-          cerr << "Failed to open the file: " << jpg_path.native() << endl;
+          spdlog::error("Failed to open the file: {}", jpg_path.native());
         } else {
           out_file.write((char *)jpeg_data.data(), jpeg_data.size());
           out_file.close();
@@ -267,9 +273,9 @@ int main(int argc, const char *argv[]) {
     hFrames.clear();
   }
   dWriter->release();
-  cout << "dWriter->release()ed" << endl;
+  spdlog::info("dWriter->release()ed");
   dReader.release();
-  cout << "dReader->release()ed" << endl;
+  spdlog::info("dReader->release()ed");
   dst_video_base_name += "_";
   for (int i = 0; i < numClasses; ++i) {
     if (frameCountByOutput[i] > 0)
@@ -282,15 +288,16 @@ int main(int argc, const char *argv[]) {
     filesystem::copy_file(temp_video_path, dst_video_path,
                           filesystem::copy_options::overwrite_existing);
     filesystem::remove(temp_video_path);
-    cout << "dstVideo moved to: [" << dst_video_path << "]\n";
+    spdlog::info("dstVideo moved to: [{}]", dst_video_path.string());
   } catch (filesystem::filesystem_error &e) {
-    cerr << "Error: " << e.what() << "\n";
+    spdlog::error("Unable to copy/remove dstVide", e.what());
   }
   try {
     filesystem::rename(frames_dir, dst_video_dir / dst_video_base_name);
   } catch (filesystem::filesystem_error &e) {
-    cerr << "Error filesystem::rename()ing [" << frames_dir << "]: " << e.what()
-         << "\n";
+    spdlog::error("Unableto rename frame_dir from {} to {}: {}",
+                  frames_dir.string(),
+                  (dst_video_dir / dst_video_base_name).string(), e.what());
   }
   return 0;
 }
