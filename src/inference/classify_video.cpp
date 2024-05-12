@@ -142,9 +142,9 @@ int main(int argc, const char *argv[]) {
   options.add_options()("h,help", "Print help message")
     ("s,src-video-path", "Source video path", cxxopts::value<string>()->default_value(srcVideoPath))
     ("d,dst-video-dir", "Directory video path", cxxopts::value<string>()->default_value(dst_video_dir.string()))
-    ("b,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dst_video_base_name))
+    ("n,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dst_video_base_name))
     ("i,output-sample-interval", "A sample image will be saved every this number of frames", cxxopts::value<int>()->default_value("10"))
-    ("s,batch-size", "Batch size of frame inference.", cxxopts::value<int>()->default_value("10"))
+    ("b,batch-size", "Batch size of frame inference.", cxxopts::value<int>()->default_value("10"))
     ("c,config-path", "JSON configuration file path", cxxopts::value<string>()->default_value(configPath));
   // clang-format on
   auto result = options.parse(argc, argv);
