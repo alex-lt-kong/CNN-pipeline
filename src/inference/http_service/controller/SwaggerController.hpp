@@ -68,12 +68,13 @@ public:
         model_ids = std::move(_model_ids);
       }
       resp->success = true;
-      resp->responseText = "Models loaded";
+      resp->responseText = "Models loaded without exception";
       code = Status::CODE_200;
     } catch (const c10::Error &e) {
       spdlog::error("Error loading the model: {}", e.what());
       resp->success = false;
-      resp->responseText = std::string("Model not reloaded: ") + e.what();
+      resp->responseText = std::string("Model not reloaded: ") + e.what() +
+                           " (existing models will remain in use)";
       code = Status::CODE_400;
     }
     return createDtoResponse(code, resp);

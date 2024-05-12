@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(VGGNET-based-CNN-pipeline)
+project(CNN-pipeline)
 add_definitions(-DPROJECT_NAME="${PROJECT_NAME}")
 
 # Always generate compile_commands.json for clangd, etc.

@@ -48,9 +48,10 @@ infer_images(vector<torch::jit::script::Module> &models,
     // TODO: can we remove this std::copy()??
     // Profiling shows this copy takes less than 1 ms
     int idx = i - pre_detection_size;
-    assert((unsigned int)zmq_payload_mat_size.width *
-               zmq_payload_mat_size.height * 3 ==
-           snaps[i].payload().size());
+    if ((uint)zmq_payload_mat_size.width * zmq_payload_mat_size.height * 3 !=
+        snaps[i].payload().size()) {
+      throw runtime_error("Unexpected ZeroMQ payload received");
+    }
     cv::Mat mat = cv::Mat(zmq_payload_mat_size, zmq_payload_mat_type,
                           (void *)snaps[i].payload().data());
     // std::copy(snaps[i].payload().begin(), snaps[i].payload().end(),
@@ -295,18 +296,22 @@ void inference_ev_loop() {
       continue;
     }
 
-    auto [raw_outputs, avg_output] = infer_images(models, snap_deque);
-    update_last_inference_at();
-    if (handle_inference_results(raw_outputs, avg_output, snap_deque)) {
-      spdlog::info("inference_ev_loop() will sleep for {} ms after detection",
-                   cooldown_ms);
-      SnapshotMsg t;
-      interruptible_sleep(cooldown_ms);
-      for (size_t i = 0; i < image_queue_size; ++i) {
-        if (!snapshot_pc_queue.try_dequeue(t))
-          break;
+    try {
+      auto [raw_outputs, avg_output] = infer_images(models, snap_deque);
+      update_last_inference_at();
+      if (handle_inference_results(raw_outputs, avg_output, snap_deque)) {
+        spdlog::info("inference_ev_loop() will sleep for {} ms after detection",
+                     cooldown_ms);
+        SnapshotMsg t;
+        interruptible_sleep(cooldown_ms);
+        for (size_t i = 0; i < image_queue_size; ++i) {
+          if (!snapshot_pc_queue.try_dequeue(t))
+            break;
+        }
+        snap_deque.clear();
       }
-      snap_deque.clear();
+    } catch (const runtime_error &e) {
+      spdlog::error("Inference failed: {}", e.what());
     }
   }
   spdlog::info("inference_ev_loop() exited gracefully");

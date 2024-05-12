@@ -136,6 +136,7 @@ int main(int argc, const char *argv[]) {
   int output_sample_interval;
   filesystem::path dst_video_dir = filesystem::temp_directory_path();
   string dst_video_base_name = "video";
+  size_t batch_size;
 
   // clang-format off
   options.add_options()("h,help", "Print help message")
@@ -143,6 +144,7 @@ int main(int argc, const char *argv[]) {
     ("d,dst-video-dir", "Directory video path", cxxopts::value<string>()->default_value(dst_video_dir.string()))
     ("b,dst-video-base-name", "Basename of the output video excluding '.mp4', classification will be appended to the base name", cxxopts::value<string>()->default_value(dst_video_base_name))
     ("i,output-sample-interval", "A sample image will be saved every this number of frames", cxxopts::value<int>()->default_value("10"))
+    ("s,batch-size", "Batch size of frame inference.", cxxopts::value<int>()->default_value("10"))
     ("c,config-path", "JSON configuration file path", cxxopts::value<string>()->default_value(configPath));
   // clang-format on
   auto result = options.parse(argc, argv);
@@ -156,7 +158,13 @@ int main(int argc, const char *argv[]) {
   srcVideoPath = result["src-video-path"].as<string>();
   dst_video_dir = result["dst-video-dir"].as<string>();
   output_sample_interval = result["output-sample-interval"].as<int>();
+  batch_size = result["batch-size"].as<int>();
   dst_video_base_name = result["dst-video-base-name"].as<string>();
+  if (batch_size <= 0 || output_sample_interval <= 1) {
+    cerr << options.help() << "\n";
+    cerr << "Invalid batch-size or output-sample-interval" << endl;
+    return EXIT_FAILURE;
+  }
   auto frames_dir = dst_video_dir / dst_video_base_name;
 
   if (!filesystem::exists(frames_dir)) {
@@ -206,7 +214,6 @@ int main(int argc, const char *argv[]) {
   dReader = cudacodec::createVideoReader(srcVideoPath);
   dReader->set(cv::cudacodec::ColorFormat::BGR);
   size_t frame_count = 0;
-  size_t batchSize = 8;
   while (!e_flag) {
     if (!dReader->nextFrame(dFrame)) {
       spdlog::info("dReader->nextFrame(dFrame) is False");
@@ -221,7 +228,7 @@ int main(int argc, const char *argv[]) {
     ++frame_count;
     hFrames.push_back(hFrame);
 
-    if (hFrames.size() < batchSize)
+    if (hFrames.size() < batch_size)
       continue;
     auto imgs_tensor = get_tensor_from_mat_vector(hFrames, target_img_size);
     vector<torch::jit::IValue> input(1);
@@ -246,7 +253,7 @@ int main(int argc, const char *argv[]) {
       int y_pred = y_preds[i].item<int>();
       // frames are handled in batches, so frame_count here is always a multiple
       // of batch_size.
-      auto derived_real_frame_count = frame_count - batchSize + i;
+      auto derived_real_frame_count = frame_count - batch_size + i;
       if (derived_real_frame_count % output_sample_interval == 0) {
         string padded_frame_count =
             string(5 - to_string(derived_real_frame_count).length(), '0') +
@@ -264,7 +271,7 @@ int main(int argc, const char *argv[]) {
           out_file.close();
         }
       }
-      overlay_result_to_frame(frame_count - batchSize + i, hFrames, i,
+      overlay_result_to_frame(frame_count - batch_size + i, hFrames, i,
                               raw_outputs, avg_output, y_pred);
       dFrame.upload(hFrames[i]);
       dWriter->write(dFrame);
