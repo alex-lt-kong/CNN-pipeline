@@ -35,6 +35,8 @@
       },
       "cooldown_sec": 120
     },
+    "initial_model_ids": ["vgg"],
+    "cuda_device": "cuda:0",
     "zeromq": {
       "address": "tcp://127.0.0.1:4241",
       "image_size": {

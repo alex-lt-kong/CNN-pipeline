@@ -16,6 +16,8 @@
 #include <unordered_map>
 #include <vector>
 
+namespace CnnPipeline::GlobalVariables {
+
 extern volatile sig_atomic_t ev_flag;
 
 extern std::mutex ext_program_mtx;
@@ -42,5 +44,9 @@ extern std::vector<torch::jit::script::Module> models;
 extern std::string torch_script_serialization;
 
 extern std::string last_inference_at;
+
+extern std::string cuda_device_string;
+
+} // namespace CnnPipeline::GlobalVariables
 
 #endif // VBCP_GLOBAL_VARS_H

@@ -12,6 +12,7 @@ add_library(http_components
 
 ## include directories
 include_directories(/usr/local/include/torch/)
+include_directories(/usr/local/cuda/include/)
 
 target_include_directories(http_components PUBLIC swagger)
 
@@ -25,8 +26,8 @@ target_link_libraries(http_components
         # Oat++
         PUBLIC oatpp::oatpp
         PUBLIC oatpp::oatpp-swagger
-        spdlog
-        opencv_highgui  opencv_core opencv_imgproc opencv_imgcodecs
+        spdlog   
+        ${OpenCV_LIBS}
         torch_cpu c10
 )
 

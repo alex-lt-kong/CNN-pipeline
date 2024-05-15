@@ -20,6 +20,7 @@
 
 using namespace std;
 using json = nlohmann::json;
+namespace GV = CnnPipeline::GlobalVariables;
 
 int main(int argc, char **argv) {
   install_signal_handler();
@@ -42,18 +43,20 @@ int main(int argc, char **argv) {
   spdlog::info("inference_service started");
   spdlog::info("Loading configurations from {}:", config_path);
   ifstream f(config_path);
-  settings = json::parse(f);
-  spdlog::info("{}", settings.dump(2));
-  model_ids = settings.value("/inference/initial_model_ids"_json_pointer,
-                             vector<string>{"0"});
-  torch_script_serialization = settings.value(
+  GV::settings = json::parse(f);
+  spdlog::info("{}", GV::settings.dump(2));
+  GV::model_ids = GV::settings.value(
+      "/inference/initial_model_ids"_json_pointer, vector<string>{"0"});
+  GV::torch_script_serialization = GV::settings.value(
       "/model/torch_script_serialization"_json_pointer, string(""));
+  GV::cuda_device_string =
+      GV::settings.value("/inference/cuda_device"_json_pointer, "cuda:0");
 
   initialize_rest_api(
-      settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
-      settings.value("/inference/swagger/port"_json_pointer, 8000),
-      settings.value("/inference/swagger/advertised_host"_json_pointer,
-                     "http://127.0.0.1:8000"));
+      GV::settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
+      GV::settings.value("/inference/swagger/port"_json_pointer, 8000),
+      GV::settings.value("/inference/swagger/advertised_host"_json_pointer,
+                         "http://127.0.0.1:8000"));
 
   thread thread_zeromq(zeromq_ev_loop);
   thread thread_inference(inference_ev_loop);

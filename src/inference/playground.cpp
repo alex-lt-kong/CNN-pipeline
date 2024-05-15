@@ -1,6 +1,10 @@
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include "ATen/ops/mean.h"
 #include "ATen/ops/std.h"
 #include <ATen/ATen.h>
+#pragma GCC diagnostic pop
 #include <iostream>
 
 using namespace std;

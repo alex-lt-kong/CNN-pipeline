@@ -22,7 +22,7 @@ add_library(model_utils model_utils.cpp)
 add_library(global_vars global_vars.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 
 target_link_libraries(model_utils
-  opencv_highgui  opencv_core opencv_imgproc opencv_imgcodecs
+  ${OpenCV_LIBS}
   torch_cpu c10 c10_cuda)
 
 add_executable(inference_service
@@ -35,25 +35,27 @@ target_link_libraries(inference_service
   http_service model_utils global_vars
   spdlog zmq
   ${ImageMagick_LIBRARIES}
-  opencv_highgui  opencv_core opencv_imgproc opencv_imgcodecs
+  ${OpenCV_LIBS}
   ${Protobuf_LIBRARIES}
   torch_cpu c10)
 
 
 add_executable(classify_images classify_images.cpp)
-target_link_libraries(
-  classify_images model_utils
-  opencv_highgui  opencv_core opencv_imgproc opencv_imgcodecs
+target_link_libraries(classify_images
+  model_utils global_vars
+  ${OpenCV_LIBS} 
+  ${Protobuf_LIBRARIES}
   torch_cpu c10
   spdlog
 )
 
 add_executable(classify_video classify_video.cpp)
 target_link_libraries(classify_video
-  model_utils
-  ${OpenCV_LIBS} torch_cpu c10
+  model_utils global_vars
+  ${OpenCV_LIBS}
+  ${Protobuf_LIBRARIES}
+  torch_cpu c10
   spdlog
 )
 add_executable(playground playground.cpp)
-target_link_libraries(playground torch_cpu c10
-)
+target_link_libraries(playground torch_cpu c10)

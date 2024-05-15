@@ -11,11 +11,13 @@
 #include <sstream>
 
 using namespace std;
-const float target_img_means[] = {0.485, 0.456, 0.406};
-const float target_img_stds[] = {0.229, 0.224, 0.225};
+namespace GV = CnnPipeline::GlobalVariables;
 
-vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
-                                               const string &device_string) {
+// const float target_img_means[] = {0.485, 0.456, 0.406};
+// const float target_img_stds[] = {0.229, 0.224, 0.225};
+
+vector<torch::jit::script::Module>
+load_models(const vector<string> &model_ids) {
   vector<torch::jit::script::Module> models;
   spdlog::info("A total of {} models will be loaded", model_ids.size());
   // Unfortunately, torch::jit::script::Module's RAII won't automatically
@@ -26,12 +28,12 @@ vector<torch::jit::script::Module> load_models(const vector<string> &model_ids,
   // call the function both before and after model loading.
   c10::cuda::CUDACachingAllocator::emptyCache();
   for (size_t i = 0; i < model_ids.size(); ++i) {
-    string model_path = regex_replace(torch_script_serialization,
+    string model_path = regex_replace(GV::torch_script_serialization,
                                       regex("\\{id\\}"), model_ids[i]);
     spdlog::info("Deserializing {}-th model from {}", i, model_path);
 
     models.emplace_back(torch::jit::load(model_path, torch::kCUDA));
-    models[i].to(device_string);
+    models[i].to(GV::cuda_device_string);
     models[i].eval();
   }
   c10::cuda::CUDACachingAllocator::emptyCache();
@@ -65,10 +67,12 @@ torch::Tensor cv_mat_to_tensor(cv::Mat image, cv::Size target_img_size) {
   // Mimic
   // torchvision.transforms.Normalize(mean=target_img_means,
   // std=target_img_stds)
+  /*
   for (size_t i = 0; i < 3; ++i) {
     image_tensor[i] =
         image_tensor[i].sub(target_img_means[i]).div(target_img_stds[i]);
   }
+  */
   return image_tensor;
 }
 

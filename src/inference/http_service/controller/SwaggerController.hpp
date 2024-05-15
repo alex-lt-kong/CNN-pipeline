@@ -11,6 +11,7 @@
 #include "../dto/SettingsDto.hpp"
 #include "../dto/StatusDto.hpp"
 
+#include <c10/cuda/CUDACachingAllocator.h>
 #include <oatpp/core/macro/codegen.hpp>
 #include <oatpp/core/macro/component.hpp>
 #include <oatpp/core/utils/ConversionUtils.hpp>
@@ -24,6 +25,8 @@
 #include <regex>
 
 #include OATPP_CODEGEN_BEGIN(ApiController) //<- Begin Codegen
+
+namespace GV = CnnPipeline::GlobalVariables;
 
 class SwaggerController : public oatpp::web::server::api::ApiController {
 public:
@@ -61,12 +64,13 @@ public:
       _model_ids.push_back(ele);
     }
     try {
-      auto _models = load_models(_model_ids, modelInfo->cudaDevice);
+      auto _models = load_models(_model_ids);
       {
-        std::scoped_lock lck{models_mtx, model_ids_mtx};
-        models = std::move(_models);
-        model_ids = std::move(_model_ids);
+        std::scoped_lock lck{GV::models_mtx, GV::model_ids_mtx};
+        GV::models = std::move(_models);
+        GV::model_ids = std::move(_model_ids);
       }
+      c10::cuda::CUDACachingAllocator::emptyCache();
       resp->success = true;
       resp->responseText = "Models loaded without exception";
       code = Status::CODE_200;
@@ -88,7 +92,7 @@ public:
     auto jsonObjectMapper =
         oatpp::parser::json::mapping::ObjectMapper::createShared();
     auto settingsOatppJson =
-        jsonObjectMapper->readFromString<oatpp::Any>(settings.dump());
+        jsonObjectMapper->readFromString<oatpp::Any>(GV::settings.dump());
     return createDtoResponse(Status::CODE_200, settingsOatppJson);
   }
 
@@ -102,32 +106,32 @@ public:
     auto dto = InternalStateDto::createShared();
     std::stringstream ss;
     {
-      std::lock_guard<std::mutex> lock(model_ids_mtx);
-      for (size_t i = 0; i < model_ids.size(); ++i) {
-        ss << model_ids[i];
-        if (i < model_ids.size() - 1) {
+      std::lock_guard<std::mutex> lock(GV::model_ids_mtx);
+      for (size_t i = 0; i < GV::model_ids.size(); ++i) {
+        ss << GV::model_ids[i];
+        if (i < GV::model_ids.size() - 1) {
           ss << ", ";
         }
       }
     }
     dto->modelIds = ss.str();
-    dto->image_queue_size = snapshot_pc_queue.size_approx();
-    dto->lastInferenceAt = last_inference_at;
+    dto->image_queue_size = GV::snapshot_pc_queue.size_approx();
+    dto->lastInferenceAt = GV::last_inference_at;
     auto percentiles = std::vector<double>{10, 50, 66, 90, 95, 99, 99.99};
     dto->inference_duration_stats =
         oatpp::data::mapping::type::PairList<String, Int32>::createShared();
     {
-      std::lock_guard<std::mutex> lock(swagger_mtx);
+      std::lock_guard<std::mutex> lock(GV::swagger_mtx);
 
-      pt.refreshStats();
+      GV::pt.refreshStats();
       dto->inference_duration_stats->push_back(
-          std::pair<String, Int32>("inferenceCount", pt.sampleCount()));
+          std::pair<String, Int32>("inferenceCount", GV::pt.sampleCount()));
 
       for (auto const &ele : percentiles) {
         ss.str("");
         ss << std::fixed << std::setprecision(2) << ele << "th";
-        dto->inference_duration_stats->push_back(
-            std::pair<String, Int32>(ss.str(), round(pt.getPercentile(ele))));
+        dto->inference_duration_stats->push_back(std::pair<String, Int32>(
+            ss.str(), round(GV::pt.getPercentile(ele))));
       }
 
       return createDtoResponse(Status::CODE_200, dto);

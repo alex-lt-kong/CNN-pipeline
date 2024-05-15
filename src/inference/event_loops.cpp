@@ -4,16 +4,19 @@
 #include "snapshot.pb.h"
 #include "utils.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-qualifiers"
 #include <Magick++.h>
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
+#pragma GCC diagnostic pop
 
 #include <tuple>
 
 using namespace std;
+namespace GV = CnnPipeline::GlobalVariables;
 
-static string cuda_device_string = "cuda:0";
 static cv::Size zmq_payload_mat_size;
 static cv::Size target_img_size;
 static size_t num_classes;
@@ -22,8 +25,8 @@ static int zmq_payload_mat_type = CV_8UC3;
 tuple<vector<at::Tensor>, at::Tensor>
 infer_images(vector<torch::jit::script::Module> &models,
              const deque<SnapshotMsg> &snaps) {
-  const size_t start_idx = pre_detection_size;
-  const size_t end_idx = pre_detection_size + inference_batch_size;
+  const size_t start_idx = GV::pre_detection_size;
+  const size_t end_idx = GV::pre_detection_size + GV::inference_batch_size;
   constexpr size_t mil = 1000 * 1000;
   constexpr size_t bil = mil * 1000;
   spdlog::info(
@@ -34,20 +37,20 @@ infer_images(vector<torch::jit::script::Module> &models,
       unix_ts_to_iso_datetime(snaps[start_idx].unixepochns() / mil), start_idx,
       unix_ts_to_iso_datetime(snaps[end_idx].unixepochns() / mil), end_idx,
       (snaps[end_idx].unixepochns() - snaps[start_idx].unixepochns()) / bil,
-      gif_frame_count, snaps.size(),
+      GV::gif_frame_count, snaps.size(),
       unix_ts_to_iso_datetime(snaps[0].unixepochns() / mil),
       unix_ts_to_iso_datetime(snaps[snaps.size() - 1].unixepochns() / mil),
       snaps.size() - 1,
       (snaps[snaps.size() - 1].unixepochns() - snaps[0].unixepochns()) / bil);
 
   auto t0 = chrono::steady_clock::now();
-  vector<torch::Tensor> images_tensors_vec(inference_batch_size);
+  vector<torch::Tensor> images_tensors_vec(GV::inference_batch_size);
   torch::Tensor images_tensor;
   vector<torch::jit::IValue> input(1);
   for (size_t i = start_idx; i < end_idx; ++i) {
     // TODO: can we remove this std::copy()??
     // Profiling shows this copy takes less than 1 ms
-    int idx = i - pre_detection_size;
+    int idx = i - GV::pre_detection_size;
     if ((uint)zmq_payload_mat_size.width * zmq_payload_mat_size.height * 3 !=
         snaps[i].payload().size()) {
       throw runtime_error("Unexpected ZeroMQ payload received");
@@ -60,15 +63,15 @@ infer_images(vector<torch::jit::script::Module> &models,
   }
   images_tensor = torch::stack(images_tensors_vec);
 
-  input[0] = images_tensor.to(cuda_device_string);
+  input[0] = images_tensor.to(GV::cuda_device_string);
 
   // images_tensor.sizes()[0] stores number of images
   at::Tensor avg_output =
       torch::zeros({images_tensor.sizes()[0], static_cast<long>(num_classes)});
-  avg_output = avg_output.to(cuda_device_string);
+  avg_output = avg_output.to(GV::cuda_device_string);
   vector<at::Tensor> raw_outputs(models.size());
   {
-    std::lock_guard<std::mutex> lock(models_mtx);
+    std::lock_guard<std::mutex> lock(GV::models_mtx);
     for (size_t i = 0; i < models.size(); ++i) {
       auto y = models[i].forward(input).toTensor();
       /*
@@ -90,20 +93,20 @@ infer_images(vector<torch::jit::script::Module> &models,
   }
   auto t1 = chrono::steady_clock::now();
   {
-    lock_guard<mutex> lock(swagger_mtx);
-    pt.addSample(
+    lock_guard<mutex> lock(GV::swagger_mtx);
+    GV::pt.addSample(
         (float)chrono::duration_cast<chrono::milliseconds>(t1 - t0).count() /
-        inference_batch_size);
+        GV::inference_batch_size);
   }
   return {raw_outputs, avg_output};
 }
 
 void execute_external_program_async() {
   auto f = [](string cmd) {
-    if (ext_program_mtx.try_lock()) {
+    if (GV::ext_program_mtx.try_lock()) {
       spdlog::info("Calling external program: {}", cmd);
       (void)!system(cmd.c_str());
-      ext_program_mtx.unlock();
+      GV::ext_program_mtx.unlock();
     } else {
       spdlog::warn("ext_program_mtx is locked already, meaning that another {} "
                    "instance is already running",
@@ -111,14 +114,14 @@ void execute_external_program_async() {
     }
   };
   thread th_exec(
-      f, settings.value("/inference/on_detected/external_program"_json_pointer,
-                        ""));
+      f, GV::settings.value(
+             "/inference/on_detected/external_program"_json_pointer, ""));
   th_exec.detach();
 }
 
 void save_positive_outputs_as_jpeg(const vector<int> &positive_y_preds_idx,
                                    const vector<vector<uchar>> &jpegs) {
-  filesystem::path jpg_dir = settings.value(
+  filesystem::path jpg_dir = GV::settings.value(
       "/inference/on_detected/jpegs_directory"_json_pointer, "/");
   spdlog::info("Saving positive images as JPEG files to [{}]",
                jpg_dir.native());
@@ -128,7 +131,7 @@ void save_positive_outputs_as_jpeg(const vector<int> &positive_y_preds_idx,
     // is exactly inference_batch_size, which is implied in
     // the line: cv::imdecode(jpegs[pre_detection_size + i],
     // cv::IMREAD_COLOR));
-    auto jpegs_idx = idx + pre_detection_size;
+    auto jpegs_idx = idx + GV::pre_detection_size;
     filesystem::path jpg_path =
         jpg_dir / (get_current_datetime_string() + ".jpg");
     ofstream out_file(jpg_path, ios::binary);
@@ -152,10 +155,10 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   }
   oss_avg_result << avg_output;
   at::Tensor y_pred = torch::argmax(avg_output, 1);
-  vector<int> include_outputs = settings.value(
+  vector<int> include_outputs = GV::settings.value(
       "/inference/on_detected/triggers/include_outputs"_json_pointer,
       vector<int>{1});
-  vector<int> exclude_outputs = settings.value(
+  vector<int> exclude_outputs = GV::settings.value(
       "/inference/on_detected/triggers/exclude_outputs"_json_pointer,
       vector<int>{});
   vector<int> positive_y_preds_idx, negative_y_preds_idx;
@@ -184,7 +187,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   }
 
   spdlog::warn("Target detected at {}-th frame in a batch of {} frames",
-               positive_y_preds_idx[0], inference_batch_size, 0);
+               positive_y_preds_idx[0], GV::inference_batch_size, 0);
   spdlog::info("positive_y_preds_idx: {}",
                vector_to_string(positive_y_preds_idx));
   spdlog::info("Raw results are:\n{}", oss_raw_result.str());
@@ -198,26 +201,26 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   spdlog::info("jpegs[{}: {}] of {} images will be used to build the GIF "
                "animation",
                positive_y_preds_idx[0],
-               positive_y_preds_idx[0] + gif_frame_count, snaps.size());
+               positive_y_preds_idx[0] + GV::gif_frame_count, snaps.size());
   auto gif_width =
-      settings.value("/inference/on_detected/gif/size/width"_json_pointer,
-                     target_img_size.width);
+      GV::settings.value("/inference/on_detected/gif/size/width"_json_pointer,
+                         target_img_size.width);
   auto gif_height =
-      settings.value("/inference/on_detected/gif/size/height"_json_pointer,
-                     target_img_size.height);
+      GV::settings.value("/inference/on_detected/gif/size/height"_json_pointer,
+                         target_img_size.height);
 
   // The unit is "Time in 1/100ths of a second"
   unsigned int gif_frame_interval =
-      settings.value(
+      GV::settings.value(
           "/inference/on_detected/gif/frame_interval_ms"_json_pointer, 200) /
       10;
-  vector<vector<uchar>> jpegs(gif_frame_count);
+  vector<vector<uchar>> jpegs(GV::gif_frame_count);
   // positive_y_preds_idx[0] stores the first non-zero item
   // index in y_pred. Note that y_pred[0] is NOT the prediction
   // of jpegs[0], but jpegs[pre_detection_size]
   // cv::imdecode(v, cv::IMREAD_COLOR);
   vector<Magick::Image> frames;
-  for (size_t i = 0; i < gif_frame_count; ++i) {
+  for (size_t i = 0; i < GV::gif_frame_count; ++i) {
     auto jpegs_idx = positive_y_preds_idx[0] + i;
     assert(jpegs_idx < snaps.size());
     cv::imencode(".jpg",
@@ -228,8 +231,8 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     frames.back().animationDelay(gif_frame_interval);
     frames.back().resize(Magick::Geometry(gif_width, gif_height));
   }
-  assert(frames.size() == gif_frame_count);
-  string gif_path = settings.value(
+  assert(frames.size() == GV::gif_frame_count);
+  string gif_path = GV::settings.value(
       "/inference/on_detected/gif/path"_json_pointer, "/tmp/detected.gif");
   spdlog::info("Saving GIF file (size: {}x{}) to [{}]", gif_width, gif_height,
                gif_path);
@@ -242,23 +245,24 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
 void inference_ev_loop() {
   constexpr size_t delay_ms = 10000;
   const size_t cooldown_ms =
-      settings.value("/inference/on_detected/cooldown_sec"_json_pointer, 120) *
+      GV::settings.value("/inference/on_detected/cooldown_sec"_json_pointer,
+                         120) *
       1000;
   spdlog::info("inference_ev_loop() started, waiting for {}ms before start",
                delay_ms);
   // Otherwise we won't have any images of detected object in the GIF
-  assert(inference_batch_size > 0);
+  assert(GV::inference_batch_size > 0);
   // Initial wait, just to spread out the stress at the beginning of the run
   interruptible_sleep(delay_ms);
   try {
     {
-      std::scoped_lock lck{models_mtx, model_ids_mtx};
-      models = load_models(model_ids);
+      std::scoped_lock lck{GV::models_mtx, GV::model_ids_mtx};
+      GV::models = load_models(GV::model_ids);
     }
 
   } catch (const c10::Error &e) {
     spdlog::error("Error loading the model: {}", e.what());
-    ev_flag = 1;
+    GV::ev_flag = 1;
     spdlog::critical("The program must exit now");
   }
 
@@ -267,15 +271,16 @@ void inference_ev_loop() {
   // snap_deque_size is larger than gif_frame_count by (inference_batch_size +
   // post_detection_size - 1) because the final gif is generated from a "sliding
   // window" of snap_deque_size
-  const size_t snap_deque_size =
-      gif_frame_count + inference_batch_size + post_detection_size - 1;
-  vector<cv::Mat> images_mats(inference_batch_size);
+  const size_t snap_deque_size = GV::gif_frame_count +
+                                 GV::inference_batch_size +
+                                 GV::post_detection_size - 1;
+  vector<cv::Mat> images_mats(GV::inference_batch_size);
 
-  while (!ev_flag) {
+  while (!GV::ev_flag) {
     size_t sample_count = 0;
-    while (sample_count < inference_batch_size && !ev_flag) {
+    while (sample_count < GV::inference_batch_size && !GV::ev_flag) {
       SnapshotMsg t;
-      if (snapshot_pc_queue.try_dequeue(t)) {
+      if (GV::snapshot_pc_queue.try_dequeue(t)) {
         snap_deque.emplace_back(t);
         if (snap_deque.size() > snap_deque_size) {
           snap_deque.pop_front();
@@ -285,7 +290,7 @@ void inference_ev_loop() {
         this_thread::sleep_for(999ms);
       }
     }
-    if (ev_flag) {
+    if (GV::ev_flag) {
       break;
     }
     if (snap_deque.size() < snap_deque_size) {
@@ -297,15 +302,15 @@ void inference_ev_loop() {
     }
 
     try {
-      auto [raw_outputs, avg_output] = infer_images(models, snap_deque);
+      auto [raw_outputs, avg_output] = infer_images(GV::models, snap_deque);
       update_last_inference_at();
       if (handle_inference_results(raw_outputs, avg_output, snap_deque)) {
         spdlog::info("inference_ev_loop() will sleep for {} ms after detection",
                      cooldown_ms);
         SnapshotMsg t;
         interruptible_sleep(cooldown_ms);
-        for (size_t i = 0; i < image_queue_size; ++i) {
-          if (!snapshot_pc_queue.try_dequeue(t))
+        for (size_t i = 0; i < GV::image_queue_size; ++i) {
+          if (!GV::snapshot_pc_queue.try_dequeue(t))
             break;
         }
         snap_deque.clear();
@@ -322,15 +327,17 @@ void zeromq_ev_loop() {
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
-  string zmq_address = settings.value("/inference/zeromq/address"_json_pointer,
-                                      "tcp://127.0.0.1:4240");
-  zmq_payload_mat_size = cv::Size(
-      settings.value("/inference/zeromq/image_size/width"_json_pointer, 1920),
-      settings.value("/inference/zeromq/image_size/height"_json_pointer, 1080));
+  string zmq_address = GV::settings.value(
+      "/inference/zeromq/address"_json_pointer, "tcp://127.0.0.1:4240");
+  zmq_payload_mat_size =
+      cv::Size(GV::settings.value(
+                   "/inference/zeromq/image_size/width"_json_pointer, 1920),
+               GV::settings.value(
+                   "/inference/zeromq/image_size/height"_json_pointer, 1080));
   target_img_size = cv::Size(
-      settings.value("/model/input_image_size/width"_json_pointer, 0),
-      settings.value("/model/input_image_size/height"_json_pointer, 0));
-  num_classes = settings.value("/model/num_classes"_json_pointer, 2);
+      GV::settings.value("/model/input_image_size/width"_json_pointer, 0),
+      GV::settings.value("/model/input_image_size/height"_json_pointer, 0));
+  num_classes = GV::settings.value("/model/num_classes"_json_pointer, 2);
   subscriber.connect(zmq_address);
   spdlog::info("ZeroMQ client connected to {}", zmq_address);
   constexpr int timeout = 5000;
@@ -338,7 +345,7 @@ void zeromq_ev_loop() {
   // subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   subscriber.set(zmq::sockopt::rcvtimeo, timeout);
   subscriber.set(zmq::sockopt::subscribe, "");
-  while (!ev_flag) {
+  while (!GV::ev_flag) {
     zmq::message_t message;
     SnapshotMsg msg;
     try {
@@ -360,7 +367,7 @@ void zeromq_ev_loop() {
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      if (!snapshot_pc_queue.try_enqueue(msg)) {
+      if (!GV::snapshot_pc_queue.try_enqueue(msg)) {
         spdlog::warn("try_enqueue() failed: snapshot_queue full, snapshots are "
                      "not being inferred fast enough");
       }

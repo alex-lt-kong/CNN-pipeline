@@ -1,5 +1,6 @@
 #define FMT_HEADER_ONLY
 
+#include "global_vars.h"
 #include "model_utils.h"
 
 #include <cstdlib>
@@ -28,10 +29,8 @@
 
 using namespace cv;
 using namespace std;
-
-string torch_script_serialization;
-
 using json = nlohmann::json;
+namespace GV = CnnPipeline::GlobalVariables;
 
 static volatile sig_atomic_t e_flag = 0;
 
@@ -184,7 +183,7 @@ int main(int argc, const char *argv[]) {
 
   vector<string> model_ids = settings.value(
       "/inference/initial_model_ids"_json_pointer, vector<string>{"0"});
-  torch_script_serialization = settings.value(
+  GV::torch_script_serialization = settings.value(
       "/model/torch_script_serialization"_json_pointer, string(""));
   static Size target_img_size =
       Size(settings.value("/model/input_image_size/width"_json_pointer, 0),

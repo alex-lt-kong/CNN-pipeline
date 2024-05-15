@@ -1,6 +1,7 @@
 #include "global_vars.h"
 
 using namespace std;
+namespace CnnPipeline::GlobalVariables {
 
 volatile sig_atomic_t ev_flag = 0;
 
@@ -30,3 +31,6 @@ vector<torch::jit::script::Module> models;
 std::string torch_script_serialization;
 
 std::string last_inference_at;
+
+std::string cuda_device_string = "cuda:0";
+} // namespace CnnPipeline::GlobalVariables

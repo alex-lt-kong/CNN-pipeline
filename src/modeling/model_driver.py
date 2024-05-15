@@ -49,7 +49,7 @@ def get_data_loaders(training_data_dir: str, test_data_dir: str) -> Tuple[DataLo
     train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)   
     test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)   
     # need to keep this low for larger models such as ResNet50
-    batch_size = 16
+    batch_size = 128
     shuffle = True
 
     # not setting num_workers disables sample prefetching,
