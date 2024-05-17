@@ -26,7 +26,7 @@ def init_transforms(target_img_size: Tuple[int, int]) -> None:
             antialias=True
         ),
         torchvision.transforms.ColorJitter(brightness=0.2, contrast=0.2, hue=0.2, saturation=0.2),
-        torchvision.transforms.RandomGrayscale(p=0.1),
+        torchvision.transforms.RandomGrayscale(p=0.2),
         torchvision.transforms.RandomRotation(5),
         torchvision.transforms.ToTensor(),
         # Why we use different means/std here?:

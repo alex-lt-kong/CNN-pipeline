@@ -28,9 +28,9 @@ vector<string> model_ids;
 PercentileTracker<float> pt = PercentileTracker<float>(10000);
 
 vector<torch::jit::script::Module> models;
-std::string torch_script_serialization;
+std::string ts_model_path;
 
 std::string last_inference_at;
 
-std::string cuda_device_string = "cuda:0";
+std::string cuda_device_string;
 } // namespace CnnPipeline::GlobalVariables

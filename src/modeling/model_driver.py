@@ -176,7 +176,7 @@ def save_ts_model(m: nn.Module, model_id: str) -> None:
     assert isinstance(m, nn.Module)
     logging.info('Serializing model to Torch Script file')
     ts_serialization_path = config['model'][
-        'torch_script_serialization'
+        'ts_model_path'
     ].replace(r'{id}', model_id)
     if os.path.exists(ts_serialization_path):
         os.remove(ts_serialization_path)

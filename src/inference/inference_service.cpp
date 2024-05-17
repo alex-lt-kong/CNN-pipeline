@@ -47,8 +47,8 @@ int main(int argc, char **argv) {
   spdlog::info("{}", GV::settings.dump(2));
   GV::model_ids = GV::settings.value(
       "/inference/initial_model_ids"_json_pointer, vector<string>{"0"});
-  GV::torch_script_serialization = GV::settings.value(
-      "/model/torch_script_serialization"_json_pointer, string(""));
+  GV::ts_model_path =
+      GV::settings.value("/model/ts_model_path"_json_pointer, string(""));
   GV::cuda_device_string =
       GV::settings.value("/inference/cuda_device"_json_pointer, "cuda:0");
 

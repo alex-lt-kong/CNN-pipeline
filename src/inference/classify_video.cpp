@@ -183,14 +183,17 @@ int main(int argc, const char *argv[]) {
 
   vector<string> model_ids = settings.value(
       "/inference/initial_model_ids"_json_pointer, vector<string>{"0"});
-  GV::torch_script_serialization = settings.value(
-      "/model/torch_script_serialization"_json_pointer, string(""));
+  GV::ts_model_path =
+      settings.value("/model/ts_model_path"_json_pointer, string(""));
   static Size target_img_size =
       Size(settings.value("/model/input_image_size/width"_json_pointer, 0),
            settings.value("/model/input_image_size/height"_json_pointer, 0));
   static int numClasses = settings.value("/model/num_classes"_json_pointer, 1);
   vector<size_t> frameCountByOutput(numClasses, 0);
-  vector<torch::jit::script::Module> models = load_models(model_ids);
+  string cuda_device_string =
+      settings.value("/inference/cuda_device"_json_pointer, "cuda:0");
+  vector<torch::jit::script::Module> models =
+      load_models(model_ids, GV::ts_model_path, cuda_device_string);
 
   cuda::GpuMat dFrame;
   vector<Mat> hFrames;
@@ -231,10 +234,10 @@ int main(int argc, const char *argv[]) {
       continue;
     auto imgs_tensor = get_tensor_from_mat_vector(hFrames, target_img_size);
     vector<torch::jit::IValue> input(1);
-    input[0] = imgs_tensor.to(torch::kCUDA);
+    input[0] = imgs_tensor.to(cuda_device_string);
     // imgs_tensor.sizes()[0] stores number of images
     at::Tensor avg_output = torch::zeros({imgs_tensor.sizes()[0], numClasses});
-    avg_output = avg_output.to(torch::kCUDA);
+    avg_output = avg_output.to(cuda_device_string);
     vector<at::Tensor> raw_outputs(models.size());
     for (size_t i = 0; i < models.size(); ++i) {
       auto y = models[i].forward(input).toTensor();

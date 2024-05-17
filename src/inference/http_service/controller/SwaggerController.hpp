@@ -64,7 +64,8 @@ public:
       _model_ids.push_back(ele);
     }
     try {
-      auto _models = load_models(_model_ids);
+      auto _models =
+          load_models(_model_ids, GV::ts_model_path, GV::cuda_device_string);
       {
         std::scoped_lock lck{GV::models_mtx, GV::model_ids_mtx};
         GV::models = std::move(_models);

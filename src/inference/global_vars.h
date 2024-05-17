@@ -41,7 +41,7 @@ extern std::vector<std::string> model_ids;
 extern PercentileTracker<float> pt;
 extern std::vector<torch::jit::script::Module> models;
 
-extern std::string torch_script_serialization;
+extern std::string ts_model_path;
 
 extern std::string last_inference_at;
 

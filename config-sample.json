@@ -14,7 +14,7 @@
     },
     "num_classes": 2,
     "parameters": "/tmp/data/model_{id}.pth",
-    "torch_script_serialization": "/tmp/data/model_{id}.pt",
+    "ts_model_path": "/tmp/data/model_{id}.pt",
     "diagnostics_dir": "/tmp/diagnostics"
   },
   "inference": {

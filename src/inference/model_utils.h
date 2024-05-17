@@ -8,7 +8,9 @@
 #pragma GCC diagnostic pop
 
 std::vector<torch::jit::script::Module>
-load_models(const std::vector<std::string> &model_ids);
+load_models(const std::vector<std::string> &model_ids,
+            const std::string ts_model_path,
+            const std::string cuda_device_string);
 
 torch::Tensor cv_mat_to_tensor(cv::Mat image, cv::Size target_image_size);
 

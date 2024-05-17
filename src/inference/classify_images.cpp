@@ -24,7 +24,7 @@
 using namespace std;
 using json = nlohmann::json;
 
-string torch_script_serialization;
+string ts_model_path;
 static cv::Size target_img_size;
 
 void print_usage(string binary_name) {
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
   spdlog::set_pattern("%Y-%m-%d %T.%e | %7l | %v");
   filesystem::path binaryPath = filesystem::canonical(argv[0]);
   filesystem::path parentPath = binaryPath.parent_path().parent_path();
-  string config_path, image_path;
+  string config_path, image_path, cuda_device_string;
   vector<string> model_ids;
 
   parse_arguments(argc, argv, image_path, config_path, model_ids);
@@ -113,12 +113,17 @@ int main(int argc, char **argv) {
   ifstream f(config_path);
 
   json settings = json::parse(f);
-  torch_script_serialization = settings.value(
-      "/model/torch_script_serialization"_json_pointer, string(""));
+
+  cuda_device_string =
+      settings.value("/inference/cuda_device"_json_pointer, "cuda:0");
+  ts_model_path =
+      settings.value("/model/ts_model_path"_json_pointer, string(""));
   target_img_size = cv::Size(
       settings.value("/model/input_image_size/width"_json_pointer, 0),
       settings.value("/model/input_image_size/height"_json_pointer, 0));
-  vector<torch::jit::script::Module> v16mms = load_models(model_ids);
+  vector<torch::jit::script::Module> v16mms = load_models(
+      model_ids, ts_model_path,
+      settings.value("/inference/cuda_device"_json_pointer, "cuda:0"));
 
   const size_t preview_ele_num = 5;
   size_t layer_count = 0;
@@ -167,13 +172,13 @@ int main(int argc, char **argv) {
                                                      preview_ele_num));
   }
   vector<torch::jit::IValue> input(1);
-  input[0] = images_tensor.to(torch::kCUDA);
+  input[0] = images_tensor.to(cuda_device_string);
   // images_tensor.sizes()[0] stores number of images
   // 2 is the num_classes member variable as defined in VGG16MinusMinus@model.py
   at::Tensor output =
       torch::zeros({images_tensor.sizes()[0],
                     settings.value("/model/num_classes"_json_pointer, 2)});
-  output = output.to(torch::kCUDA);
+  output = output.to(cuda_device_string);
   vector<at::Tensor> outputs(v16mms.size());
   spdlog::info("Running inference");
   for (size_t i = 0; i < v16mms.size(); ++i) {

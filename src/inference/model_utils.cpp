@@ -11,13 +11,13 @@
 #include <sstream>
 
 using namespace std;
-namespace GV = CnnPipeline::GlobalVariables;
 
 // const float target_img_means[] = {0.485, 0.456, 0.406};
 // const float target_img_stds[] = {0.229, 0.224, 0.225};
 
 vector<torch::jit::script::Module>
-load_models(const vector<string> &model_ids) {
+load_models(const vector<string> &model_ids, const string ts_model_path,
+            const string cuda_device_string) {
   vector<torch::jit::script::Module> models;
   spdlog::info("A total of {} models will be loaded", model_ids.size());
   // Unfortunately, torch::jit::script::Module's RAII won't automatically
@@ -28,12 +28,13 @@ load_models(const vector<string> &model_ids) {
   // call the function both before and after model loading.
   c10::cuda::CUDACachingAllocator::emptyCache();
   for (size_t i = 0; i < model_ids.size(); ++i) {
-    string model_path = regex_replace(GV::torch_script_serialization,
-                                      regex("\\{id\\}"), model_ids[i]);
+    string model_path =
+        regex_replace(ts_model_path, regex("\\{id\\}"), model_ids[i]);
     spdlog::info("Deserializing {}-th model from {}", i, model_path);
 
-    models.emplace_back(torch::jit::load(model_path, torch::kCUDA));
-    models[i].to(GV::cuda_device_string);
+    // https://pytorch.org/docs/stable/generated/torch.jit.load.html
+    models.emplace_back(torch::jit::load(model_path, cuda_device_string));
+    // models[i].to(cuda_device_string);
     models[i].eval();
   }
   c10::cuda::CUDACachingAllocator::emptyCache();

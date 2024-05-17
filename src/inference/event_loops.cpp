@@ -257,7 +257,8 @@ void inference_ev_loop() {
   try {
     {
       std::scoped_lock lck{GV::models_mtx, GV::model_ids_mtx};
-      GV::models = load_models(GV::model_ids);
+      GV::models =
+          load_models(GV::model_ids, GV::ts_model_path, GV::cuda_device_string);
     }
 
   } catch (const c10::Error &e) {
