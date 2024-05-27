@@ -36,7 +36,7 @@ def apply_transform_and_save(
     from torchvision.utils import save_image
     save_image(
         transformed_image,
-        target_path + f'_{variant_no}.jpg'
+        target_path + f'_{variant_no}.bmp'
     )
 
 
@@ -76,7 +76,7 @@ def prepare_files(
                 )
             else:
                 apply_transform_and_save(
-                    input_dir, file, val_dir, j, helper.test_transforms
+                    input_dir, file, val_dir, j, helper.train_transforms
                 )
 
     print(

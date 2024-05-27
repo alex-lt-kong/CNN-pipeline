@@ -159,7 +159,7 @@ int main(int argc, const char *argv[]) {
   output_sample_interval = result["output-sample-interval"].as<int>();
   batch_size = result["batch-size"].as<int>();
   dst_video_base_name = result["dst-video-base-name"].as<string>();
-  if (batch_size <= 0 || output_sample_interval <= 1) {
+  if (batch_size <= 0 || output_sample_interval < 1) {
     cerr << options.help() << "\n";
     cerr << "Invalid batch-size or output-sample-interval" << endl;
     return EXIT_FAILURE;
