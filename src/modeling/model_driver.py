@@ -44,12 +44,11 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
 
-def get_data_loaders(training_data_dir: str, test_data_dir: str) -> Tuple[DataLoader, DataLoader]:
+def get_data_loaders(training_data_dir: str, test_data_dir: str, batch_size: int = 64) -> Tuple[DataLoader, DataLoader]:
 
     train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)   
     test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)   
     # need to keep this low for larger models such as ResNet50
-    batch_size = 64
     shuffle = True
 
     # not setting num_workers disables sample prefetching,
@@ -210,7 +209,8 @@ def save_transformed_samples(dataloader: DataLoader,
 
 def train(
     load_parameters: bool, model_name: str, model_id: str,
-    dropout_rate: float = 0.001, lr: float = 0.001, epochs: int = 10
+    dropout_rate: float = 0.001, lr: float = 0.001, epochs: int = 10,
+    batch_size: int = 64
 ) -> nn.Module:
     
     m = globals()[model_name](config, dropout_rate)
@@ -245,7 +245,7 @@ def train(
 
     # Define the dataset and data loader for the training set
     train_loader, test_loader = get_data_loaders(
-        training_samples_dir, test_samples_dir
+        training_samples_dir, test_samples_dir, batch_size
     )
     save_transformed_samples(
         train_loader,
@@ -382,6 +382,7 @@ def main() -> None:
     ap.add_argument('--model-name', '-n', dest='model_name', required=True)
     ap.add_argument('--dropout-rate', '-d', dest='dropout_rate',
                     default=0.5, type=float)
+    ap.add_argument('--batch-size', '-b', dest='batch_size', default=64, type=int)
     ap.add_argument('--cuda-device-id', '-g', dest='cuda-device-id',
                     default='cuda',
                     help=('Specify GPU to use following CUDA semantics. '
@@ -410,7 +411,8 @@ def main() -> None:
     ))
     train(
         args['load_parameters'], args['model_name'], args['model_id'],
-        float(args['dropout_rate']), args['learning_rate'], args['epochs']
+        float(args['dropout_rate']), args['learning_rate'], args['epochs'],
+        int(args['batch_size'])
     )
     logging.info('Training completed')
 
