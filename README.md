@@ -10,7 +10,7 @@ A pipeline of an ensemble of heterogeneous CNN models.
 
 - Just install miniconda and pytorch should be enough.
 
-### Tnference environment
+### Inference environment
 
 - The inference daemon is developed in C++ to (hopefully) improve real-time performance
 
