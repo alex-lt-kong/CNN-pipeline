@@ -2,12 +2,19 @@
 
 A pipeline of an ensemble of heterogeneous CNN models.
 
-## Prepare environment
+## Environments
 
-### `libtorch`
+- Install Nvidia GPU driver etc, make sure `nvidia-smi` is working properly.
 
-- While PyTorch is used in training, `libtorch` is used to productionize the
-  model in C++ to enhance performance.
+### Training environment
+
+- Just install miniconda and pytorch should be enough.
+
+### Tnference environment
+
+- The inference daemon is developed in C++ to (hopefully) improve real-time performance
+
+#### `libtorch`
 
 - Ubuntu 22.04 provides package `libtorch-dev` but seems it doesn't work.
 
@@ -16,7 +23,7 @@ A pipeline of an ensemble of heterogeneous CNN models.
   - For the sake of easy management, copy `./include/*` to
     `/usr/local/include/torch/` and copy `./lib/*` to `/usr/local/lib/torch/`
 
-### `OpenCV` and `FFmpeg`
+#### `OpenCV` and `FFmpeg`
 
 - `OpenCV` (and `FFmpeg` as its Video IO backend) is used to decode/manipulate
   images before sending to them to `libtorch`,
@@ -24,9 +31,9 @@ A pipeline of an ensemble of heterogeneous CNN models.
 - Refer to instructions
   [here](https://github.com/alex-lt-kong/the-nitty-gritty/tree/main/c-cpp/cpp/06_poc/05_cudacodec-vs-ffmpeg)
 
-### `Swagger`
+#### `Swagger`
 
-- Swagger is used to interact with the prediction daemon on the fly.
+- Swagger is used to interact with the inference daemon on the fly.
 
 - Build Oatpp:
 
@@ -48,7 +55,7 @@ make -j4
 sudo make install
 ```
 
-### Install other libraries
+#### Install other libraries
 
 - `readerwriterqueue` for lock-free SPSC queue: `apt install libreaderwriterqueue-dev`
 - `spdlog` for logging: `apt install libspdlog-dev`
