@@ -16,8 +16,8 @@ curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def apply_transform_and_save(
-    source_dir: str, image_filename: str, target_dir: str, variant_no: int,
-    transforms: torchvision.transforms.Compose
+    source_dir: str, image_filename: str, image_ext: str,
+    target_dir: str, variant_no: int, transforms: torchvision.transforms.Compose
 ):
 
     # Load the image
@@ -36,13 +36,13 @@ def apply_transform_and_save(
     from torchvision.utils import save_image
     save_image(
         transformed_image,
-        target_path + f'_{variant_no}.bmp'
+        target_path + f'_{variant_no}.{image_ext}'
     )
 
 
 def prepare_files(
         input_dir: str,
-        train_dir: str, val_dir: str,
+        train_dir: str, val_dir: str, image_ext: str,
         split_ratio: float, synthetic_multiplier: int, seed: int = 97381
 ) -> None:
     if os.path.exists(train_dir):
@@ -71,13 +71,11 @@ def prepare_files(
     for i, file in enumerate(files):
         for j in range(synthetic_multiplier):
             if i < num_files_dir_1:
-                apply_transform_and_save(
-                    input_dir, file, train_dir, j, helper.train_transforms
-                )
+                apply_transform_and_save(input_dir, file, image_ext, train_dir,
+                                         j, helper.train_transforms)
             else:
-                apply_transform_and_save(
-                    input_dir, file, val_dir, j, helper.train_transforms
-                )
+                apply_transform_and_save(input_dir, file, image_ext, val_dir,
+                                         j, helper.train_transforms)
 
     print(
         f'Splitting files from [{input_dir}] to '
@@ -94,6 +92,12 @@ def main() -> None:
     ap.add_argument(
         '--split-ratio', '-r', help='Ratio of the training set',
         dest='split-ratio', type=float, default='0.9'
+    )
+    # Pass JPG is harddisk I/O is likely to be the bottleneck;
+    # pass BMP is CPU is likely to be the bottleneck
+    ap.add_argument(
+        '--image-extension', '-e', dest='image-extension', default='jpg',
+        help='Extension of images without the preceding dot.'
     )
     ap.add_argument(
         '--synthetic-multiplier', '-m',
@@ -121,7 +125,7 @@ def main() -> None:
         training_dir = os.path.join(config["dataset"]['training'], cat)
         validation_dir = os.path.join(config["dataset"]['validation'], cat)
         thread = threading.Thread(target=prepare_files, args=(
-            input_dir, training_dir, validation_dir,
+            input_dir, training_dir, validation_dir, args['image-extension'],
             args['split-ratio'], int(args['synthetic-multiplier']), random_seed
         ))
         thread.start()

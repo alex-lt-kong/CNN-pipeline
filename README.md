@@ -8,7 +8,8 @@ A pipeline of an ensemble of heterogeneous CNN models.
 
 ### Training environment
 
-- Just install miniconda and pytorch should be enough.
+- Install miniconda, then `pytorch` (need to refer to its official site
+  for guideline), `scikit-learn`, `pandas` and `matplotlib` should be enough.
 
 ### Inference environment
 
