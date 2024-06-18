@@ -1,11 +1,8 @@
 {
-  "python.linting.mypyEnabled": true,
-  "python.linting.enabled": true,
-  "python.formatting.provider": "none",
   "editor.formatOnSave": true,
   "[python]": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "ms-python.python"
+    "editor.defaultFormatter": "ms-python.autopep8"
   },
   "clangd.arguments": [
     "--background-index",

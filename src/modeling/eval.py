@@ -1,13 +1,9 @@
-from model_resnet import resnet18, resnet34, resnet50
-from model_mobilenetv3 import mobilenet_v3_small
-from model_vgg import vgg2m, vgg3m, vgg4m, vgg5m, vgg6m, vgg7m, vgg8m
-from model_squeezenet import squeezenet1_1
-
-from typing import Any, Dict, List, Tuple
+from model_definitions import *
 from PIL import Image
-from torchvision.datasets import ImageFolder
 from sklearn import metrics
+from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
+from typing import Any, Dict, List, Tuple
 
 import argparse
 import numpy as np
@@ -25,10 +21,8 @@ device = torch.device("cuda")
 
 def evaluate(
     settings: Dict[str, Any], v16mms: List[nn.Module],
-    dataset: ImageFolder, misclassified_dir: str
+    dataset: ImageFolder, misclassified_dir: str, batch_size: int = 64
 ) -> None:
-
-    batch_size = 16
     misclassified_count = 0
     data_loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=False, num_workers=4
@@ -49,7 +43,7 @@ def evaluate(
     misclassified_samples: List[Tuple[int, int]] = []
     for batch_idx, (images, y_trues) in enumerate(data_loader):
 
-        print(f'Evaluating {batch_idx+1}/{len(data_loader)} batch of samples...')
+        print(f'Evaluating {batch_idx+1}/{len(data_loader)} batch of {batch_size} samples...')
 
         # Use your model to make predictions for the batch of images
         outputs: List[torch.Tensor] = []
@@ -137,6 +131,7 @@ def main() -> None:
         '--model-names', '-n', dest='model-names', required=True,
         help="A list of comma-separated model names such as vggnet and resnet10"
     )
+    ap.add_argument('--batch-size', '-b', dest='batch_size', default=64, type=int)
     ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
     args = vars(ap.parse_args())
     model_ids = str(args['model-ids']).split(',')
@@ -176,7 +171,7 @@ def main() -> None:
             root=dir,
             transform=helper.dummy_transforms
         )
-        evaluate(settings, models, dataset, misclassified_dir)
+        evaluate(settings, models, dataset, misclassified_dir, args['batch_size'])
         input()
 
 if __name__ == '__main__':
