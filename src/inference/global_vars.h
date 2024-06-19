@@ -1,5 +1,5 @@
-#ifndef VBCP_GLOBAL_VARS_H
-#define VBCP_GLOBAL_VARS_H
+#ifndef CP_GLOBAL_VARS_H
+#define CP_GLOBAL_VARS_H
 
 #include "percentile_tracker.h"
 #include "snapshot.pb.h"
@@ -49,4 +49,4 @@ extern std::string cuda_device_string;
 
 } // namespace CnnPipeline::GlobalVariables
 
-#endif // VBCP_GLOBAL_VARS_H
+#endif // CP_GLOBAL_VARS_H

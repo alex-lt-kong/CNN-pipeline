@@ -1,6 +1,6 @@
 
-#ifndef VBCP_SWAGGER_COMPONENT_HPP
-#define VBCP_SWAGGER_COMPONENT_HPP
+#ifndef CP_SWAGGER_COMPONENT_HPP
+#define CP_SWAGGER_COMPONENT_HPP
 
 #include <oatpp-swagger/Model.hpp>
 #include <oatpp-swagger/Resources.hpp>
@@ -51,4 +51,4 @@ public:
   }());
 };
 
-#endif // VBCP_SWAGGER_COMPONENT_HPP
+#endif // CP_SWAGGER_COMPONENT_HPP

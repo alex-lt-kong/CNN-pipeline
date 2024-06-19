@@ -1,5 +1,5 @@
-#ifndef VBCP_MODEL_UTILS_H
-#define VBCP_MODEL_UTILS_H
+#ifndef CP_MODEL_UTILS_H
+#define CP_MODEL_UTILS_H
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -18,4 +18,4 @@ std::string tensor_to_string_like_pytorch(const torch::Tensor &t,
                                           const long index,
                                           const long ele_count);
 
-#endif // VBCP_MODEL_UTILS_H
+#endif // CP_MODEL_UTILS_H

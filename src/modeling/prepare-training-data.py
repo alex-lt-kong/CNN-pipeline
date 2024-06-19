@@ -2,11 +2,14 @@ from typing import Any, Dict
 from PIL import Image
 
 import argparse
+import datetime as dt
 import helper
 import json
+import logging
 import os
 import random
 import shutil
+import sys
 import threading
 import time
 import torchvision
@@ -26,7 +29,7 @@ def apply_transform_and_save(
     try:
         transformed_image = transforms(image)
     except Exception as ex:
-        print(f'Error transforming [{image_path}]: {ex}')
+        logging.error(f'Error transforming [{image_path}]: {ex}')
         return
     finally:
         image.close()
@@ -46,46 +49,62 @@ def prepare_files(
         split_ratio: float, synthetic_multiplier: int, seed: int = 97381
 ) -> None:
     if os.path.exists(train_dir):
-        print(
+        logging.warning(
             f'[{train_dir}] exists '
             f'(file count: {len(os.listdir(train_dir)):,}), it will be removed'
         )
         shutil.rmtree(train_dir)
     os.makedirs(train_dir)
     if os.path.exists(val_dir):
-        print(
+        logging.warning(
             f'[{val_dir}] exists '
             f'(file count: {len(os.listdir(val_dir)):,}), it will be removed'
         )
         shutil.rmtree(val_dir)
-    print('')
     os.makedirs(val_dir)
 
+    start_ts = time.time()
     files = os.listdir(input_dir)
+    
     random.seed(seed)
 
     num_files = len(files)
+    logging.info(f'{input_dir} | {num_files:,} samples found, will prepare {num_files * synthetic_multiplier:,} synthetic samples')
     num_files_dir_1 = int(num_files * split_ratio)
     random.shuffle(files)
 
     for i, file in enumerate(files):
+        if (i+1) % 100 == 0 or (i+1) == num_files:
+            eta = start_ts + (time.time() - start_ts) * (num_files / (i+1))
+            total_sec = eta - start_ts
+            logging.info(
+                f"{input_dir} | Processing {(i+1) * synthetic_multiplier:,}/{num_files * synthetic_multiplier:,}\tsamples ({int((i+1) / num_files * 100)}%), "
+                f"ETA: {dt.datetime.fromtimestamp(eta).astimezone().strftime('%F %T')}"
+                f'({total_sec/3600:.1f} hrs)'
+                f', speed: {int(num_files * synthetic_multiplier / total_sec)} samples / sec'
+            )
         for j in range(synthetic_multiplier):
             if i < num_files_dir_1:
-                apply_transform_and_save(input_dir, file, image_ext, train_dir,
-                                         j, helper.train_transforms)
+                apply_transform_and_save(
+                    input_dir, file, image_ext, train_dir, j, helper.train_transforms)
             else:
-                apply_transform_and_save(input_dir, file, image_ext, val_dir,
-                                         j, helper.train_transforms)
+                apply_transform_and_save(
+                    input_dir, file, image_ext, val_dir, j, helper.train_transforms)
 
-    print(
-        f'Splitting files from [{input_dir}] to '
-        f'[{train_dir}]/[{val_dir}] completed successfully.\n'
-        f'[{train_dir}] file count: {len(os.listdir(train_dir)):,}\n'
-        f'[{val_dir}] file count: {len(os.listdir(val_dir)):,}\n'
+    logging.info(
+        f'{input_dir} | Done. '        
+        f'[{train_dir}] file count: {len(os.listdir(train_dir)):,}, '
+        f'[{val_dir}] file count: {len(os.listdir(val_dir)):,}'
     )
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s.%(msecs)03d | %(levelname)7s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
     ap = argparse.ArgumentParser()
     ap.add_argument('--config-path', '-c', dest='config-path', required=True,
                     help='Config file path')
@@ -130,7 +149,7 @@ def main() -> None:
         ))
         thread.start()
         threads.append(thread)
-        time.sleep(10)
+        time.sleep(5)
 
     for thread in threads:
         thread.join()

@@ -20,7 +20,7 @@ device = torch.device("cuda")
 
 
 def evaluate(
-    settings: Dict[str, Any], v16mms: List[nn.Module],
+    settings: Dict[str, Any], models: List[nn.Module],
     dataset: ImageFolder, misclassified_dir: str, batch_size: int = 64
 ) -> None:
     misclassified_count = 0
@@ -50,8 +50,8 @@ def evaluate(
         output = torch.zeros([len(y_trues), settings['model']['num_classes']], dtype=torch.float32)
         images, y_trues = images.to(device), y_trues.to(device)
         output = output.to(device)
-        for i in range(len(v16mms)):
-            y = v16mms[i](images)
+        for i in range(len(models)):
+            y = models[i](images)
             # Normalize the output, otherwise one model could have (unexpected)
             # outsized impact on the final result
             # Ref:

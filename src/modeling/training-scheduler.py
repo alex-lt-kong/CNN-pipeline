@@ -13,7 +13,7 @@ import zlib
 
 
 ev_flag = False
-schedule = {}
+schedule: Dict[str, Any] = {}
 schedule_file_path = ""
 schedule_file_crc = ""
 schedule_mutex = threading.Lock()
@@ -56,21 +56,24 @@ def ev_training_driver() -> None:
     global schedule_file_crc, ev_flag
     while ev_flag is not True:
         # Do NOT shortern/remove this sleep(), this gives us some valuable time to kill the process
-        time.sleep(30)
+        time.sleep(10)
         if ev_flag:
             break
         try:
             schedule_mutex.acquire()
             task_idx = schedule["next_task_idx"]
+            if task_idx > schedule["end_task_idx_inclusive"]:
+                raise IndexError(f"end_task_idx_inclusive {schedule["end_task_idx_inclusive"]} reached")
             schedule["next_task_idx"] += 1
             task_args = schedule["training_tasks"][task_idx]
-            assert isinstance(task_args, Dict[str, Any])
+            assert isinstance(task_args, Dict)
             items = [
                 'prepare_training_data_script', 'python_interpreter',
-                'training_script', 'stdout_pipe_to', 'model_id',
+                'training_script', 'output_pipe_to', 'model_id',
                 'config_file', 'cuda_device', 'epochs', 'synthetic_multiplier',
                 'batch_size', 'split_ratio', 'image_ext', 'revision',
-                'prepare_training_data', 'model_base_name', 'dropout_rate'
+                'prepare_training_data', 'model_base_name', 'dropout_rate',
+                'load_parameters'
             ]
             for item in items:
                 if item not in task_args:
@@ -82,9 +85,9 @@ def ev_training_driver() -> None:
         except IndexError as ex:
             logging.error(f'task_idx {task_idx} reaches the end of the list, exiting...')
             ev_flag = True
-            continue
+            break
         except Exception as ex:
-            logging.error(f'Error loading config to {task_idx}-th task: {ex}, it will be skipped')
+            logging.error(f'Error loading config of {task_idx}-th task. This task will be skipped:\n{ex}\n{traceback.format_exc()}')
             continue
         finally:
             if schedule_mutex.locked():
@@ -92,7 +95,7 @@ def ev_training_driver() -> None:
         logging.info(f'About to start the {task_idx}-th task, arguments are:\n{json.dumps(task_args, indent=True)}')
         stdout_file = None
         try:
-            stdout_file = open(task_args['stdout_pipe_to'], "w", buffering=1)
+            stdout_file = open(task_args['output_pipe_to'], "w", buffering=1)
             rc = 0
             cmd = [
                 task_args['python_interpreter'], task_args['prepare_training_data_script'],
@@ -118,7 +121,8 @@ def ev_training_driver() -> None:
                 "--dropout-rate", task_args['dropout_rate'],
                 "--batch-size", task_args['batch_size'],
                 "--model-name", task_args['model_base_name'],
-                "--model-id", f"{task_args['model_base_name']}_d{task_args['dropout_rate']}_m{task_args['synthetic_multiplier']}_{task_args['revision']}",
+                "--model-id", task_args['model_id'],
+                "--load-parameters", task_args['load_parameters'],
                 "--cuda-device-id", task_args['cuda_device']
             ]
             logging.info(f'Training data is ready, now running the training process: {cmd}')

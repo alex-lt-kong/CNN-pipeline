@@ -1,5 +1,5 @@
-#ifndef VBCP_ERROR_HANDLER_HPP
-#define VBCP_ERROR_HANDLER_HPP
+#ifndef CP_ERROR_HANDLER_HPP
+#define CP_ERROR_HANDLER_HPP
 
 #include "dto/RespDto.hpp"
 
@@ -24,4 +24,4 @@ public:
               const Headers &headers) override;
 };
 
-#endif // VBCP_ERROR_HANDLER_HPP
+#endif // CP_ERROR_HANDLER_HPP

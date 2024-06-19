@@ -1,5 +1,5 @@
-#ifndef VBCP_APP_COMPONENT_HPP
-#define VBCP_APP_COMPONENT_HPP
+#ifndef CP_APP_COMPONENT_HPP
+#define CP_APP_COMPONENT_HPP
 
 #include "error_handler.hpp"
 #include "swagger_component.hpp"
@@ -80,4 +80,4 @@ public:
   }());
 };
 
-#endif // VBCP_APP_COMPONENT_HPP
+#endif // CP_APP_COMPONENT_HPP

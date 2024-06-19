@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import numpy as np
 import torch
 import torchvision
 
@@ -42,7 +43,6 @@ def init_transforms(target_img_size: Tuple[int, int]) -> None:
         torchvision.transforms.ToTensor(),
         # torchvision.transforms.Normalize(mean=target_img_means, std=target_img_stds)
     ])
-
 
 def get_cuda_device(cuda_device: str = 'cuda') -> torch.device:
     if torch.cuda.is_available():

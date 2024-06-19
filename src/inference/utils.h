@@ -1,5 +1,5 @@
-#ifndef VBCP_UTILS_H
-#define VBCP_UTILS_H
+#ifndef CP_UTILS_H
+#define CP_UTILS_H
 
 #include <nlohmann/json.hpp>
 #pragma GCC diagnostic push
@@ -35,4 +35,4 @@ template <typename T> std::string vector_to_string(std::vector<T> vec) {
   return vec_oss.str();
 }
 
-#endif // VBCP_UTILS_H
+#endif // CP_UTILS_H

@@ -3,6 +3,7 @@ from sklearn import metrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from typing import Any, Dict, Tuple
+from distutils.util import strtobool
 
 import argparse
 import datetime as dt
@@ -28,6 +29,7 @@ curr_dir = os.path.dirname(os.path.abspath(__file__))
 device: torch.device
 config: Dict[str, Any]
 
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -42,8 +44,8 @@ def set_seed(seed: int) -> None:
 
 def get_data_loaders(training_data_dir: str, test_data_dir: str, batch_size: int = 64) -> Tuple[DataLoader, DataLoader]:
 
-    train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)   
-    test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)   
+    train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)
+    test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)
     # need to keep this low for larger models such as ResNet50
     shuffle = True
 
@@ -68,7 +70,7 @@ def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
     csv_path = os.path.join(csv_dir, filename)
     if os.path.isfile(csv_path):
         df = pd.read_csv(csv_path)
-    else:        
+    else:
         df = pd.DataFrame()
     # logging.info(f'Appending:\n{metrics_dict}\n--- to ---\n{df}')
     df = pd.concat([df, pd.DataFrame([metrics_dict])], ignore_index=True)
@@ -208,10 +210,10 @@ def train(
     dropout_rate: float = 0.001, lr: float = 0.001, epochs: int = 10,
     batch_size: int = 64
 ) -> nn.Module:
-    
+
     m = globals()[model_name](config, dropout_rate)
     assert isinstance(m, nn.Module)
-    m = m.to(device)    
+    m = m.to(device)
 
     if load_parameters:
         logging.warning(
@@ -248,7 +250,7 @@ def train(
         os.path.join(config['model']['diagnostics_dir'], 'preview', f'training_samples_{model_id}'),
         30
     )
-    
+
     save_transformed_samples(
         test_loader,
         os.path.join(config['model']['diagnostics_dir'], 'preview', f'test_samples_{model_id}'),
@@ -265,6 +267,7 @@ def train(
         weight_decay=3e-4
     )
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
+    step = 10
     start_ts = time.time()
     # Train the model
     for epoch in range(epochs):
@@ -272,10 +275,10 @@ def train(
                      f'Epoch {epoch + 1} / {epochs} started, '
                      f'lr: {scheduler.get_last_lr()}'
                      '\n========================================')
-        #hook_handle = m.fc.register_forward_hook(
+        # hook_handle = m.fc.register_forward_hook(
         #    lambda m, inp, out: torch.nn.functional.dropout(
         #        out, p=dropout_rate, training=m.training
-        #))
+        # ))
         m.train()   # switch to training mode
         for batch_idx, (images, y_trues) in enumerate(train_loader):
             # Every data instance is an input + label pair
@@ -312,16 +315,21 @@ def train(
 
         # switch to evaluation mode
         m.eval()
+        eval_start_ts = time.time()
         evalute_model_classification(
-            m, config['model']['num_classes'], train_loader, f'training_{model_id}', 50
+            m, config['model']['num_classes'], train_loader, f'training_{model_id}', int(step * 5)
         )
         evalute_model_classification(
-            m, config['model']['num_classes'], test_loader, f'test_{model_id}', 10
+            m, config['model']['num_classes'], test_loader, f'test_{model_id}', int(step)
         )
 
         save_params(m, model_id)
         # hook_handle.remove()
         save_ts_model(m, model_id)
+        if (time.time() - start_ts) / 10 > time.time() - eval_start_ts:
+            step *= 2
+        elif step > 1:
+            step /= 2
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
@@ -367,8 +375,9 @@ def main() -> None:
     )
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('--load-parameters', '-l', action='store_true',
-                    help='load existing parameters for continue training')
+    # Not using store_true is to make training-scheduler's command construction easier.
+    ap.add_argument('--load-parameters', '-l', dest='load_parameters', default=False,
+                    type=strtobool, help='load existing parameters for continue training')
     ap.add_argument('--config-path', '-c', dest='config-path', required=True,
                     help='Config file path')
     ap.add_argument('--learning-rate', '-lr', dest='learning_rate', type=float,
@@ -406,7 +415,7 @@ def main() -> None:
         config['model']['input_image_size']['width']
     ))
     train(
-        args['load_parameters'], args['model_name'], args['model_id'],
+        bool(args['load_parameters']), args['model_name'], args['model_id'],
         float(args['dropout_rate']), args['learning_rate'], args['epochs'],
         int(args['batch_size'])
     )
