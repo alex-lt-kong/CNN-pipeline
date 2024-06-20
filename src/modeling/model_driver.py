@@ -1,6 +1,6 @@
 from model_definitions import *
 from sklearn import metrics
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
 from torchvision.datasets import ImageFolder
 from typing import Any, Dict, Tuple
 from distutils.util import strtobool
@@ -42,11 +42,16 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
 
-def get_data_loaders(training_data_dir: str, test_data_dir: str, batch_size: int = 64) -> Tuple[DataLoader, DataLoader]:
+def get_data_loaders(
+        training_data_dir: str, test_data_dir: str, batch_size: int = 64
+    ) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
     train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)
     test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)
-    # need to keep this low for larger models such as ResNet50
+    assert len(train_ds) > len(test_ds), "How come len(train_ds) <= len(test_ds)??"
+    num_samples = int(len(test_ds) * 0.1)
+    train_ds_random_sampler = RandomSampler(train_ds, num_samples=num_samples)
+    test_ds_random_sampler = RandomSampler(test_ds, num_samples=num_samples)
     shuffle = True
 
     # not setting num_workers disables sample prefetching,
@@ -55,11 +60,16 @@ def get_data_loaders(training_data_dir: str, test_data_dir: str, batch_size: int
         train_ds, batch_size=batch_size, shuffle=shuffle,
         num_workers=4, pin_memory=True
     )
-    test_loader = DataLoader(
-        test_ds, batch_size=batch_size, shuffle=shuffle,
-        num_workers=4, pin_memory=True
+    sampled_train_loader = DataLoader(
+        train_ds, batch_size=batch_size,
+        num_workers=4, pin_memory=True, sampler=train_ds_random_sampler
     )
-    return (train_loader, test_loader)
+    sampled_test_loader = DataLoader(
+        test_ds, batch_size=batch_size,
+        num_workers=4, pin_memory=True,
+        sampler=test_ds_random_sampler
+    )
+    return (train_loader, sampled_train_loader, sampled_test_loader)
 
 
 def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
@@ -80,7 +90,7 @@ def write_metrics_to_csv(filename: str, metrics_dict: Dict[str, float]) -> None:
 
 def evalute_model_classification(
     model: nn.Module, num_classes: int, data_loader: DataLoader,
-    ds_name: str, step: int
+    ds_name: str
 ) -> None:
     # initialize the number of correct predictions, total number of samples,
     # and true positives, false positives, and false negatives for each class
@@ -96,9 +106,7 @@ def evalute_model_classification(
     # sure that you will not call Tensor.backward(). It will reduce memory
     # consumption for computations that would otherwise have requires_grad=True.
     torch.set_grad_enabled(False)
-    for batch_idx, (images, y_trues) in enumerate(
-        itertools.islice(data_loader, random.randint(0, step-1), None, step)
-    ):
+    for images, y_trues in data_loader:
         # logging.info(batch_idx)
         images, y_trues = images.to(device), y_trues.to(device)
         # forward pass
@@ -137,8 +145,7 @@ def evalute_model_classification(
         fscore[i] = (1 + beta**2) * (precision[i] * recall[i]
                                      ) / (beta**2 * precision[i] + recall[i])
 
-    logging.info(f'Metrics from dataset: {ds_name} '
-                 f'(1 of every {step} samples evaluted)')
+    logging.info(f'Metrics from dataset: {ds_name}')
 
     metrics_dict = {}
     logging.info('Class\tPrecision\tRecall\t\tF-Score')
@@ -242,7 +249,7 @@ def train(
     logging.info(f'Loading samples from [{training_samples_dir}] and [{test_samples_dir}]')
 
     # Define the dataset and data loader for the training set
-    train_loader, test_loader = get_data_loaders(
+    train_loader, sampled_train_loader, sampled_test_loader = get_data_loaders(
         training_samples_dir, test_samples_dir, batch_size
     )
     save_transformed_samples(
@@ -252,7 +259,7 @@ def train(
     )
 
     save_transformed_samples(
-        test_loader,
+        sampled_test_loader,
         os.path.join(config['model']['diagnostics_dir'], 'preview', f'test_samples_{model_id}'),
         5
     )
@@ -267,11 +274,9 @@ def train(
         weight_decay=3e-4
     )
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
-    step = 10
     start_ts = time.time()
     # Train the model
     for epoch in range(epochs):
-        epoch_start_ts = time.time()
         logging.info('\n========================================\n'
                      f'Epoch {epoch + 1} / {epochs} started, '
                      f'lr: {scheduler.get_last_lr()}'
@@ -316,21 +321,16 @@ def train(
 
         # switch to evaluation mode
         m.eval()
-        eval_start_ts = time.time()
         evalute_model_classification(
-            m, config['model']['num_classes'], train_loader, f'training_{model_id}', int(step * 5)
+            m, config['model']['num_classes'], sampled_train_loader, f'training_{model_id}'
         )
         evalute_model_classification(
-            m, config['model']['num_classes'], test_loader, f'test_{model_id}', int(step)
+            m, config['model']['num_classes'], sampled_test_loader, f'test_{model_id}'
         )
 
         save_params(m, model_id)
         # hook_handle.remove()
         save_ts_model(m, model_id)
-        if time.time() - eval_start_ts > (time.time() - epoch_start_ts) / 10:
-            step *= 2
-        elif step > 2:
-            step -= 1
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'

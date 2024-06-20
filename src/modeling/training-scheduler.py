@@ -106,13 +106,15 @@ def ev_training_driver() -> None:
             ]
             if task_args['prepare_training_data']:
                 logging.info(f'Command to prepare training data is: {cmd}')
-                process = subprocess.Popen(cmd, stdout=stdout_file, stderr=stdout_file)
-                process.communicate()
+                process = subprocess.Popen(cmd, stdout=stdout_file, stderr=subprocess.STDOUT)
+                sout, serr = process.communicate()
                 rc = process.returncode
             else:
                 logging.info(f'prepare_training_data is False, skipping training data preparation')
             if rc != 0:
                 logging.error(f'Returncode from {cmd} is non-zero ({rc}), training will be skipped')
+                if len(sout) > 0 or len(serr) > 0:
+                    logging.error(f'Uncaught stdout (bytes): {sout}; uncaught stderr (bytes): {serr}')
                 continue
             cmd = [
                 task_args['python_interpreter'], task_args['training_script'],
