@@ -271,6 +271,7 @@ def train(
     start_ts = time.time()
     # Train the model
     for epoch in range(epochs):
+        epoch_start_ts = time.time()
         logging.info('\n========================================\n'
                      f'Epoch {epoch + 1} / {epochs} started, '
                      f'lr: {scheduler.get_last_lr()}'
@@ -326,10 +327,10 @@ def train(
         save_params(m, model_id)
         # hook_handle.remove()
         save_ts_model(m, model_id)
-        if (time.time() - start_ts) / 10 > time.time() - eval_start_ts:
+        if time.time() - eval_start_ts > (time.time() - epoch_start_ts) / 10:
             step *= 2
-        elif step > 1:
-            step /= 2
+        elif step > 2:
+            step -= 1
         eta = start_ts + (time.time() - start_ts) / ((epoch + 1) / epochs)
         logging.info(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
