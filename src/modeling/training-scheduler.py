@@ -67,6 +67,9 @@ def ev_training_driver() -> None:
             schedule["next_task_idx"] += 1
             task_args = schedule["training_tasks"][task_idx]
             assert isinstance(task_args, Dict)
+            if 'skip' in task_args and task_args['skip']:
+                logging.warning("skip is set to ture, this task will be skipped")
+                continue
             items = [
                 'prepare_training_data_script', 'python_interpreter',
                 'training_script', 'output_pipe_to', 'model_id',
@@ -87,7 +90,8 @@ def ev_training_driver() -> None:
             ev_flag = True
             break
         except Exception as ex:
-            logging.error(f'Error loading config of {task_idx}-th task. This task will be skipped:\n{ex}\n{traceback.format_exc()}')
+            logging.error(f'Error loading config of {
+                          task_idx}-th task. This task will be skipped:\n{ex}\n{traceback.format_exc()}')
             continue
         finally:
             if schedule_mutex.locked():
