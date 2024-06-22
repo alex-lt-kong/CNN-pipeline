@@ -119,7 +119,7 @@ def ev_training_driver() -> None:
                 logging.info(f'prepare_training_data is False, skipping training data preparation')
             if rc != 0:
                 logging.error(f'Returncode from {cmd} is non-zero ({rc}), training will be skipped')
-                if len(sout) > 0 or len(serr) > 0:
+                if (sout is not None and len(sout) > 0) or (serr is not None and len(serr) > 0):
                     logging.error(f'Uncaught stdout (bytes): {sout}; uncaught stderr (bytes): {serr}')
                 continue
             cmd = [
