@@ -46,6 +46,8 @@ def ev_schedule_monitor():
             logging.info(f'next_task_idx is updated to {schedule["next_task_idx"]}')
         except Exception as ex:
             logging.error(f'Error loading: [{schedule_file_path}]: {ex}')
+            # Need to set schedule_file_crc to something here so that it triggers the 10-sec sleep()
+            schedule_file_crc = "NA"
             continue
         finally:
             if schedule_mutex.locked():
@@ -110,7 +112,7 @@ def ev_training_driver() -> None:
             ]
             if task_args['prepare_training_data']:
                 logging.info(f'Command to prepare training data is: {cmd}')
-                process = subprocess.Popen(cmd, stdout=stdout_file, stderr=subprocess.STDOUT)
+                process = subprocess.Popen(cmd, stdout=stdout_file, stderr=stdout_file)
                 sout, serr = process.communicate()
                 rc = process.returncode
             else:
