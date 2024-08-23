@@ -23,6 +23,7 @@
 
 using namespace std;
 using json = nlohmann::json;
+namespace MU = CnnPipeline::ModelUtils;
 
 string ts_model_path;
 static cv::Size target_img_size;
@@ -95,7 +96,7 @@ torch::Tensor get_tensor_from_img_dir(const string &image_dir) {
 
   for (const auto &imagePath : imagePaths) {
     cv::Mat image = cv::imread(imagePath);
-    tensor_vec.push_back(cv_mat_to_tensor(image, target_img_size));
+    tensor_vec.push_back(MU::cv_mat_to_tensor(image, target_img_size));
   }
   return torch::stack(tensor_vec);
 }
@@ -121,7 +122,7 @@ int main(int argc, char **argv) {
   target_img_size = cv::Size(
       settings.value("/model/input_image_size/width"_json_pointer, 0),
       settings.value("/model/input_image_size/height"_json_pointer, 0));
-  vector<torch::jit::script::Module> v16mms = load_models(
+  vector<torch::jit::script::Module> v16mms = MU::load_models(
       model_ids, ts_model_path,
       settings.value("/inference/cuda_device"_json_pointer, "cuda:0"));
 
@@ -139,18 +140,19 @@ int main(int argc, char **argv) {
     oss << tensor.sizes();
     string tensorStr;
     if (tensor.sizes().size() <= 1) {
-      tensorStr = tensor_to_string_like_pytorch(tensor, 0, preview_ele_num);
+      tensorStr = MU::tensor_to_string_like_pytorch(tensor, 0, preview_ele_num);
     } else if (tensor.sizes().size() <= 2) {
-      tensorStr = tensor_to_string_like_pytorch(tensor[0], 0, preview_ele_num);
+      tensorStr =
+          MU::tensor_to_string_like_pytorch(tensor[0], 0, preview_ele_num);
     } else if (tensor.sizes().size() <= 3) {
       tensorStr =
-          tensor_to_string_like_pytorch(tensor[0][0], 0, preview_ele_num);
+          MU::tensor_to_string_like_pytorch(tensor[0][0], 0, preview_ele_num);
     } else if (tensor.sizes().size() <= 4) {
-      tensorStr =
-          tensor_to_string_like_pytorch(tensor[0][0][0], 0, preview_ele_num);
+      tensorStr = MU::tensor_to_string_like_pytorch(tensor[0][0][0], 0,
+                                                    preview_ele_num);
     } else {
-      tensorStr =
-          tensor_to_string_like_pytorch(tensor[0][0][0][0], 0, preview_ele_num);
+      tensorStr = MU::tensor_to_string_like_pytorch(tensor[0][0][0][0], 0,
+                                                    preview_ele_num);
     }
     spdlog::info("{}({}): {}", name, oss.str(), tensorStr);
   }
@@ -168,8 +170,8 @@ int main(int argc, char **argv) {
                oss.str(), w, h);
 
   for (int i = 0; i < images_tensor.sizes()[1]; ++i) {
-    spdlog::info("{}", tensor_to_string_like_pytorch(images_tensor[0][i][h], w,
-                                                     preview_ele_num));
+    spdlog::info("{}", MU::tensor_to_string_like_pytorch(images_tensor[0][i][h],
+                                                         w, preview_ele_num));
   }
   vector<torch::jit::IValue> input(1);
   input[0] = images_tensor.to(cuda_device_string);
@@ -208,5 +210,5 @@ int main(int argc, char **argv) {
   oss.str("");
   oss << y_pred;
   spdlog::info("y_pred: {}",
-               tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
+               MU::tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
 }

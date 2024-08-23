@@ -31,6 +31,7 @@ using namespace cv;
 using namespace std;
 using json = nlohmann::json;
 namespace GV = CnnPipeline::GlobalVariables;
+namespace MU = CnnPipeline::ModelUtils;
 
 static volatile sig_atomic_t e_flag = 0;
 
@@ -47,7 +48,7 @@ torch::Tensor get_tensor_from_mat_vector(vector<Mat> &images,
   std::vector<torch::Tensor> tensor_vec;
 
   for (const auto &image : images) {
-    tensor_vec.push_back(cv_mat_to_tensor(image, target_img_size));
+    tensor_vec.push_back(MU::cv_mat_to_tensor(image, target_img_size));
   }
   return torch::stack(tensor_vec);
 }
@@ -192,14 +193,13 @@ int main(int argc, const char *argv[]) {
   vector<size_t> frameCountByOutput(numClasses, 0);
   string cuda_device_string =
       settings.value("/inference/cuda_device"_json_pointer, "cuda:0");
-  vector<torch::jit::script::Module> models =
-      load_models(model_ids, GV::ts_model_path, cuda_device_string);
+  auto models =
+      MU::load_models(model_ids, GV::ts_model_path, cuda_device_string);
 
   cuda::GpuMat dFrame;
   vector<Mat> hFrames;
 
-  Ptr<cudacodec::VideoReader> dReader =
-      cudacodec::createVideoReader(srcVideoPath);
+  auto dReader = cudacodec::createVideoReader(srcVideoPath);
 
   if (!dReader->nextFrame(dFrame)) {
     spdlog::error("Failed to read frame from source {}", srcVideoPath);

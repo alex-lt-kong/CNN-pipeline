@@ -7,6 +7,8 @@
 #include <torch/script.h> // One-stop header.
 #pragma GCC diagnostic pop
 
+namespace CnnPipeline::ModelUtils {
+
 std::vector<torch::jit::script::Module>
 load_models(const std::vector<std::string> &model_ids,
             const std::string ts_model_path,
@@ -17,5 +19,5 @@ torch::Tensor cv_mat_to_tensor(cv::Mat image, cv::Size target_image_size);
 std::string tensor_to_string_like_pytorch(const torch::Tensor &t,
                                           const long index,
                                           const long ele_count);
-
+} // namespace CnnPipeline::ModelUtils
 #endif // CP_MODEL_UTILS_H

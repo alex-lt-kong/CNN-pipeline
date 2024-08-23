@@ -65,11 +65,12 @@ def prepare_files(
 
     start_ts = time.time()
     files = os.listdir(input_dir)
-    
+
     random.seed(seed)
 
     num_files = len(files)
-    logging.info(f'{input_dir} | {num_files:,} samples found, will prepare {num_files * synthetic_multiplier:,} synthetic samples')
+    logging.info(f'{input_dir} | {num_files:,} samples found, will prepare {
+                 num_files * synthetic_multiplier:,} synthetic samples')
     num_files_dir_1 = int(num_files * split_ratio)
     random.shuffle(files)
 
@@ -78,7 +79,7 @@ def prepare_files(
             eta = start_ts + (time.time() - start_ts) * (num_files / (i+1))
             total_sec = eta - start_ts
             logging.info(
-                f"{input_dir} | Processing {(i+1) * synthetic_multiplier:,}/{num_files * synthetic_multiplier:,}\tsamples ({int((i+1) / num_files * 100)}%), "
+                f"{input_dir} | Processing {(i+1) * synthetic_multiplier:,}/{num_files * synthetic_multiplier:,}\tsamples ({int((i+1) / num_files * 100):2d}%), "
                 f"ETA: {dt.datetime.fromtimestamp(eta).astimezone().strftime('%F %T')}"
                 f'({total_sec/3600:.1f} hrs)'
                 f', speed: {int(num_files * synthetic_multiplier / total_sec)} samples / sec'
@@ -92,7 +93,7 @@ def prepare_files(
                     input_dir, file, image_ext, val_dir, j, helper.train_transforms)
 
     logging.info(
-        f'{input_dir} | Done. '        
+        f'{input_dir} | Done. '
         f'[{train_dir}] file count: {len(os.listdir(train_dir)):,}, '
         f'[{val_dir}] file count: {len(os.listdir(val_dir)):,}'
     )

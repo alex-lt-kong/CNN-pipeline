@@ -10,6 +10,7 @@
 #include <regex>
 #include <sstream>
 
+namespace CnnPipeline::ModelUtils {
 using namespace std;
 
 // const float target_img_means[] = {0.485, 0.456, 0.406};
@@ -109,3 +110,4 @@ string tensor_to_string_like_pytorch(const torch::Tensor &t, const long index,
   */
   return oss.str();
 }
+} // namespace CnnPipeline::ModelUtils

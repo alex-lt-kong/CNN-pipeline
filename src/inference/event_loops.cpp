@@ -3,6 +3,7 @@
 #include "model_utils.h"
 #include "snapshot.pb.h"
 #include "utils.h"
+#include <stdexcept>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-qualifiers"
@@ -14,8 +15,11 @@
 
 #include <tuple>
 
+namespace CnnPipeline::EventLoops {
+
 using namespace std;
 namespace GV = CnnPipeline::GlobalVariables;
+namespace MU = CnnPipeline::ModelUtils;
 
 static cv::Size zmq_payload_mat_size;
 static cv::Size target_img_size;
@@ -59,7 +63,7 @@ infer_images(vector<torch::jit::script::Module> &models,
                           (void *)snaps[i].payload().data());
     // std::copy(snaps[i].payload().begin(), snaps[i].payload().end(),
     // v.begin());
-    images_tensors_vec[idx] = cv_mat_to_tensor(mat, target_img_size);
+    images_tensors_vec[idx] = MU::cv_mat_to_tensor(mat, target_img_size);
   }
   images_tensor = torch::stack(images_tensors_vec);
 
@@ -176,7 +180,7 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   }
 
   spdlog::info("y_pred: {}",
-               tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
+               MU::tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
   if (positive_y_preds_idx.size() == 0) {
     spdlog::info("y_pred does not contain any include_outputs, returning");
     return false;
@@ -257,8 +261,8 @@ void inference_ev_loop() {
   try {
     {
       std::scoped_lock lck{GV::models_mtx, GV::model_ids_mtx};
-      GV::models =
-          load_models(GV::model_ids, GV::ts_model_path, GV::cuda_device_string);
+      GV::models = MU::load_models(GV::model_ids, GV::ts_model_path,
+                                   GV::cuda_device_string);
     }
 
   } catch (const c10::Error &e) {
@@ -310,10 +314,6 @@ void inference_ev_loop() {
                      cooldown_ms);
         SnapshotMsg t;
         interruptible_sleep(cooldown_ms);
-        for (size_t i = 0; i < GV::image_queue_size; ++i) {
-          if (!GV::snapshot_pc_queue.try_dequeue(t))
-            break;
-        }
         snap_deque.clear();
       }
     } catch (const runtime_error &e) {
@@ -368,9 +368,26 @@ void zeromq_ev_loop() {
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      if (!GV::snapshot_pc_queue.try_enqueue(msg)) {
-        spdlog::warn("try_enqueue() failed: snapshot_queue full, snapshots are "
-                     "not being inferred fast enough");
+      while (!GV::snapshot_pc_queue.try_enqueue(msg)) {
+        spdlog::warn(
+            "try_enqueue() failed: snapshot_queue full (max_capacity(): "
+            "{} vs size_approx(): {}), snapshots are not being inferred fast "
+            "enough",
+            GV::snapshot_pc_queue.max_capacity(),
+            GV::snapshot_pc_queue.size_approx());
+        SnapshotMsg t;
+        if (GV::snapshot_pc_queue.try_dequeue(t)) {
+          spdlog::warn(
+              "napshot_pc_queue.try_dequeue()'ed to make place for new "
+              "snapshot (max_capacity(): {} vs size_approx(): {})",
+              GV::snapshot_pc_queue.max_capacity(),
+              GV::snapshot_pc_queue.size_approx());
+        } else {
+          auto errMsg = "Unexpected branch, snapshot_pc_queue is full but "
+                        "still can't dequeue";
+          spdlog::error(errMsg);
+          throw std::runtime_error(errMsg);
+        }
       }
     } else {
       spdlog::error("Failed to parse ZeroMQ payload as SnapshotMsg");
@@ -380,3 +397,4 @@ void zeromq_ev_loop() {
   spdlog::info("ZeroMQ connection closed");
   spdlog::info("zeromq_ev_loop() exited gracefully");
 }
+} // namespace CnnPipeline::EventLoops

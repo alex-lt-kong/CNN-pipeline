@@ -20,7 +20,9 @@
 
 using namespace std;
 using json = nlohmann::json;
+
 namespace GV = CnnPipeline::GlobalVariables;
+namespace EL = CnnPipeline::EventLoops;
 
 int main(int argc, char **argv) {
   install_signal_handler();
@@ -52,14 +54,23 @@ int main(int argc, char **argv) {
   GV::cuda_device_string =
       GV::settings.value("/inference/cuda_device"_json_pointer, "cuda:0");
 
+  GV::inference_batch_size =
+      GV::settings.value("/inference/batch_size"_json_pointer, 24);
+  GV::gif_frame_count = GV::pre_detection_size + GV::inference_batch_size +
+                        GV::post_detection_size;
+  GV::image_queue_size = GV::gif_frame_count * 4;
+  GV::snapshot_pc_queue =
+      moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>(
+          GV::image_queue_size);
+
   initialize_rest_api(
       GV::settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
       GV::settings.value("/inference/swagger/port"_json_pointer, 8000),
       GV::settings.value("/inference/swagger/advertised_host"_json_pointer,
                          "http://127.0.0.1:8000"));
 
-  thread thread_zeromq(zeromq_ev_loop);
-  thread thread_inference(inference_ev_loop);
+  thread thread_zeromq(EL::zeromq_ev_loop);
+  thread thread_inference(EL::inference_ev_loop);
   if (thread_zeromq.joinable()) {
     thread_zeromq.join();
   }
