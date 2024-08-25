@@ -6,4 +6,5 @@ FPS=5
 # always result in different images. Preparing the images in
 # desired resolution first could avoid this discrepancy
 RESOLUTION="640x360"
+IMAGE_QUALITY=4
 ffmpeg -i "${IN_FILE}" -r "${FPS}" -s "${RESOLUTION}" "${OUT_FILES}"

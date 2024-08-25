@@ -342,16 +342,21 @@ void zeromq_ev_loop() {
   subscriber.connect(zmq_address);
   spdlog::info("ZeroMQ client connected to {}", zmq_address);
   constexpr int timeout = 5000;
-  // subscriber.setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-  // subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+  // For the use of zmqcpp, refer to this 3rd-party tutorial:
+  // https://brettviren.github.io/cppzmq-tour/index.html#org3a79e67
   subscriber.set(zmq::sockopt::rcvtimeo, timeout);
   subscriber.set(zmq::sockopt::subscribe, "");
   while (!GV::ev_flag) {
     zmq::message_t message;
     SnapshotMsg msg;
     try {
-      if (subscriber.recv(message, zmq::recv_flags::none) == false) {
-        spdlog::error("subscriber.recv() returns false");
+      auto res = subscriber.recv(message, zmq::recv_flags::none);
+      if (!res.has_value()) {
+        spdlog::warn("subscriber.recv() timed out, will retry");
+        continue;
+      }
+      if (res == 0) {
+        spdlog::error("subscriber.recv() receives zero bytes, will retry");
         continue;
       }
     } catch (const zmq::error_t &e) {
@@ -364,11 +369,12 @@ void zeromq_ev_loop() {
       }
     }
     if (message.size() == 0) {
-      spdlog::warn("ZeroMQ received empty message");
+      spdlog::warn("subscriber.recv() returned an empty message (probably due "
+                   "to time out)");
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      while (!GV::snapshot_pc_queue.try_enqueue(msg)) {
+      while (!GV::snapshot_pc_queue.try_enqueue(std::move(msg))) {
         spdlog::warn(
             "try_enqueue() failed: snapshot_queue full (max_capacity(): "
             "{} vs size_approx(): {}), snapshots are not being inferred fast "
