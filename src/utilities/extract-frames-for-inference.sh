@@ -7,4 +7,4 @@ FPS=5
 # desired resolution first could avoid this discrepancy
 RESOLUTION="640x360"
 IMAGE_QUALITY=4
-ffmpeg -i "${IN_FILE}" -r "${FPS}" -s "${RESOLUTION}" "${OUT_FILES}"
+ffmpeg -i "${IN_FILE}" -qscale:v "${IMAGE_QUALITY}" -r "${FPS}" -s "${RESOLUTION}" "${OUT_FILES}"
