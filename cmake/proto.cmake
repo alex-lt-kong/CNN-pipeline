@@ -10,5 +10,9 @@ else()
 endif()
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set(PROTO_FILE ${PROJECT_SOURCE_DIR}/src/proto/snapshot.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILE})
+
+set(PROTO_FILE_SNAPSHOT ${PROJECT_SOURCE_DIR}/src/proto/snapshot.proto)
+set(PROTO_FILE_INFERENCE_RESULT ${PROJECT_SOURCE_DIR}/src/proto/inference_result.proto)
+
+protobuf_generate_cpp(PROTO_SNAP_SRCS PROTO_SNAP_HDRS ${PROTO_FILE_SNAPSHOT})
+protobuf_generate_cpp(PROTO_INFER_SRCS PROTO_INFER_HDRS ${PROTO_FILE_INFERENCE_RESULT})

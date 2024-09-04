@@ -20,8 +20,12 @@
   "inference": {
     "on_detected": {
       "triggers": {
-        "include_outputs": [2],
-        "exclude_outputs": [0]
+        "include_outputs": [
+          2
+        ],
+        "exclude_outputs": [
+          0
+        ]
       },
       "external_program": "/home/user/bin/on-detected.py",
       "jpegs_directory": "/tmp/detected/",
@@ -35,10 +39,19 @@
       },
       "cooldown_sec": 120
     },
-    "initial_model_ids": ["vgg"],
+    "initial_model_ids": [
+      "vgg"
+    ],
     "cuda_device": "cuda:0",
     "zeromq": {
       "address": "tcp://127.0.0.1:4241",
+      "image_size": {
+        "width": 1920,
+        "height": 1080
+      }
+    },
+    "zeromq_producer": {
+      "address": "tcp://127.0.0.1:14241",
       "image_size": {
         "width": 1920,
         "height": 1080

@@ -4,6 +4,7 @@
 #include "model_utils.h"
 
 #include <cstdlib>
+#include <fmt/format.h>
 #include <cxxopts.hpp>
 #include <nlohmann/json.hpp>
 #include <opencv2/core.hpp>
@@ -131,7 +132,7 @@ void overlay_result_to_frame(int frame_idx, vector<Mat> &frames, int batch_idx,
 
 int main(int argc, const char *argv[]) {
   install_signal_handler();
-  cxxopts::Options options(argv[0], "Video classifier");
+  cxxopts::Options options(argv[0], fmt::format("Video classifier (git commit: {})", GIT_COMMIT_HASH));
   string configPath, srcVideoPath;
   int output_sample_interval;
   filesystem::path dst_video_dir = filesystem::temp_directory_path();

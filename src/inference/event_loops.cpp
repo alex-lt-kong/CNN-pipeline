@@ -179,6 +179,21 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
     }
   }
 
+  for (int64_t i = 0; i < y_pred.size(0); ++i) {
+    InferenceResultMsg msg;
+    auto epochNanoseconds = chrono::time_point_cast<chrono::nanoseconds>(
+                                chrono::system_clock::now())
+                                .time_since_epoch()
+                                .count();
+    msg.set_inferenceunixepochns(epochNanoseconds);
+    msg.set_snapshotunixepochns(snaps[i].unixepochns());
+    // msg.set_payload(snaps[i].payload());
+    msg.set_label(y_pred[i].item<int>());
+    if (!GV::inference_result_pc_queue.try_enqueue(std::move(msg)))
+      spdlog::warn(
+          "Error inference_result_pc_queue.try_enqueue(std::move(msg)");
+  }
+
   spdlog::info("y_pred: {}",
                MU::tensor_to_string_like_pytorch(y_pred, 0, y_pred.sizes()[0]));
   if (positive_y_preds_idx.size() == 0) {
@@ -323,8 +338,53 @@ void inference_ev_loop() {
   spdlog::info("inference_ev_loop() exited gracefully");
 }
 
-void zeromq_ev_loop() {
-  spdlog::info("zeromq_ev_loop() started");
+void zeromq_producer_ev_loop() {
+  spdlog::info("zeromq_producer_ev_loop() started");
+
+  zmq::socket_t zmqSocket;
+  string zmq_address =
+      GV::settings.value("/inference/zeromq_producer/address"_json_pointer,
+                         "tcp://127.0.0.1:14240");
+  zmq::context_t zmqContext(1);
+  zmqSocket = zmq::socket_t(zmqContext, zmq::socket_type::pub);
+  try {
+    zmqSocket.bind(zmq_address);
+  } catch (const zmq::error_t &e) {
+    spdlog::error("zmqSocket.bind({}) failed: {}, zeroMQ IPC "
+                  "support will be disabled for this device",
+                  zmq_address, e.what());
+    return;
+  }
+  spdlog::info("ZeroMQ producer bound to {}", zmq_address);
+  while (!GV::ev_flag) {
+    InferenceResultMsg msg;
+    // spdlog::info("zeromq_producer_ev_loop() iterating...");
+    if (!GV::inference_result_pc_queue.try_dequeue(msg)) {
+      interruptible_sleep(1000);
+      continue;
+    }
+    auto serializedMsg = msg.SerializeAsString();
+    try {
+      if (auto ret =
+              zmqSocket.send(
+                  zmq::const_buffer(serializedMsg.data(), serializedMsg.size()),
+                  zmq::send_flags::none) != serializedMsg.size()) {
+        spdlog::error("zmqSocket.send() failed: ZeroMQ socket reports {} bytes "
+                      "being sent, but serializedMsg.size() is {} bytes",
+                      ret, serializedMsg.size());
+      }
+    } catch (const zmq::error_t &err) {
+      spdlog::error("zmqSocket.send() failed: {}({}). The program will "
+                    "continue with this frame being unsent",
+                    err.num(), err.what());
+    }
+  }
+  zmqSocket.close();
+  spdlog::info("zeromq_producer_ev_loop() exited gracefully");
+}
+
+void zeromq_consumer_ev_loop() {
+  spdlog::info("zeromq_consumer_ev_loop() started");
 
   zmq::context_t context(1);
   zmq::socket_t subscriber(context, ZMQ_SUB);
@@ -401,6 +461,7 @@ void zeromq_ev_loop() {
   }
   subscriber.close();
   spdlog::info("ZeroMQ connection closed");
-  spdlog::info("zeromq_ev_loop() exited gracefully");
+  spdlog::info("zeromq_consumer_ev_loop() exited gracefully");
 }
+
 } // namespace CnnPipeline::EventLoops

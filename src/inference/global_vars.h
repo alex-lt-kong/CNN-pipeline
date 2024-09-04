@@ -1,6 +1,7 @@
 #ifndef CP_GLOBAL_VARS_H
 #define CP_GLOBAL_VARS_H
 
+#include "inference_result.pb.h"
 #include "percentile_tracker.h"
 #include "snapshot.pb.h"
 #include "utils.h"
@@ -27,6 +28,8 @@ extern std::mutex model_ids_mtx;
 
 extern moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>
     snapshot_pc_queue;
+extern moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>
+    inference_result_pc_queue;
 
 extern size_t inference_batch_size;
 extern const size_t pre_detection_size;

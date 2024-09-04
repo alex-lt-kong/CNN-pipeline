@@ -122,14 +122,14 @@ int main(int argc, char **argv) {
   target_img_size = cv::Size(
       settings.value("/model/input_image_size/width"_json_pointer, 0),
       settings.value("/model/input_image_size/height"_json_pointer, 0));
-  vector<torch::jit::script::Module> v16mms = MU::load_models(
+  auto models = MU::load_models(
       model_ids, ts_model_path,
       settings.value("/inference/cuda_device"_json_pointer, "cuda:0"));
 
   const size_t preview_ele_num = 5;
   size_t layer_count = 0;
   spdlog::info("Sample values from some layers from the first model:");
-  for (const auto &pair : v16mms[0].named_parameters()) {
+  for (const auto &pair : models[0].named_parameters()) {
     ++layer_count;
     if (layer_count % 5 != 0) {
       continue;
@@ -181,10 +181,10 @@ int main(int argc, char **argv) {
       torch::zeros({images_tensor.sizes()[0],
                     settings.value("/model/num_classes"_json_pointer, 2)});
   output = output.to(cuda_device_string);
-  vector<at::Tensor> outputs(v16mms.size());
+  vector<at::Tensor> outputs(models.size());
   spdlog::info("Running inference");
-  for (size_t i = 0; i < v16mms.size(); ++i) {
-    auto y = v16mms[i].forward(input).toTensor();
+  for (size_t i = 0; i < models.size(); ++i) {
+    auto y = models[i].forward(input).toTensor();
     // Normalize the output, otherwise one model could have (unexpected)
     // outsized impact on the final result
     // Ref:
@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
   oss.str("");
   oss << output;
 
-  spdlog::info("Raw results from {} models are:", v16mms.size());
+  spdlog::info("Raw results from {} models are:", models.size());
   for (size_t i = 0; i < outputs.size(); ++i) {
     oss.str("");
     oss << outputs[i];

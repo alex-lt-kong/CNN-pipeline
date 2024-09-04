@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   config_path = result["config-path"].as<std::string>();
 
   spdlog::set_pattern("%Y-%m-%d %T.%e | %7l | %5t | %v");
-  spdlog::info("inference_service started");
+  spdlog::info("inference_service started (git commit: {})", GIT_COMMIT_HASH);
   spdlog::info("Loading configurations from {}:", config_path);
   ifstream f(config_path);
   GV::settings = json::parse(f);
@@ -62,6 +62,9 @@ int main(int argc, char **argv) {
   GV::snapshot_pc_queue =
       moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>(
           GV::image_queue_size);
+  GV::inference_result_pc_queue =
+      moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>(
+          GV::image_queue_size * 4);
 
   initialize_rest_api(
       GV::settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
@@ -69,13 +72,17 @@ int main(int argc, char **argv) {
       GV::settings.value("/inference/swagger/advertised_host"_json_pointer,
                          "http://127.0.0.1:8000"));
 
-  thread thread_zeromq(EL::zeromq_ev_loop);
+  thread thread_zeromq_consumer(EL::zeromq_consumer_ev_loop);
   thread thread_inference(EL::inference_ev_loop);
-  if (thread_zeromq.joinable()) {
-    thread_zeromq.join();
+  thread thread_zero_producer(EL::zeromq_producer_ev_loop);
+  if (thread_zeromq_consumer.joinable()) {
+    thread_zeromq_consumer.join();
   }
   if (thread_inference.joinable()) {
     thread_inference.join();
+  }
+  if (thread_zero_producer.joinable()) {
+    thread_zero_producer.join();
   }
   finalize_rest_api();
   spdlog::info("inference_service exiting");

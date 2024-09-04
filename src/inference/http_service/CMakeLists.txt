@@ -8,7 +8,8 @@ add_library(http_components
         AppComponent.hpp
         swagger_component.hpp
         error_handler.cpp
-        ${PROTO_SRCS} ${PROTO_HDRS})
+        ${PROTO_SNAP_SRCS} ${PROTO_SNAP_HDRS}
+        ${PROTO_INFER_SRCS} ${PROTO_INFER_HDRS})
 
 ## include directories
 include_directories(/usr/local/include/torch/)

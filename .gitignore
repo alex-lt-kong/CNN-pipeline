@@ -206,3 +206,4 @@ diagnostics_*/
 data_*/
 data-*/
 .sync_*.db*
+compile_commands.json
