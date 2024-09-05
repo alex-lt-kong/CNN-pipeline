@@ -1,11 +1,12 @@
 #define FMT_HEADER_ONLY
 
-#include "global_vars.h"
-#include "model_utils.h"
+#include "../global_vars.h"
+#include "../model_utils.h"
+#include "../utils.h"
 
 #include <cstdlib>
-#include <fmt/format.h>
 #include <cxxopts.hpp>
+#include <fmt/format.h>
 #include <nlohmann/json.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/core/cuda.hpp>
@@ -36,14 +37,6 @@ namespace MU = CnnPipeline::ModelUtils;
 
 static volatile sig_atomic_t e_flag = 0;
 
-static void signal_handler(int signum) {
-  char msg[] = "Signal [  ] caught\n";
-  msg[8] = '0' + (char)(signum / 10);
-  msg[9] = '0' + (char)(signum % 10);
-  (void)write(STDIN_FILENO, msg, strlen(msg));
-  e_flag = 1;
-}
-
 torch::Tensor get_tensor_from_mat_vector(vector<Mat> &images,
                                          Size target_img_size) {
   std::vector<torch::Tensor> tensor_vec;
@@ -52,30 +45,6 @@ torch::Tensor get_tensor_from_mat_vector(vector<Mat> &images,
     tensor_vec.push_back(MU::cv_mat_to_tensor(image, target_img_size));
   }
   return torch::stack(tensor_vec);
-}
-
-inline void install_signal_handler() {
-  // This design canNOT handle more than 99 signal types
-  if (_NSIG > 99) {
-    fprintf(stderr, "signal_handler() can't handle more than 99 signals\n");
-    abort();
-  }
-  struct sigaction act;
-  // Initialize the signal set to empty, similar to memset(0)
-  if (sigemptyset(&act.sa_mask) == -1) {
-    perror("sigemptyset()");
-    abort();
-  }
-  act.sa_handler = signal_handler;
-  /* SA_RESETHAND means we want our signal_handler() to intercept the signal
-  once. If a signal is sent twice, the default signal handler will be used
-  again. `man sigaction` describes more possible sa_flags. */
-  act.sa_flags = SA_RESETHAND;
-  // act.sa_flags = 0;
-  if (sigaction(SIGINT, &act, 0) == -1 || sigaction(SIGTERM, &act, 0) == -1) {
-    perror("sigaction()");
-    abort();
-  }
 }
 
 void overlay_result_to_frame(int frame_idx, vector<Mat> &frames, int batch_idx,
@@ -131,8 +100,11 @@ void overlay_result_to_frame(int frame_idx, vector<Mat> &frames, int batch_idx,
 }
 
 int main(int argc, const char *argv[]) {
-  install_signal_handler();
-  cxxopts::Options options(argv[0], fmt::format("Video classifier (git commit: {})", GIT_COMMIT_HASH));
+  // install_signal_handler();
+  install_signal_handler(&e_flag);
+  cxxopts::Options options(
+      argv[0],
+      fmt::format("Video classifier (git commit: {})", GIT_COMMIT_HASH));
   string configPath, srcVideoPath;
   int output_sample_interval;
   filesystem::path dst_video_dir = filesystem::temp_directory_path();

@@ -12,13 +12,11 @@
 #include <mutex>
 #include <signal.h>
 
-void install_signal_handler();
+void install_signal_handler(volatile sig_atomic_t *ev_flag);
 
 std::string get_current_datetime_string();
 
-void interruptible_sleep(const size_t sleep_ms);
-
-void update_last_inference_at();
+void interruptible_sleep(const size_t sleep_ms, volatile int *ev_flag);
 
 std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms);
 

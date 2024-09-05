@@ -20,6 +20,7 @@ link_directories(/usr/local/lib/torch/)
 
 
 add_library(model_utils model_utils.cpp)
+add_library(utils utils.cpp)
 add_library(global_vars global_vars.cpp
 ${PROTO_SNAP_SRCS} ${PROTO_SNAP_HDRS}
 ${PROTO_INFER_SRCS} ${PROTO_INFER_HDRS})
@@ -45,30 +46,4 @@ target_link_libraries(inference_service
   torch_cpu c10)
 
 
-add_executable(classify_images classify_images.cpp)
-target_link_libraries(classify_images
-  model_utils global_vars
-  ${OpenCV_LIBS} 
-  ${Protobuf_LIBRARIES}
-  torch_cpu c10
-  spdlog
-)
-
-add_executable(classify_video classify_video.cpp)
-target_link_libraries(classify_video
-  model_utils global_vars
-  ${OpenCV_LIBS}
-  ${Protobuf_LIBRARIES}
-  torch_cpu c10
-  spdlog
-)
-
-add_executable(playground ./tools/playground.cpp)
-target_link_libraries(playground torch_cpu c10)
-
-add_executable(zeromq_consumer ./tools/zeromq_consumer.cpp
-  ${PROTO_INFER_SRCS} ${PROTO_INFER_HDRS})
-target_link_libraries(zeromq_consumer
-  spdlog zmq
-  ${Protobuf_LIBRARIES}
-)
+add_subdirectory(tools/)

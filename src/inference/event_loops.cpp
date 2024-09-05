@@ -3,7 +3,6 @@
 #include "model_utils.h"
 #include "snapshot.pb.h"
 #include "utils.h"
-#include <stdexcept>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-qualifiers"
@@ -13,6 +12,7 @@
 #include <zmq.hpp>
 #pragma GCC diagnostic pop
 
+#include <stdexcept>
 #include <tuple>
 
 namespace CnnPipeline::EventLoops {
@@ -181,14 +181,20 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
 
   for (int64_t i = 0; i < y_pred.size(0); ++i) {
     InferenceResultMsg msg;
-    auto epochNanoseconds = chrono::time_point_cast<chrono::nanoseconds>(
-                                chrono::system_clock::now())
-                                .time_since_epoch()
-                                .count();
-    msg.set_inferenceunixepochns(epochNanoseconds);
-    msg.set_snapshotunixepochns(snaps[i].unixepochns());
-    // msg.set_payload(snaps[i].payload());
+    msg.set_inferenceunixepochns(chrono::time_point_cast<chrono::nanoseconds>(
+                                     chrono::system_clock::now())
+                                     .time_since_epoch()
+                                     .count());
+    msg.set_snapshotunixepochns(
+        snaps[GV::pre_detection_size + i].unixepochns());
+    msg.set_payload(snaps[GV::pre_detection_size + i].payload());
     msg.set_label(y_pred[i].item<int>());
+    for (size_t j = 0; j < raw_outputs.size(); ++j) {
+      // spdlog::info("raw_outputs[j].size(0): {}", raw_outputs[j].size(0));
+      // spdlog::info("raw_outputs[j].size(1): {}", raw_outputs[j].size(1));
+      msg.add_labels(torch::argmax(raw_outputs[j][i], 0).item<int>());
+    }
+
     if (!GV::inference_result_pc_queue.try_enqueue(std::move(msg)))
       spdlog::warn(
           "Error inference_result_pc_queue.try_enqueue(std::move(msg)");
@@ -253,11 +259,13 @@ bool handle_inference_results(vector<at::Tensor> &raw_outputs,
   assert(frames.size() == GV::gif_frame_count);
   string gif_path = GV::settings.value(
       "/inference/on_detected/gif/path"_json_pointer, "/tmp/detected.gif");
+  /*
   spdlog::info("Saving GIF file (size: {}x{}) to [{}]", gif_width, gif_height,
                gif_path);
-  Magick::writeImages(frames.begin(), frames.end(), gif_path);
-  execute_external_program_async();
-  save_positive_outputs_as_jpeg(positive_y_preds_idx, jpegs);
+  */
+  // Magick::writeImages(frames.begin(), frames.end(), gif_path);
+  // execute_external_program_async();
+  // save_positive_outputs_as_jpeg(positive_y_preds_idx, jpegs);
   return true;
 }
 
@@ -272,7 +280,7 @@ void inference_ev_loop() {
   // Otherwise we won't have any images of detected object in the GIF
   assert(GV::inference_batch_size > 0);
   // Initial wait, just to spread out the stress at the beginning of the run
-  interruptible_sleep(delay_ms);
+  interruptible_sleep(delay_ms, &GV::ev_flag);
   try {
     {
       std::scoped_lock lck{GV::models_mtx, GV::model_ids_mtx};
@@ -323,12 +331,19 @@ void inference_ev_loop() {
 
     try {
       auto [raw_outputs, avg_output] = infer_images(GV::models, snap_deque);
-      update_last_inference_at();
+
+      auto now = chrono::system_clock::now();
+      auto now_time = chrono::system_clock::to_time_t(now);
+      tm *local_time = localtime(&now_time);
+      ostringstream oss;
+      oss << put_time(local_time, "%Y-%m-%dT%H:%M:%S");
+      GV::last_inference_at = oss.str();
+
       if (handle_inference_results(raw_outputs, avg_output, snap_deque)) {
         spdlog::info("inference_ev_loop() will sleep for {} ms after detection",
                      cooldown_ms);
         SnapshotMsg t;
-        interruptible_sleep(cooldown_ms);
+        interruptible_sleep(cooldown_ms, &GV::ev_flag);
         snap_deque.clear();
       }
     } catch (const runtime_error &e) {
@@ -360,7 +375,7 @@ void zeromq_producer_ev_loop() {
     InferenceResultMsg msg;
     // spdlog::info("zeromq_producer_ev_loop() iterating...");
     if (!GV::inference_result_pc_queue.try_dequeue(msg)) {
-      interruptible_sleep(1000);
+      interruptible_sleep(1000, &GV::ev_flag);
       continue;
     }
     auto serializedMsg = msg.SerializeAsString();
@@ -420,13 +435,8 @@ void zeromq_consumer_ev_loop() {
         continue;
       }
     } catch (const zmq::error_t &e) {
-      if (e.num() == EAGAIN) {
-        spdlog::warn("subscriber.recv() timed out, will retry");
-        continue;
-      } else {
-        spdlog::error("subscriber.recv() throws exception: {}", e.what());
-        continue;
-      }
+      spdlog::error("subscriber.recv() throws exception: {}", e.what());
+      continue;
     }
     if (message.size() == 0) {
       spdlog::warn("subscriber.recv() returned an empty message (probably due "

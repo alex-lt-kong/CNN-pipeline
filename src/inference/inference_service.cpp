@@ -25,7 +25,7 @@ namespace GV = CnnPipeline::GlobalVariables;
 namespace EL = CnnPipeline::EventLoops;
 
 int main(int argc, char **argv) {
-  install_signal_handler();
+  install_signal_handler(&GV::ev_flag);
   string config_path;
 
   cxxopts::Options options(argv[0], "Inference service");

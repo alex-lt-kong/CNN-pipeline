@@ -1,9 +1,6 @@
 //#define FMT_HEADER_ONLY
 
 #include "utils.h"
-#include "global_vars.h"
-
-#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <ctime>
@@ -18,17 +15,19 @@
 #include <unistd.h>
 
 using namespace std;
-namespace GV = CnnPipeline::GlobalVariables;
 
-static void signal_handler(int signum) {
+static volatile sig_atomic_t *_ev_flag = 0;
+
+void signal_handler(int signum) {
   char msg[] = "Signal [  ] caught\n";
   msg[8] = '0' + (char)(signum / 10);
   msg[9] = '0' + (char)(signum % 10);
-  (void)!write(STDIN_FILENO, msg, strlen(msg));
-  GV::ev_flag = 1;
+  (void)write(STDIN_FILENO, msg, strlen(msg));
+  *_ev_flag = 1;
 }
 
-void install_signal_handler() {
+void install_signal_handler(volatile sig_atomic_t *ev_flag) {
+  _ev_flag = ev_flag;
   // This design canNOT handle more than 99 signal types
   if (_NSIG > 99) {
     fprintf(stderr, "signal_handler() can't handle more than 99 signals\n");
@@ -72,27 +71,17 @@ string get_current_datetime_string() {
   return ss.str();
 }
 
-void interruptible_sleep(const size_t sleep_ms) {
+void interruptible_sleep(const size_t sleep_ms, volatile int *ev_flag) {
   const size_t interval_ms = 1000;
   if (sleep_ms <= interval_ms) {
     this_thread::sleep_for(chrono::milliseconds(sleep_ms));
   } else {
     size_t slept_ms = 0;
-    while (slept_ms < sleep_ms && !GV::ev_flag) {
+    while (slept_ms < sleep_ms && !*ev_flag) {
       slept_ms += interval_ms;
       this_thread::sleep_for(chrono::milliseconds(interval_ms));
     }
   }
-}
-
-void update_last_inference_at() {
-  auto now = chrono::system_clock::now();
-  auto now_time = chrono::system_clock::to_time_t(now);
-  tm *local_time = localtime(&now_time);
-  ostringstream oss;
-  oss << put_time(local_time, "%Y-%m-%dT%H:%M:%S");
-  GV::last_inference_at = oss.str();
-  // last_inference_at = put_time(lt, "%Y-%m-%dT%H:%M:%S");
 }
 
 std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms) {

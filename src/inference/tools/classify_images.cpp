@@ -1,6 +1,6 @@
 #define FMT_HEADER_ONLY
 
-#include "model_utils.h"
+#include "../model_utils.h"
 
 #include <getopt.h>
 #include <nlohmann/json.hpp>

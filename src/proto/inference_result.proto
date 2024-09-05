@@ -4,6 +4,6 @@ message InferenceResultMsg {
   int64 snapshotUnixEpochNs = 1;
   bytes payload = 2;
   int64 inferenceUnixEpochNs = 3;
-  repeated uint32 raw_outputs = 4;
+  repeated uint32 labels = 4;
   uint32 label = 5;
 }
