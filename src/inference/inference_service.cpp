@@ -56,15 +56,13 @@ int main(int argc, char **argv) {
 
   GV::inference_batch_size =
       GV::settings.value("/inference/batch_size"_json_pointer, 24);
-  GV::gif_frame_count = GV::pre_detection_size + GV::inference_batch_size +
-                        GV::post_detection_size;
-  GV::image_queue_size = GV::gif_frame_count * 4;
+  GV::pc_queue_size = GV::inference_batch_size * 2;
   GV::snapshot_pc_queue =
       moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>(
-          GV::image_queue_size);
+          GV::pc_queue_size);
   GV::inference_result_pc_queue =
       moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>(
-          GV::image_queue_size * 4);
+          GV::pc_queue_size * 4);
 
   initialize_rest_api(
       GV::settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),

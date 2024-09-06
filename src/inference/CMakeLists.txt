@@ -40,7 +40,6 @@ add_executable(inference_service
 target_link_libraries(inference_service
   http_service model_utils global_vars
   spdlog zmq
-  ${ImageMagick_LIBRARIES}
   ${OpenCV_LIBS}
   ${Protobuf_LIBRARIES}
   torch_cpu c10)

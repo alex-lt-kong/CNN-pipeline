@@ -5,5 +5,4 @@ message InferenceResultMsg {
   bytes payload = 2;
   int64 inferenceUnixEpochNs = 3;
   repeated uint32 labels = 4;
-  uint32 label = 5;
 }

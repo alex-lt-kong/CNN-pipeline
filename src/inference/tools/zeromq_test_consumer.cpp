@@ -55,14 +55,13 @@ int main() {
       for (auto lbl : msg.labels()) {
         labels += to_string(lbl) + ", ";
       }
-      spdlog::info(
-          "msg received (msgCount: {}), msg.label(): {}, msg.labels(): {}"
-          "msg.payload().length(): {}, msg.snapshotunixepochns(): "
-          "{}, latency: {}ms",
-          msgCount, msg.label(), labels, msg.payload().length(),
-          msg.snapshotunixepochns(),
-          (msg.inferenceunixepochns() - msg.snapshotunixepochns()) / 1000 /
-              1000);
+      spdlog::info("msg received (msgCount: {}), msg.labels(): {}"
+                   "msg.payload().length(): {}, ts: "
+                   "{}, latency: {}ms",
+                   msgCount, labels, msg.payload().length(),
+                   msg.snapshotunixepochns() / (1000 * 1000),
+                   (msg.inferenceunixepochns() - msg.snapshotunixepochns()) /
+                       1000 / 1000);
     } else {
       spdlog::error("Failed to parse ZeroMQ payload as SnapshotMsg");
     }

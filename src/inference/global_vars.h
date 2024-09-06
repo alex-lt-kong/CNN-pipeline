@@ -32,10 +32,7 @@ extern moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>
     inference_result_pc_queue;
 
 extern size_t inference_batch_size;
-extern const size_t pre_detection_size;
-extern const size_t post_detection_size;
-extern size_t gif_frame_count;
-extern size_t image_queue_size;
+extern size_t pc_queue_size;
 
 extern nlohmann::json settings;
 extern std::vector<std::string> model_ids;
@@ -45,8 +42,6 @@ extern PercentileTracker<float> pt;
 extern std::vector<torch::jit::script::Module> models;
 
 extern std::string ts_model_path;
-
-extern std::string last_inference_at;
 
 extern std::string cuda_device_string;
 

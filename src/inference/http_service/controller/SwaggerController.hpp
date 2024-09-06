@@ -116,8 +116,7 @@ public:
       }
     }
     dto->modelIds = ss.str();
-    dto->image_queue_size = GV::snapshot_pc_queue.size_approx();
-    dto->lastInferenceAt = GV::last_inference_at;
+    dto->image_queue_size = GV::pc_queue_size;
     auto percentiles = std::vector<double>{10, 50, 66, 90, 95, 99, 99.99};
     dto->inference_duration_stats =
         oatpp::data::mapping::type::PairList<String, Int32>::createShared();

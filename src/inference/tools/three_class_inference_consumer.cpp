@@ -4,7 +4,10 @@
 #include "../utils.h"
 #include "inference_result.pb.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-qualifiers"
 #include <Magick++.h>
+#pragma GCC diagnostic pop
 #include <cxxopts.hpp>
 #include <fmt/ranges.h>
 #include <nlohmann/json.hpp>
@@ -30,6 +33,7 @@ static int gif_frame_interval;
 static cv::Size zmq_payload_mat_size;
 static filesystem::path jpg_dir;
 static int zmq_payload_mat_type = CV_8UC3;
+static size_t cooldown_sec;
 static auto inference_result_pc_queue =
     moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>(
         queue_size);
@@ -63,12 +67,9 @@ void execute_external_program() {
   (void)!system(external_program.c_str());
 }
 
-void prepare_images(array<InferenceResultMsg, batch_size> results,
+void prepare_images(deque<InferenceResultMsg> results,
                     array<int, batch_size> labels) {
   vector<vector<uchar>> jpegs(batch_size);
-  // positive_y_preds_idx[0] stores the first non-zero item
-  // index in y_pred. Note that y_pred[0] is NOT the prediction
-  // of jpegs[0], but jpegs[pre_detection_size]
   // cv::imdecode(v, cv::IMREAD_COLOR);
   vector<Magick::Image> frames;
   for (size_t i = 0; i < batch_size; ++i) {
@@ -88,41 +89,87 @@ void prepare_images(array<InferenceResultMsg, batch_size> results,
 }
 
 void inference_handling_ev_loop() {
-  array<InferenceResultMsg, batch_size> results;
-  array<int, batch_size> labels;
   spdlog::info("inference_handling_ev_loop() started");
+  deque<InferenceResultMsg> results;
+  array<int, batch_size> labels;
   int neg_idx = -1;
   int pos_idx = -1;
+  int dequed_count = 0;
+  auto last_trigger_at = time(0) - cooldown_sec;
   while (!ev_flag) {
-    if (inference_result_pc_queue.size_approx() < batch_size) {
-      interruptible_sleep(5000, &ev_flag);
-      spdlog::info(
-          "inference_result_pc_queue.size_approx() is {}, will wait and retry",
-          inference_result_pc_queue.size_approx());
+    if (inference_result_pc_queue.size_approx() < batch_size - results.size()) {
+      interruptible_sleep(1000, &ev_flag);
       continue;
     }
-    for (size_t i = 0; i < batch_size; ++i) {
-      if (!inference_result_pc_queue.try_dequeue(results[i])) {
+    auto cooled_down_sec = time(0) - last_trigger_at;
+    if (cooled_down_sec < cooldown_sec) {
+      InferenceResultMsg msg;
+      spdlog::info("Cooling down, {} seconds passed, {} seconds to go",
+                   cooled_down_sec, cooldown_sec - cooled_down_sec);
+      while (inference_result_pc_queue.try_dequeue(msg)) {
+      }
+      interruptible_sleep(10000, &ev_flag);
+      continue;
+    }
+    spdlog::info("Handling batch");
+    while (results.size() < batch_size && !ev_flag) {
+      InferenceResultMsg msg;
+      if (!inference_result_pc_queue.try_dequeue(msg)) {
         spdlog::warn("Unexpected result: "
                      "inference_result_pc_queue.try_dequeue() failed");
+        break;
       }
+      results.emplace_back(move(msg));
     }
-    for (size_t i = 0; i < batch_size; ++i) {
-      if (results[i].labels_size() != 3) {
-        auto errMsg = "results[i].labels_size() != 3";
-        spdlog::error(errMsg);
-        throw runtime_error(errMsg);
+    dequed_count = 0;
+    for (size_t i = 0; i < results.size(); ++i) {
+      bool models_disagree = false;
+      auto hist = vector<int>{0, 0, 0};
+      for (auto const &lbl : results[i].labels()) {
+        if (lbl >= hist.size()) {
+          auto err_msg = fmt::format("unexpected label value {}", lbl);
+          spdlog::error(err_msg);
+          throw runtime_error(err_msg);
+        }
+        ++hist[lbl];
       }
-      if (results[i].labels(0) == results[i].labels(1)) {
-        labels[i] = results[i].labels(0);
-      } else if (results[i].labels(0) == results[i].labels(2)) {
-        labels[i] = results[i].labels(0);
-      } else if (results[i].labels(1) == results[i].labels(2)) {
-        labels[i] = results[i].labels(1);
-      } else {
-        labels[i] = results[i].labels(1);
+
+      auto argmax = [](const auto &vec) -> size_t {
+        /* if (vec.empty())
+          throw std::runtime_error("Cannot find argmax of an empty vector");  */
+        return std::distance(vec.begin(),
+                             std::max_element(vec.begin(), vec.end()));
+      };
+      auto max_ele = argmax(hist);
+      for (auto const &lbl : results[i].labels()) {
+        if (max_ele != lbl) {
+          models_disagree = true;
+          break;
+        }
       }
+      labels[i] = max_ele;
+      spdlog::info(
+          "batch[{:2}], labels: {} ({}{:12}), image_size: {}K, image_ts: {}", i,
+          max_ele, results[i].labels(), (models_disagree ? ", disagree" : ""),
+          results[i].payload().length() / 1024,
+          results[i].snapshotunixepochns() / 1000 / 1000);
     };
+    int pre_detections = 5;
+    for (size_t i = 0; i < results.size(); ++i) {
+      if (labels[i] == 1) {
+        ++dequed_count;
+      } else
+        break;
+    }
+    if (dequed_count > pre_detections) {
+      spdlog::info("Removing {} out of {} items from the batch",
+                   dequed_count - pre_detections, dequed_count);
+      for (int i = 0; i < dequed_count - pre_detections; ++i) {
+        results.pop_front();
+      }
+      continue;
+    }
+
     neg_idx = -1;
     pos_idx = -1;
     for (size_t i = 0; i < batch_size; ++i) {
@@ -133,11 +180,12 @@ void inference_handling_ev_loop() {
         pos_idx = i;
       }
     }
-    spdlog::info("Handling batchm, labels: {}", fmt::format("{}", labels));
     if (neg_idx == -1 && pos_idx >= 0) {
       prepare_images(results, labels);
       execute_external_program();
+      last_trigger_at = std::time(0);
     }
+    results.clear();
   }
   spdlog::info("inference_handling_ev_loop() exited gracefully");
 }
@@ -147,13 +195,12 @@ void zeromq_consumer_ev_loop() {
   zmq::socket_t subscriber(context, ZMQ_SUB);
   subscriber.connect(zmq_address);
   spdlog::info("ZeroMQ consumer connected to {}", zmq_address);
-  constexpr int timeout = 30000;
+  constexpr int timeout = 5000;
   // For the use of zmqcpp, refer to this 3rd-party tutorial:
   // https://brettviren.github.io/cppzmq-tour/index.html#org3a79e67
   subscriber.set(zmq::sockopt::rcvtimeo, timeout);
   subscriber.set(zmq::sockopt::subscribe, "");
 
-  size_t msgCount = 0;
   while (!ev_flag) {
     zmq::message_t message;
     InferenceResultMsg msg;
@@ -161,7 +208,6 @@ void zeromq_consumer_ev_loop() {
       auto res = subscriber.recv(message, zmq::recv_flags::none);
       if (!res.has_value()) {
         spdlog::warn("subscriber.recv() timed out, will retry");
-        msgCount = 0;
         continue;
       }
       if (res == 0) {
@@ -178,19 +224,19 @@ void zeromq_consumer_ev_loop() {
       continue;
     }
     if (msg.ParseFromArray(message.data(), message.size())) {
-      ++msgCount;
+
       string labels = "";
       for (auto lbl : msg.labels()) {
         labels += to_string(lbl) + ", ";
       }
+      /*
       spdlog::info(
-          "msg received (msgCount: {}), msg.label(): {}, msg.labels(): {}"
-          "msg.payload().length(): {}, msg.snapshotunixepochns(): "
-          "{}, latency: {}ms",
-          msgCount, msg.label(), labels, msg.payload().length(),
-          msg.snapshotunixepochns(),
+          "recv()ed, labels: {}, image_size: {}, image_ts: {}, latency: {}ms",
+          labels, msg.payload().length(),
+          msg.snapshotunixepochns() / 1000 / 1000,
           (msg.inferenceunixepochns() - msg.snapshotunixepochns()) / 1000 /
               1000);
+      */
       if (!inference_result_pc_queue.try_enqueue(msg)) {
         spdlog::warn("inference_result_pc_queue.try_enqueue(msg) failed, "
                      "consumer not dequeue()ing fast enough?");
@@ -246,7 +292,8 @@ int main(int argc, char **argv) {
       settings.value("/inference/zeromq/image_size/height"_json_pointer, 1080));
   jpg_dir = settings.value(
       "/inference/on_detected/jpegs_directory"_json_pointer, "/");
-
+  cooldown_sec =
+      settings.value("/inference/on_detected/cooldown_sec"_json_pointer, 120);
   thread thread_zeromq_consumer(zeromq_consumer_ev_loop);
   thread thread_inference_handling_ev_loop(inference_handling_ev_loop);
   if (thread_zeromq_consumer.joinable()) {
