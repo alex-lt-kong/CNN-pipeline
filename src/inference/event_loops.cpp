@@ -45,11 +45,11 @@ vector<at::Tensor> infer_images(vector<torch::jit::script::Module> &models,
     // TODO: can we remove this std::copy()??
     // Profiling shows this copy takes less than 1 ms
     if ((uint)zmq_payload_mat_size.width * zmq_payload_mat_size.height * 3 !=
-        snaps[i].payload().size()) {
+        snaps[i].cvmatbytes().size()) {
       throw runtime_error("Unexpected ZeroMQ payload received");
     }
     cv::Mat mat = cv::Mat(zmq_payload_mat_size, zmq_payload_mat_type,
-                          (void *)snaps[i].payload().data());
+                          (void *)snaps[i].cvmatbytes().data());
     // std::copy(snaps[i].payload().begin(), snaps[i].payload().end(),
     // v.begin());
     images_tensors_vec[i] = MU::cv_mat_to_tensor(mat, target_img_size);
@@ -91,7 +91,7 @@ void handle_inference_results(vector<at::Tensor> &raw_outputs,
                                      .time_since_epoch()
                                      .count());
     msg.set_snapshotunixepochns(snap_deque[i].unixepochns());
-    msg.set_payload(snap_deque[i].payload());
+    msg.set_payload(snap_deque[i].cvmatbytes());
     // msg.set_label(y_pred[i].item<int>());
     for (size_t j = 0; j < raw_outputs.size(); ++j) {
       msg.add_labels(torch::argmax(raw_outputs[j][i], 0).item<int>());
