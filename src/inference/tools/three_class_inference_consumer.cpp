@@ -34,6 +34,8 @@ static cv::Size zmq_payload_mat_size;
 static filesystem::path jpg_dir;
 static int zmq_payload_mat_type = CV_8UC3;
 static size_t cooldown_sec;
+static vector<int> include_outputs;
+static vector<int> exclude_outputs;
 static auto inference_result_pc_queue =
     moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>(
         queue_size);
@@ -172,11 +174,15 @@ void inference_handling_ev_loop() {
 
     neg_idx = -1;
     pos_idx = -1;
+
+    auto contains = [](const vector<int> &vec, int element) {
+      return find(vec.begin(), vec.end(), element) != vec.end();
+    };
     for (size_t i = 0; i < batch_size; ++i) {
-      if (labels[i] == 0) {
+      if (contains(exclude_outputs, labels[i])) {
         neg_idx = i;
       }
-      if (labels[i] == 2) {
+      if (contains(include_outputs, labels[i])) {
         pos_idx = i;
       }
     }
@@ -294,6 +300,12 @@ int main(int argc, char **argv) {
       "/inference/on_detected/jpegs_directory"_json_pointer, "/");
   cooldown_sec =
       settings.value("/inference/on_detected/cooldown_sec"_json_pointer, 120);
+  include_outputs = settings.value(
+      "/inference/on_detected/triggers/include_outputs"_json_pointer,
+      vector<int>{1});
+  exclude_outputs = settings.value(
+      "/inference/on_detected/triggers/exclude_outputs"_json_pointer,
+      vector<int>{});
   thread thread_zeromq_consumer(zeromq_consumer_ev_loop);
   thread thread_inference_handling_ev_loop(inference_handling_ev_loop);
   if (thread_zeromq_consumer.joinable()) {
