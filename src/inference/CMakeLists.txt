@@ -19,7 +19,9 @@ include_directories(${ImageMagick_INCLUDE_DIRS})
 link_directories(/usr/local/lib/torch/)
 
 
-add_library(model_utils model_utils.cpp)
+add_library(model_utils model_utils.cpp
+${PROTO_SNAP_SRCS} ${PROTO_SNAP_HDRS}
+${PROTO_INFER_SRCS} ${PROTO_INFER_HDRS})
 add_library(utils utils.cpp)
 add_library(global_vars global_vars.cpp
 ${PROTO_SNAP_SRCS} ${PROTO_SNAP_HDRS}

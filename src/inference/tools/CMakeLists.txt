@@ -1,3 +1,5 @@
+include(${PROJECT_SOURCE_DIR}/cmake/proto.cmake)
+
 add_executable(torch_playground torch_playground.cpp)
 target_link_libraries(torch_playground torch_cpu c10)
 
