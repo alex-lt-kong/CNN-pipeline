@@ -92,6 +92,8 @@ void handle_inference_results(vector<at::Tensor> &raw_outputs,
                                      .count());
     msg.set_snapshotunixepochns(snap_deque[i].unixepochns());
     msg.set_payload(snap_deque[i].cvmatbytes());
+    msg.set_cooldown(snap_deque[i].cooldown());
+    msg.set_rateofchange(snap_deque[i].rateofchange());
     // msg.set_label(y_pred[i].item<int>());
     for (size_t j = 0; j < raw_outputs.size(); ++j) {
       msg.add_labels(torch::argmax(raw_outputs[j][i], 0).item<int>());
@@ -126,9 +128,15 @@ void inference_ev_loop() {
     }
 
   } catch (const c10::Error &e) {
-    spdlog::error("Error loading the model: {}", e.what());
+    spdlog::error(
+        "Error loading the model (c10::Error): {}\nThe program must exit now",
+        e.what());
     GV::ev_flag = 1;
-    spdlog::critical("The program must exit now");
+  } catch (const torch::jit::ErrorReport &e) {
+    spdlog::error("Error loading the model (torch::jit::ErrorReport): {}\nThe "
+                  "program must exit now",
+                  e.what());
+    GV::ev_flag = 1;
   }
 
   deque<SnapshotMsg> snap_deque;

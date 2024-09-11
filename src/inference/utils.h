@@ -18,7 +18,8 @@ std::string get_current_datetime_string();
 
 void interruptible_sleep(const size_t sleep_ms, volatile int *ev_flag);
 
-std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms);
+std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms,
+                                    std::string fmt = "%FT%T");
 
 template <typename T> std::string vector_to_string(std::vector<T> vec) {
   std::ostringstream vec_oss;

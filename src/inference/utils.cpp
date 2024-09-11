@@ -84,13 +84,13 @@ void interruptible_sleep(const size_t sleep_ms, volatile int *ev_flag) {
   }
 }
 
-std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms) {
-  std::chrono::milliseconds ms(unix_ts_ms);
-  std::chrono::time_point<std::chrono::system_clock> time_point(ms);
-  std::time_t time_t = std::chrono::system_clock::to_time_t(time_point);
-  std::tm *p_tm = std::localtime(&time_t);
-  std::stringstream ss;
-  ss << std::put_time(p_tm, "%FT%T") << '.' << std::setfill('0') << std::setw(3)
+string unix_ts_to_iso_datetime(int64_t unix_ts_ms, string fmt) {
+  chrono::milliseconds ms(unix_ts_ms);
+  chrono::time_point<chrono::system_clock> time_point(ms);
+  time_t time_t = chrono::system_clock::to_time_t(time_point);
+  tm *p_tm = localtime(&time_t);
+  stringstream ss;
+  ss << put_time(p_tm, fmt.c_str()) << '.' << std::setfill('0') << setw(3)
      << ms.count() % 1000;
   return ss.str();
 }

@@ -132,12 +132,15 @@ def main() -> None:
         help="A list of comma-separated model names such as vggnet and resnet10"
     )
     ap.add_argument('--batch-size', '-b', dest='batch_size', default=64, type=int)
-    ap.add_argument('--model-ids', '-i', dest='model-ids', required=True)
+    ap.add_argument('--model-ids', '-i', dest='model-ids', required=True,
+                    help="A list of comma-separated IDs for models with saved weights such as resnet10_rev20240910")
+    ap.add_argument('--training-dir', dest='training_dir', type=str)
+    ap.add_argument('--validation-dir', dest='validation_dir', type=str)
     args = vars(ap.parse_args())
     model_ids = str(args['model-ids']).split(',')
     model_names = str(args['model-names']).split(',')
-    assert(len(model_ids) == len(model_names))
-    
+    assert (len(model_ids) == len(model_names))
+
     with open(args['config-path']) as j:
         settings = json.load(j)
     target_img_size = (
@@ -160,12 +163,10 @@ def main() -> None:
 
     misclassified_dir = os.path.join(settings['model']['diagnostics_dir'], 'misclassified')
     if os.path.exists(misclassified_dir):
+        print(f'Directory [{misclassified_dir}] exists, will be removed')
         shutil.rmtree(misclassified_dir)
     print(f'Misclassified sample will be saved to: {misclassified_dir}')
-    for dir in [
-        os.path.join(settings['dataset']['training']),
-        os.path.join(settings['dataset']['validation'])
-    ]:
+    for dir in [args['training_dir'], args['validation_dir']]:
         print(f'\n\n====={dir}=====\n\n')
         dataset = ImageFolder(
             root=dir,
@@ -173,6 +174,7 @@ def main() -> None:
         )
         evaluate(settings, models, dataset, misclassified_dir, args['batch_size'])
         input()
+
 
 if __name__ == '__main__':
     main()

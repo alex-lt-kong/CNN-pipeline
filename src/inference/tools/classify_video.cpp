@@ -172,7 +172,15 @@ int main(int argc, const char *argv[]) {
   cuda::GpuMat dFrame;
   vector<Mat> hFrames;
 
-  auto dReader = cudacodec::createVideoReader(srcVideoPath);
+  Ptr<cv::cudacodec::VideoReader> dReader;
+
+  try {
+    dReader = cudacodec::createVideoReader(srcVideoPath);
+  } catch (const cv::Exception &e) {
+    spdlog::error("cudacodec::createVideoReader({}) failed: {}", srcVideoPath,
+                  e.what());
+    return EXIT_FAILURE;
+  }
 
   if (!dReader->nextFrame(dFrame)) {
     spdlog::error("Failed to read frame from source {}", srcVideoPath);

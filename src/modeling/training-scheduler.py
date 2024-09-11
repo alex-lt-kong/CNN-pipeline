@@ -78,7 +78,8 @@ def ev_training_driver() -> None:
                 'config_file', 'cuda_device', 'epochs', 'synthetic_multiplier',
                 'batch_size', 'split_ratio', 'image_ext', 'revision',
                 'prepare_training_data', 'model_base_name', 'dropout_rate',
-                'load_parameters'
+                'load_parameters', 'source_dir', 'training_data_dir',
+                'validation_data_dir'
             ]
             for item in items:
                 if item not in task_args:
@@ -108,7 +109,10 @@ def ev_training_driver() -> None:
                 "--config-path", task_args['config_file'],
                 "--split-ratio", task_args['split_ratio'],
                 "--synthetic-multiplier", task_args['synthetic_multiplier'],
-                "--image-extension", task_args['image_ext']
+                "--image-extension", task_args['image_ext'],
+                "--source-dir", task_args['source_dir'],
+                "--dest-dir-training", task_args['training_data_dir'],
+                "--dest-dir-validation", task_args['validation_data_dir']
             ]
             if task_args['prepare_training_data']:
                 logging.info(f'Command to prepare training data is: {cmd}')
@@ -131,7 +135,9 @@ def ev_training_driver() -> None:
                 "--model-name", task_args['model_base_name'],
                 "--model-id", task_args['model_id'],
                 "--load-parameters", task_args['load_parameters'],
-                "--cuda-device-id", task_args['cuda_device']
+                "--cuda-device-id", task_args['cuda_device'],
+                "--training-data-dir", task_args['training_data_dir'],
+                "--validation-data-dir", task_args['validation_data_dir']
             ]
             logging.info(f'Training data is ready, now running the training process: {cmd}')
             process = subprocess.Popen(cmd, stdout=stdout_file, stderr=stdout_file)

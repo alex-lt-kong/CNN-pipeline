@@ -113,6 +113,9 @@ def main() -> None:
         '--split-ratio', '-r', help='Ratio of the training set',
         dest='split-ratio', type=float, default='0.9'
     )
+    ap.add_argument('--source-dir', dest='source-dir', type=str)
+    ap.add_argument('--dest-dir-training',  dest='dest-dir-training', type=str)
+    ap.add_argument('--dest-dir-validation', dest='dest-dir-validation', type=str)
     # Pass JPG is harddisk I/O is likely to be the bottleneck;
     # pass BMP is CPU is likely to be the bottleneck
     ap.add_argument(
@@ -141,9 +144,9 @@ def main() -> None:
     threads = []
     for cat in range(config['model']['num_classes']):
         cat = str(cat)
-        input_dir = os.path.join(config["dataset"]['raw'], cat)
-        training_dir = os.path.join(config["dataset"]['training'], cat)
-        validation_dir = os.path.join(config["dataset"]['validation'], cat)
+        input_dir = os.path.join(args['source-dir'], cat)
+        training_dir = os.path.join(args['dest-dir-training'], cat)
+        validation_dir = os.path.join(args['dest-dir-validation'], cat)
         thread = threading.Thread(target=prepare_files, args=(
             input_dir, training_dir, validation_dir, args['image-extension'],
             args['split-ratio'], int(args['synthetic-multiplier']), random_seed

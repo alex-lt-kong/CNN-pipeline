@@ -5,4 +5,6 @@ message InferenceResultMsg {
   bytes payload = 2;
   int64 inferenceUnixEpochNs = 3;
   repeated uint32 labels = 4;
+  float rateOfChange = 5;
+  int64 cooldown = 6;
 }

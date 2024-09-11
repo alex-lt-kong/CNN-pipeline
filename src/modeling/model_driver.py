@@ -43,12 +43,12 @@ def set_seed(seed: int) -> None:
 
 
 def get_data_loaders(
-        training_data_dir: str, test_data_dir: str, batch_size: int = 64
-    ) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    training_data_dir: str, test_data_dir: str, batch_size: int = 64
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
     train_ds = ImageFolder(root=training_data_dir, transform=helper.dummy_transforms)
     test_ds = ImageFolder(root=test_data_dir, transform=helper.dummy_transforms)
-    assert len(train_ds) > len(test_ds), "How come len(train_ds) <= len(test_ds)??"
+    assert len(train_ds) >= len(test_ds), "How come len(train_ds) < len(test_ds)??"
     num_samples = int(len(test_ds) * 0.1)
     train_ds_random_sampler = RandomSampler(train_ds, num_samples=num_samples)
     test_ds_random_sampler = RandomSampler(test_ds, num_samples=num_samples)
@@ -213,9 +213,9 @@ def save_transformed_samples(dataloader: DataLoader,
 
 
 def train(
-    load_parameters: bool, model_name: str, model_id: str,
-    dropout_rate: float = 0.001, lr: float = 0.001, epochs: int = 10,
-    batch_size: int = 64
+    load_parameters: bool, model_name: str, model_id: str, training_dir: str,
+    validation_dir: str, dropout_rate: float = 0.001, lr: float = 0.001,
+    epochs: int = 10, batch_size: int = 64
 ) -> nn.Module:
 
     m = globals()[model_name](config, dropout_rate)
@@ -244,8 +244,8 @@ def train(
         logging.info(f'{name.ljust(21)} | {layer_parameters: >12,} | {module}')
     logging.info(f'{"Total".ljust(21)} | {total_parameters: >12,} | NA')
 
-    training_samples_dir = os.path.join(config['dataset']['training'])
-    test_samples_dir = os.path.join(config['dataset']['validation'])
+    training_samples_dir = training_dir
+    test_samples_dir = validation_dir
     logging.info(f'Loading samples from [{training_samples_dir}] and [{test_samples_dir}]')
 
     # Define the dataset and data loader for the training set
@@ -393,6 +393,8 @@ def main() -> None:
                     default='cuda',
                     help=('Specify GPU to use following CUDA semantics. '
                           'Sample values include "cuda"/"cuda:0"/"cuda:1"'))
+    ap.add_argument('--training-data-dir', dest='training_data_dir', type=str)
+    ap.add_argument('--validation-data-dir', dest='validation_data_dir', type=str)
     args = vars(ap.parse_args())
 
     with open(args['config-path']) as j:
@@ -403,7 +405,7 @@ def main() -> None:
     logging.info(f"GPU Memory: {properties.total_memory / 1024**3:.2f} GB")
     logging.info(f"GPU CUDA semantics: {device}")
 
-    if args['model_id'] in config['model']['random_seeds']:
+    if 'random_seeds' in config['model'] and args['model_id'] in config['model']['random_seeds']:
         set_seed(config['model']['random_seeds'][args['model_id']])
     else:
         logging.warning(
@@ -417,6 +419,7 @@ def main() -> None:
     ))
     train(
         bool(args['load_parameters']), args['model_name'], args['model_id'],
+        args['training_data_dir'], args['validation_data_dir'],
         float(args['dropout_rate']), args['learning_rate'], args['epochs'],
         int(args['batch_size'])
     )

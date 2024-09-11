@@ -32,6 +32,7 @@ static string gif_path;
 static int gif_frame_interval;
 static cv::Size zmq_payload_mat_size;
 static filesystem::path jpg_dir;
+static filesystem::path static_jpegs_directory;
 static int zmq_payload_mat_type = CV_8UC3;
 static size_t cooldown_sec;
 static vector<int> include_outputs;
@@ -40,13 +41,17 @@ static auto inference_result_pc_queue =
     moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>(
         queue_size);
 
+int contains(const vector<int> &vec, int element) {
+  return find(vec.begin(), vec.end(), element) != vec.end();
+};
+
 void save_positive_outputs_as_jpeg(const vector<vector<uchar>> &jpegs,
                                    array<int, batch_size> labels) {
 
   spdlog::info("Saving positive images as JPEG files to [{}]",
                jpg_dir.native());
   for (size_t i = 0; i < batch_size; ++i) {
-    if (labels[i] != 2)
+    if (!contains(include_outputs, labels[i]))
       continue;
     filesystem::path jpg_path =
         jpg_dir / (get_current_datetime_string() + ".jpg");
@@ -94,8 +99,7 @@ void inference_handling_ev_loop() {
   spdlog::info("inference_handling_ev_loop() started");
   deque<InferenceResultMsg> results;
   array<int, batch_size> labels;
-  int neg_idx = -1;
-  int pos_idx = -1;
+  array<int, batch_size> cooldowns;
   int dequed_count = 0;
   auto last_trigger_at = time(0) - cooldown_sec;
   while (!ev_flag) {
@@ -150,15 +154,24 @@ void inference_handling_ev_loop() {
         }
       }
       labels[i] = max_ele;
-      spdlog::info(
-          "batch[{:2}], labels: {} ({}{:12}), image_size: {}K, image_ts: {}", i,
-          max_ele, results[i].labels(), (models_disagree ? ", disagree" : ""),
-          results[i].payload().length() / 1024,
-          results[i].snapshotunixepochns() / 1000 / 1000);
+      cooldowns[i] = results[i].cooldown();
+      uint32_t expected_pl_length = (uint32_t)zmq_payload_mat_size.height *
+                                    zmq_payload_mat_size.width * 3;
+      if (results[i].payload().length() != expected_pl_length)
+        spdlog::warn("Received image has unexpected size ({} vs {})",
+                     results[i].payload().length(), expected_pl_length);
+      spdlog::info("batch[{:2}], labels: {} ({}{:12}), "
+                   "image_ts: {}, cooldown: {} sec",
+                   i, max_ele, results[i].labels(),
+                   (models_disagree ? ", disagree" : ""),
+                   results[i].snapshotunixepochns() / 1000 / 1000,
+                   results[i].cooldown());
     };
     int pre_detections = 5;
+
     for (size_t i = 0; i < results.size(); ++i) {
-      if (labels[i] == 1) {
+      if (!contains(exclude_outputs, labels[i]) &&
+          !contains(include_outputs, labels[i])) {
         ++dequed_count;
       } else
         break;
@@ -172,24 +185,51 @@ void inference_handling_ev_loop() {
       continue;
     }
 
-    neg_idx = -1;
-    pos_idx = -1;
+    deque<int> include_idxs;
+    deque<int> exclude_idxs;
 
-    auto contains = [](const vector<int> &vec, int element) {
-      return find(vec.begin(), vec.end(), element) != vec.end();
-    };
     for (size_t i = 0; i < batch_size; ++i) {
       if (contains(exclude_outputs, labels[i])) {
-        neg_idx = i;
+        exclude_idxs.push_back(i);
       }
       if (contains(include_outputs, labels[i])) {
-        pos_idx = i;
+        include_idxs.push_back(i);
       }
     }
-    if (neg_idx == -1 && pos_idx >= 0) {
-      prepare_images(results, labels);
-      execute_external_program();
-      last_trigger_at = std::time(0);
+    size_t static_image_count = 0;
+    if (exclude_idxs.size() == 0 && include_idxs.size() > 0) {
+      for (const auto idx : include_idxs) {
+        if (results[idx].cooldown() < 0)
+          ++static_image_count;
+      }
+      if (static_image_count < include_idxs.size()) {
+        prepare_images(results, labels);
+        execute_external_program();
+        last_trigger_at = std::time(0);
+      } else {
+        for (const auto idx : include_idxs) {
+          vector<uchar> jpeg_bytes;
+          cv::imencode(".jpg",
+                       cv::Mat(zmq_payload_mat_size, zmq_payload_mat_type,
+                               (void *)results[idx].payload().data()),
+                       jpeg_bytes);
+          filesystem::path jpg_path =
+              static_jpegs_directory /
+              (unix_ts_to_iso_datetime(results[idx].snapshotunixepochns() /
+                                           1000 / 1000,
+                                       "%Y-%m-%dT%H-%M-%S.%f") +
+               ".jpg");
+          ofstream out_file(jpg_path, ios::binary);
+          if (!out_file) {
+            spdlog::error("Failed to open the file [{}]", jpg_path.native());
+          } else {
+            out_file.write((char *)jpeg_bytes.data(), jpeg_bytes.size());
+            out_file.close();
+            spdlog::info("static positive sample (batch[{}]) saved to: {}", idx,
+                         jpg_path.native());
+          }
+        }
+      }
     }
     results.clear();
   }
@@ -298,6 +338,8 @@ int main(int argc, char **argv) {
       settings.value("/inference/zeromq/image_size/height"_json_pointer, 1080));
   jpg_dir = settings.value(
       "/inference/on_detected/jpegs_directory"_json_pointer, "/");
+  static_jpegs_directory = settings.value(
+      "/inference/on_detected/static_jpegs_directory"_json_pointer, "/");
   cooldown_sec =
       settings.value("/inference/on_detected/cooldown_sec"_json_pointer, 120);
   include_outputs = settings.value(
