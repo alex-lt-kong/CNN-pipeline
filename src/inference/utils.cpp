@@ -54,12 +54,12 @@ void install_signal_handler(volatile sig_atomic_t *ev_flag) {
   }
 }
 
-string get_current_datetime_string() {
+string get_current_datetime_string(const char *fmt) {
   auto now = chrono::system_clock::now();
   auto in_time_t = chrono::system_clock::to_time_t(now);
 
   stringstream ss;
-  ss << put_time(localtime(&in_time_t), "%Y%m%d-%H%M%S%");
+  ss << put_time(localtime(&in_time_t), fmt);
   // Get the milliseconds
   auto milliseconds =
       chrono::duration_cast<chrono::milliseconds>(now.time_since_epoch())
@@ -84,13 +84,13 @@ void interruptible_sleep(const size_t sleep_ms, volatile int *ev_flag) {
   }
 }
 
-string unix_ts_to_iso_datetime(int64_t unix_ts_ms, string fmt) {
+string unix_ts_to_iso_datetime(int64_t unix_ts_ms, const char *fmt) {
   chrono::milliseconds ms(unix_ts_ms);
   chrono::time_point<chrono::system_clock> time_point(ms);
   time_t time_t = chrono::system_clock::to_time_t(time_point);
   tm *p_tm = localtime(&time_t);
   stringstream ss;
-  ss << put_time(p_tm, fmt.c_str()) << '.' << std::setfill('0') << setw(3)
+  ss << put_time(p_tm, fmt) << '.' << std::setfill('0') << setw(3)
      << ms.count() % 1000;
   return ss.str();
 }

@@ -30,7 +30,7 @@ A pipeline of an ensemble of heterogeneous CNN models.
   images before sending to them to `libtorch`,
 
 - Refer to instructions
-  [here](https://github.com/alex-lt-kong/the-nitty-gritty/tree/main/c-cpp/cpp/06_poc/05_cudacodec-vs-ffmpeg)
+  [here](https://github.com/alex-lt-kong/proofs-of-concept/tree/main/cpp/05_cuda-vs-ffmpeg)
 
 #### `Swagger`
 

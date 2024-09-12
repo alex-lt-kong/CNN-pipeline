@@ -14,12 +14,12 @@
 
 void install_signal_handler(volatile sig_atomic_t *ev_flag);
 
-std::string get_current_datetime_string();
+std::string get_current_datetime_string(const char *fmt = "%Y%m%d-%H%M%S");
 
 void interruptible_sleep(const size_t sleep_ms, volatile int *ev_flag);
 
 std::string unix_ts_to_iso_datetime(int64_t unix_ts_ms,
-                                    std::string fmt = "%FT%T");
+                                    const char *fmt = "%FT%T");
 
 template <typename T> std::string vector_to_string(std::vector<T> vec) {
   std::ostringstream vec_oss;

@@ -188,7 +188,7 @@ int main(int argc, const char *argv[]) {
   }
 
   auto temp_video_path = filesystem::temp_directory_path() /
-                         ("temp_" + to_string(time(nullptr)) + ".mp4");
+                         ("temp_" + get_current_datetime_string() + ".mp4");
 
   Ptr<cudacodec::VideoWriter> dWriter = cudacodec::createVideoWriter(
       temp_video_path.string(), dFrame.size(), cudacodec::Codec::H264, 45.0,
