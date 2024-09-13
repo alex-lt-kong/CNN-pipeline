@@ -217,7 +217,7 @@ void inference_handling_ev_loop() {
               static_jpegs_directory /
               (unix_ts_to_iso_datetime(results[idx].snapshotunixepochns() /
                                            1000 / 1000,
-                                       "%Y-%m-%dT%H-%M-%S.%f") +
+                                       "%Y-%m-%dT%H-%M-%S") +
                ".jpg");
           ofstream out_file(jpg_path, ios::binary);
           if (!out_file) {
