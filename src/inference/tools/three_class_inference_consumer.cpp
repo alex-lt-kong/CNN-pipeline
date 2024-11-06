@@ -337,9 +337,9 @@ int main(int argc, char **argv) {
       settings.value("/inference/zeromq/image_size/width"_json_pointer, 1920),
       settings.value("/inference/zeromq/image_size/height"_json_pointer, 1080));
   jpg_dir = settings.value(
-      "/inference/on_detected/jpegs_directory"_json_pointer, "/");
+      "/inference/on_detected/jpegs_directory"_json_pointer, "/tmp/");
   static_jpegs_directory = settings.value(
-      "/inference/on_detected/static_jpegs_directory"_json_pointer, "/");
+      "/inference/on_detected/static_jpegs_directory"_json_pointer, "/tmp/");
   cooldown_sec =
       settings.value("/inference/on_detected/cooldown_sec"_json_pointer, 120);
   include_outputs = settings.value(
