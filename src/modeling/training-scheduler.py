@@ -64,8 +64,8 @@ def ev_training_driver() -> None:
         try:
             schedule_mutex.acquire()
             task_idx = schedule["next_task_idx"]
-            if task_idx > schedule["end_task_idx_inclusive"]:
-                raise IndexError(f"end_task_idx_inclusive {schedule['end_task_idx_inclusive']} reached")
+            if task_idx >= schedule["end_task_idx_exclusive"]:
+                raise IndexError(f"end_task_idx_exclusive {schedule['end_task_idx_exclusive']} reached")
             schedule["next_task_idx"] += 1
             task_args = schedule["training_tasks"][task_idx]
             assert isinstance(task_args, Dict)
