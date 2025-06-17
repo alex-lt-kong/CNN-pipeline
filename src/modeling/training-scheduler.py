@@ -65,7 +65,7 @@ def ev_training_driver() -> None:
             schedule_mutex.acquire()
             task_idx = schedule["next_task_idx"]
             if task_idx > schedule["end_task_idx_inclusive"]:
-                raise IndexError(f"end_task_idx_inclusive {schedule["end_task_idx_inclusive"]} reached")
+                raise IndexError(f"end_task_idx_inclusive {schedule['end_task_idx_inclusive']} reached")
             schedule["next_task_idx"] += 1
             task_args = schedule["training_tasks"][task_idx]
             assert isinstance(task_args, Dict)
@@ -93,8 +93,8 @@ def ev_training_driver() -> None:
             ev_flag = True
             break
         except Exception as ex:
-            logging.error(f'Error loading config of {
-                          task_idx}-th task. This task will be skipped:\n{ex}\n{traceback.format_exc()}')
+            logging.error(
+                f'Error loading config of {task_idx}-th task. This task will be skipped:\n{ex}\n{traceback.format_exc()}')
             continue
         finally:
             if schedule_mutex.locked():

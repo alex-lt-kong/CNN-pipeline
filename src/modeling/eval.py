@@ -16,7 +16,7 @@ import torch.nn as nn
 
 if not torch.cuda.is_available():
     raise RuntimeError('CUDA is unavailable')
-device = torch.device("cuda")
+device = torch.device("cuda:1")
 
 
 def evaluate(
