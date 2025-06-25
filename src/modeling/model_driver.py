@@ -321,12 +321,15 @@ def train(
 
         # switch to evaluation mode
         m.eval()
+        time.sleep(1)
         evalute_model_classification(
             m, config['model']['num_classes'], sampled_train_loader, f'training_{model_id}'
         )
+        time.sleep(1)
         evalute_model_classification(
             m, config['model']['num_classes'], sampled_test_loader, f'test_{model_id}'
         )
+        time.sleep(1)
 
         save_params(m, model_id)
         # hook_handle.remove()
@@ -336,6 +339,8 @@ def train(
             f'ETA: {dt.datetime.fromtimestamp(eta).astimezone().isoformat()}'
             f', estimated training duration: {(eta - start_ts)/3600:.1f} hrs'
         )
+        # seems the server can overheat, let's give it a short break after each iteration...
+        time.sleep(10)
     return m
 
 

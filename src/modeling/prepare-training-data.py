@@ -84,6 +84,8 @@ def prepare_files(
                 f'({total_sec/3600:.1f} hrs)'
                 f', speed: {int(num_files * synthetic_multiplier / total_sec)} samples / sec'
             )
+            # the server could become too hot...let's give it a break...
+            time.sleep(1)
         for j in range(synthetic_multiplier):
             if i < num_files_dir_1:
                 apply_transform_and_save(
