@@ -1,9 +1,12 @@
 #ifndef CP_GLOBAL_VARS_H
 #define CP_GLOBAL_VARS_H
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include "inference_result.pb.h"
-#include "percentile_tracker.h"
 #include "snapshot.pb.h"
+#pragma GCC diagnostic pop
+#include "percentile_tracker.h"
 #include "utils.h"
 
 #include <ATen/ops/nonzero.h>
@@ -14,7 +17,6 @@
 #include <mutex>
 #include <signal.h>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace CnnPipeline::GlobalVariables {

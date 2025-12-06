@@ -2,27 +2,32 @@
 add_compile_definitions(MAGICKCORE_QUANTUM_DEPTH=16)
 add_compile_definitions(MAGICKCORE_HDRI_ENABLE=0)
 add_subdirectory(http_service/)
+# Torch is NOT managed by vcpkg, we need to manually specify its root dir
+set(TORCH_HOME "/apps/libtorch")
 
 find_package(OpenCV REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(cppzmq CONFIG REQUIRED)
 find_package(CUDA REQUIRED)
+set(Torch_DIR "${TORCH_HOME}/share/cmake/Torch")
+find_package(Torch REQUIRED) #Dont include this, we directly pass include_directories() and link_directories()
 find_package(ImageMagick COMPONENTS Magick++ MagickCore)
 
 
 include(${PROJECT_SOURCE_DIR}/cmake/proto.cmake)
 
 include_directories(http_service/)
-include_directories(/usr/local/include/torch/)
-include_directories(/usr/local/cuda/include/)
+include_directories("${TORCH_HOME}/include")
 include_directories(${ImageMagick_INCLUDE_DIRS})
 
-link_directories(/usr/local/lib/torch/)
+link_directories("${TORCH_HOME}/lib")
 
 
 add_library(model_utils model_utils.cpp
 ${PROTO_SNAP_SRCS} ${PROTO_SNAP_HDRS}
 ${PROTO_INFER_SRCS} ${PROTO_INFER_HDRS})
 add_library(utils utils.cpp)
+
 add_library(global_vars global_vars.cpp
 ${PROTO_SNAP_SRCS} ${PROTO_SNAP_HDRS}
 ${PROTO_INFER_SRCS} ${PROTO_INFER_HDRS})

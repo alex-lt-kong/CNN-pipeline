@@ -12,7 +12,7 @@ add_library(http_components
         ${PROTO_INFER_SRCS} ${PROTO_INFER_HDRS})
 
 ## include directories
-include_directories(/usr/local/include/torch/)
+# include_directories(/usr/local/include/torch/)
 include_directories(/usr/local/cuda/include/)
 
 target_include_directories(http_components PUBLIC swagger)
