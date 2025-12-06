@@ -7,15 +7,13 @@
 #include "snapshot.pb.h"
 #pragma GCC diagnostic pop
 #include "percentile_tracker.h"
-#include "utils.h"
 
-#include <ATen/ops/nonzero.h>
+#include <torch/torch.h> // all-in-one torch header
 #include <nlohmann/json.hpp>
 #include <readerwriterqueue/readerwritercircularbuffer.h>
 
-#include <deque>
 #include <mutex>
-#include <signal.h>
+#include <csignal>
 #include <string>
 #include <vector>
 
@@ -29,9 +27,9 @@ extern std::mutex models_mtx;
 extern std::mutex model_ids_mtx;
 
 extern moodycamel::BlockingReaderWriterCircularBuffer<SnapshotMsg>
-    snapshot_pc_queue;
+snapshot_pc_queue;
 extern moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>
-    inference_result_pc_queue;
+inference_result_pc_queue;
 
 extern size_t inference_batch_size;
 extern size_t pc_queue_size;

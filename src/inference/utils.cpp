@@ -7,7 +7,8 @@
 #include <iomanip>
 #include <iostream>
 #include <regex>
-#include <signal.h>
+#include <thread>
+#include <csignal>
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,8 +47,8 @@ void install_signal_handler(volatile sig_atomic_t *ev_flag) {
   act.sa_flags = SA_RESETHAND;
   // act.sa_flags = 0;
   if (sigaction(SIGINT, &act, 0) + sigaction(SIGABRT, &act, 0) +
-          sigaction(SIGQUIT, &act, 0) + sigaction(SIGTERM, &act, 0) +
-          sigaction(SIGPIPE, &act, 0) + sigaction(SIGTRAP, &act, 0) <
+      sigaction(SIGQUIT, &act, 0) + sigaction(SIGTERM, &act, 0) +
+      sigaction(SIGPIPE, &act, 0) + sigaction(SIGTRAP, &act, 0) <
       0) {
     perror("sigaction()");
     abort();
@@ -63,7 +64,7 @@ string get_current_datetime_string(const char *fmt) {
   // Get the milliseconds
   auto milliseconds =
       chrono::duration_cast<chrono::milliseconds>(now.time_since_epoch())
-          .count() %
+      .count() %
       1000;
 
   // Append the milliseconds to the datetime string

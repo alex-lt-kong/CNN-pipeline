@@ -1,20 +1,25 @@
 {
-  "$schema" : "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "dependencies" : [ "nlohmann-json", "cppzmq", "readerwriterqueue", "boost-interprocess", "cxxopts", "fmt", "protobuf", {
-    "name" : "spdlog",
-    "version>=" : "1.16.0"
-  }, {
-    "name" : "oatpp-swagger",
-    "version>=" : "1.3.1"
-  }, {
-    "name" : "oatpp",
-    "version>=" : "1.3.1"
-  } ],
-  "overrides" : [ {
-    "name" : "protobuf",
-    "version" : "3.13.0"
-  } ],
-  "builtin-baseline" : "4c4abc2e8727221ede31021349386dac674309b0",
-  "version" : "0.0.2",
-  "name" : "cnn-pipeline"
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "dependencies": [
+    "nlohmann-json",
+    "cppzmq",
+    "readerwriterqueue",
+    "boost-interprocess",
+    "cxxopts",
+    "fmt",
+    "protobuf",
+    {
+      "name": "spdlog",
+      "version>=": "1.16.0"
+    }
+  ],
+  "overrides": [
+    {
+      "name": "protobuf",
+      "version": "3.13.0"
+    }
+  ],
+  "builtin-baseline": "4c4abc2e8727221ede31021349386dac674309b0",
+  "version": "0.0.2",
+  "name": "cnn-pipeline"
 }

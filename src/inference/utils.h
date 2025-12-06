@@ -1,16 +1,10 @@
-#ifndef CP_UTILS_H
-#define CP_UTILS_H
+#pragma once
 
 #include <nlohmann/json.hpp>
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#include <torch/script.h> // One-stop header.
-#pragma GCC diagnostic pop
 
-#include <deque>
 #include <iostream>
 #include <mutex>
-#include <signal.h>
+#include <csignal>
 
 void install_signal_handler(volatile sig_atomic_t *ev_flag);
 
@@ -34,5 +28,3 @@ template <typename T> std::string vector_to_string(std::vector<T> vec) {
   vec_oss << "]";
   return vec_oss.str();
 }
-
-#endif // CP_UTILS_H

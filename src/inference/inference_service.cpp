@@ -2,11 +2,10 @@
 
 #include "event_loops.h"
 #include "global_vars.h"
-#include "http_service/oatpp_entry.h"
 #include "model_utils.h"
 #include "utils.h"
 
-#include <cxxopts.hpp>
+#include <cxxopts.hpp>git
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
@@ -64,12 +63,6 @@ int main(int argc, char **argv) {
       moodycamel::BlockingReaderWriterCircularBuffer<InferenceResultMsg>(
           GV::pc_queue_size * 4);
 
-  initialize_rest_api(
-      GV::settings.value("/inference/swagger/host"_json_pointer, "127.0.0.1"),
-      GV::settings.value("/inference/swagger/port"_json_pointer, 8000),
-      GV::settings.value("/inference/swagger/advertised_host"_json_pointer,
-                         "http://127.0.0.1:8000"));
-
   thread thread_zeromq_consumer(EL::zeromq_consumer_ev_loop);
   thread thread_inference(EL::inference_ev_loop);
   thread thread_zero_producer(EL::zeromq_producer_ev_loop);
@@ -82,7 +75,6 @@ int main(int argc, char **argv) {
   if (thread_zero_producer.joinable()) {
     thread_zero_producer.join();
   }
-  finalize_rest_api();
   spdlog::info("inference_service exiting");
   return 0;
 }
